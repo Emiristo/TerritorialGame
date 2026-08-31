@@ -17,5 +17,7 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
-      - name: Run tests
+      - name: Run game tests
         run: npm test
+      - name: Build browser game
+        run: npm run build
