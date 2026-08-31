@@ -1,0 +1,40 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #e8edf2;
+  background: #101419;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; min-width: 320px; min-height: 100vh; background: #101419; }
+button { font: inherit; }
+
+.game-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.game-header, .game-footer { padding: 16px 20px; background: #181e25; border-color: #29313a; }
+.game-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid; }
+.game-header h1 { margin: 0; font-size: 22px; }
+.game-header p { margin: 4px 0 0; color: #8e9aa7; font-size: 13px; }
+.turn-info { font-weight: 600; }
+
+.game-layout { flex: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr) 220px; gap: 12px; padding: 12px; }
+.panel, .map-panel { background: #181e25; border: 1px solid #29313a; border-radius: 8px; }
+.panel { padding: 16px; }
+.panel h2 { margin: 0 0 14px; font-size: 15px; }
+.map-panel { min-width: 0; padding: 12px; display: flex; align-items: center; justify-content: center; }
+.map { width: 100%; max-width: 900px; aspect-ratio: 12 / 8; display: grid; grid-template-columns: repeat(var(--map-columns), 1fr); border: 1px solid #3a444e; }
+.tile { border: 1px solid #343e48; background: #28352d; color: #d9e5da; cursor: pointer; min-width: 0; }
+.tile:hover { background: #34453a; }
+.tile.is-owned { background: #3c5745; }
+.tile.is-selected { outline: 2px solid #e8edf2; outline-offset: -2px; z-index: 1; }
+.stat { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #29313a; font-size: 13px; }
+.stat span { color: #8e9aa7; }
+.game-footer { display: flex; align-items: center; gap: 14px; border-top: 1px solid; }
+#end-turn { border: 0; border-radius: 6px; padding: 9px 14px; background: #e8edf2; color: #101419; cursor: pointer; font-weight: 700; }
+#status { color: #8e9aa7; font-size: 13px; }
+
+@media (max-width: 850px) {
+  .game-layout { grid-template-columns: 1fr; }
+  .panel { min-height: 0; }
+  .map-panel { order: -1; }
+}
