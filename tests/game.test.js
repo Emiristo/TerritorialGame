@@ -37,7 +37,7 @@ describe('influence and work zones', () => {
 
 describe('territories', () => {
   it('lets a new influence source claim uncontested tiles', () => {
-    const state = createGameState(); addTerritorySource(state, createTerritorySource('outpost', 'player', '0-0', 1)); expect(state.tiles.find((tile) => tile.id === '0-0').ownerId).toBe('player');
+    const state = createGameState(); addTerritorySource(state, createTerritorySource('outpost', 'player', '10-0', 1)); expect(state.tiles.find((tile) => tile.id === '11-0').ownerId).toBe('player');
   });
   it('leaves contested tiles neutral on equal influence', () => {
     const state = createGameState(); addTerritorySource(state, createTerritorySource('enemy', 'enemy', '10-4', 1)); const contested = state.tiles.find((tile) => tile.id === '7-4');
@@ -45,9 +45,8 @@ describe('territories', () => {
   });
   it('expands territory when a second source is added', () => {
     const state = createGameState(); const before = getOwnedTiles(state, 'player').length;
-    addTerritorySource(state, createTerritorySource('outpost', 'player', '0-0', 1));
-    expect(getOwnedTiles(state, 'player').length).toBeGreaterThan(before);
-    expect(state.tiles.find((tile) => tile.id === '0-0').ownerId).toBe('player');
+    addTerritorySource(state, createTerritorySource('outpost', 'player', '10-0', 1));
+    expect(getOwnedTiles(state, 'player').length).toBeGreaterThan(before); expect(state.tiles.find((tile) => tile.id === '11-0').ownerId).toBe('player');
   });
   it('does not allow equal influence to choose a winner', () => {
     const state = createGameState(); addTerritorySource(state, createTerritorySource('enemy', 'enemy', '10-4', 1));
