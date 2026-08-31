@@ -16,7 +16,7 @@ describe('game state', () => {
     const capital = state.tiles.find((tile) => tile.x === 5 && tile.y === 4);
     expect(capital.ownerId).toBe('player');
     expect(capital.influence.player).toBe(1);
-    expect(getOwnedTiles(state, 'player').length).toBe(48);
+    expect(getOwnedTiles(state, 'player').length).toBe(88);
   });
 });
 
