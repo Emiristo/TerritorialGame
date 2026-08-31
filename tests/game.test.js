@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState, MAP_WIDTH, MAP_HEIGHT } from '../src/game/state.js';
 import { TERRAIN_BY_ID } from '../src/game/terrain.js';
-import { getTilesInRadius } from '../src/game/influence.js';
-import { WORK_ZONE_RADIUS, createWorkZone, canWorkTile } from '../src/game/workZones.js';
-import { getResourceAmount, gatherResource } from '../src/game/resources.js';
+import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence.js';
+import { WORKER_TYPES, createWorkZone, isTileInWorkZone, extractOneResource } from '../src/game/workZones.js';
 
 describe('game state', () => {
   it('creates the expected map dimensions', () => {
@@ -31,32 +30,31 @@ describe('terrain and resources', () => {
   it('uses nine units as the base resource reserve', () => {
     const state = createGameState();
     const forest = state.tiles.find((tile) => tile.terrain === 'forest');
-    if (!forest) throw new Error('No forest tile in generated map');
-    expect(getResourceAmount(forest, 'wood')).toBe(9);
+    expect(forest.resources.wood).toBe(9);
   });
 
-  it('gathering one resource consumes one unit', () => {
+  it('extracting one resource consumes one unit', () => {
     const tile = { resources: { wood: 9, stone: 0, ore: 0, food: 0 } };
-    expect(gatherResource(tile, 'wood', 1)).toBe(1);
+    expect(extractOneResource(tile, WORKER_TYPES.LUMBERJACK.id)).toBe('wood');
     expect(tile.resources.wood).toBe(8);
   });
 });
 
 describe('influence and work zones', () => {
   it('uses a radius of five cells for influence', () => {
-    const tiles = Array.from({ length: 11 }, (_, x) => ({ id: `${x}-0`, x, y: 0 }));
-    const covered = getTilesInRadius(tiles, 5, 0, 0);
-    expect(covered.map((tile) => tile.x)).toEqual([0, 1, 2, 3, 4, 5]);
+    const center = { x: 0, y: 0 };
+    expect(INFLUENCE_RADIUS).toBe(5);
+    expect(isWithinInfluenceRadius(center, { x: 5, y: 0 })).toBe(true);
+    expect(isWithinInfluenceRadius(center, { x: 6, y: 0 })).toBe(false);
   });
 
   it('uses the same five-cell radius for work zones', () => {
-    expect(WORK_ZONE_RADIUS).toBe(5);
-    const zone = createWorkZone('player', '0-0');
+    const zone = createWorkZone('zone-1', 'player', '0-0', 'lumberjack');
     expect(zone.radius).toBe(5);
   });
 
   it('allows a tile inside the work zone', () => {
-    const zone = createWorkZone('player', '0-0');
-    expect(canWorkTile(zone, { x: 3, y: 4 })).toBe(true);
+    const zone = createWorkZone('zone-1', 'player', '0-0', 'lumberjack');
+    expect(isTileInWorkZone(zone, { x: 0, y: 0 }, { x: 3, y: 4 })).toBe(true);
   });
 });
