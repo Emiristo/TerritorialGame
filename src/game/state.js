@@ -3,6 +3,7 @@ import { createTileResources } from './resources.js';
 import { INFLUENCE_RADIUS } from './influence.js';
 import { createTerritorySource, recalculateTerritories } from './territory.js';
 import { createWorkZone, createWorker, WORKER_TYPES } from './workers.js';
+import { BUILDING_TYPES, createBuilding } from './buildings.js';
 
 export const MAP_WIDTH = 12;
 export const MAP_HEIGHT = 8;
@@ -41,7 +42,9 @@ export function createGameState() {
     selectedTileId: null,
     player: { id: 'player', name: 'Игрок', resources: { wood: 0, stone: 0, ore: 0, food: 0 } },
     rules: { influenceRadius: INFLUENCE_RADIUS, workZoneRadius: INFLUENCE_RADIUS, resourceUnitPerExtraction: 1 },
+    buildingTypes: Object.values(BUILDING_TYPES),
     territorySources: [],
+    buildings: [],
     workZones: [],
     workers: [],
     tiles,
@@ -49,11 +52,24 @@ export function createGameState() {
 
   if (capital) {
     state.territorySources.push(createTerritorySource('capital-player', 'player', capital.id, 1));
-    state.workZones.push(createWorkZone('capital-zone', 'player', capital.id, state.rules.workZoneRadius));
-    state.workers.push(createWorker('lumberjack-1', 'player', WORKER_TYPES.LUMBERJACK.id));
+    recalculateTerritories(state);
+
+    const lumberTile = tiles.find((tile) => tile.terrain === TERRAIN_TYPES.FOREST.id && tile.ownerId === 'player');
+    if (lumberTile) {
+      const building = createBuilding('lumber-camp-1', 'player', BUILDING_TYPES.LUMBER_CAMP.id, lumberTile.id);
+      state.buildings.push(building);
+      const zone = createWorkZone('zone-lumber-camp-1', 'player', lumberTile.id, state.rules.workZoneRadius, building.id);
+      state.workZones.push(zone);
+      const worker = createWorker('lumberjack-1', 'player', WORKER_TYPES.LUMBERJACK.id);
+      state.workers.push(worker);
+      worker.buildingId = building.id;
+      worker.zoneId = zone.id;
+      worker.state = 'working';
+      building.workerIds.push(worker.id);
+      zone.workerIds.push(worker.id);
+    }
   }
 
-  recalculateTerritories(state);
   return state;
 }
 
