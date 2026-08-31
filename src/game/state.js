@@ -1,6 +1,7 @@
 import { TERRAIN_TYPES } from './terrain.js';
 import { createTileResources } from './resources.js';
 import { INFLUENCE_RADIUS } from './influence.js';
+import { createTerritorySource, recalculateTerritories } from './territory.js';
 
 export const MAP_WIDTH = 12;
 export const MAP_HEIGHT = 8;
@@ -43,12 +44,8 @@ export function createGameState() {
   }
 
   const capital = tiles.find((tile) => tile.x === 5 && tile.y === 4);
-  if (capital) {
-    capital.ownerId = 'player';
-    capital.influence.player = 1;
-  }
 
-  return {
+  const state = {
     turn: 1,
     selectedTileId: null,
     player: {
@@ -66,9 +63,17 @@ export function createGameState() {
       workZoneRadius: INFLUENCE_RADIUS,
       resourceUnitPerExtraction: 1,
     },
+    territorySources: [],
     workZones: [],
     tiles,
   };
+
+  if (capital) {
+    state.territorySources.push(createTerritorySource('capital-player', 'player', capital.id, 1));
+  }
+
+  recalculateTerritories(state);
+  return state;
 }
 
 export function getSelectedTile(state) {
