@@ -2,6 +2,7 @@ import { TERRAIN_TYPES } from './terrain.js';
 import { createTileResources } from './resources.js';
 import { INFLUENCE_RADIUS } from './influence.js';
 import { createTerritorySource, recalculateTerritories } from './territory.js';
+import { createWorkZone, createWorker, WORKER_TYPES } from './workers.js';
 
 export const MAP_WIDTH = 12;
 export const MAP_HEIGHT = 8;
@@ -27,49 +28,29 @@ function createInitialResources(terrainId) {
 
 export function createGameState() {
   const tiles = [];
-
   for (let y = 0; y < MAP_HEIGHT; y += 1) {
     for (let x = 0; x < MAP_WIDTH; x += 1) {
       const terrain = getInitialTerrain(x, y);
-      tiles.push({
-        id: `${x}-${y}`,
-        x,
-        y,
-        terrain,
-        ownerId: null,
-        influence: {},
-        resources: createInitialResources(terrain),
-      });
+      tiles.push({ id: `${x}-${y}`, x, y, terrain, ownerId: null, influence: {}, resources: createInitialResources(terrain) });
     }
   }
 
   const capital = tiles.find((tile) => tile.x === 5 && tile.y === 4);
-
   const state = {
     turn: 1,
     selectedTileId: null,
-    player: {
-      id: 'player',
-      name: 'Игрок',
-      resources: {
-        wood: 0,
-        stone: 0,
-        ore: 0,
-        food: 0,
-      },
-    },
-    rules: {
-      influenceRadius: INFLUENCE_RADIUS,
-      workZoneRadius: INFLUENCE_RADIUS,
-      resourceUnitPerExtraction: 1,
-    },
+    player: { id: 'player', name: 'Игрок', resources: { wood: 0, stone: 0, ore: 0, food: 0 } },
+    rules: { influenceRadius: INFLUENCE_RADIUS, workZoneRadius: INFLUENCE_RADIUS, resourceUnitPerExtraction: 1 },
     territorySources: [],
     workZones: [],
+    workers: [],
     tiles,
   };
 
   if (capital) {
     state.territorySources.push(createTerritorySource('capital-player', 'player', capital.id, 1));
+    state.workZones.push(createWorkZone('capital-zone', 'player', capital.id, state.rules.workZoneRadius));
+    state.workers.push(createWorker('lumberjack-1', 'player', WORKER_TYPES.LUMBERJACK.id));
   }
 
   recalculateTerritories(state);
