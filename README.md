@@ -4,28 +4,20 @@ Strategy game by GPT.
 
 ## Current scaffold
 
-The project currently contains a dependency-free browser prototype with:
+The project currently contains a browser prototype with:
 
 - a grid-based map;
 - central game state;
 - player resource state;
 - tile selection;
 - turn progression;
+- terrain and tile resources;
+- influence and work zones;
+- territory ownership and expansion;
 - separated game-state, rendering, and UI modules.
 
-## Structure
+## Development
 
-```text
-.
-├── index.html
-└── src
-    ├── main.js
-    ├── styles.css
-    ├── game
-    │   └── state.js
-    └── ui
-        ├── map.js
-        └── panels.js
-```
+The `scaffold` branch is the active development branch.
 
-The scaffold intentionally does not hard-code the final game balance. Game rules such as influence radius, work zones, resource reserves, workers, production, ownership, and economy will be implemented as dedicated systems.
+Automated tests run through GitHub Actions. The game deployment workflow publishes the browser build through GitHub Pages once Pages is enabled for the repository.
