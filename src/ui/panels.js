@@ -1,9 +1,14 @@
 import { getSelectedTile } from '../game/state.js';
 import { TERRAIN_BY_ID } from '../game/terrain.js';
+import { getTerritorySourceAtTile } from '../game/territory.js';
 
 export function renderPlayerPanel(container, state) {
   const { resources } = state.player;
+  const ownedTiles = state.tiles.filter((tile) => tile.ownerId === state.player.id).length;
+  const sources = (state.territorySources ?? []).filter((source) => source.ownerId === state.player.id && source.active).length;
   container.innerHTML = `
+    <div class="stat"><span>Территория</span><strong>${ownedTiles}</strong></div>
+    <div class="stat"><span>Источники влияния</span><strong>${sources}</strong></div>
     <div class="stat"><span>Дерево</span><strong>${resources.wood}</strong></div>
     <div class="stat"><span>Камень</span><strong>${resources.stone}</strong></div>
     <div class="stat"><span>Руда</span><strong>${resources.ore}</strong></div>
@@ -19,6 +24,7 @@ export function renderTilePanel(container, state) {
   }
 
   const terrain = TERRAIN_BY_ID[tile.terrain];
+  const source = getTerritorySourceAtTile(state, tile.id);
   const resourceLines = Object.entries(tile.resources)
     .filter(([, amount]) => amount > 0)
     .map(([resource, amount]) => `${resource}: ${amount}`)
@@ -33,6 +39,7 @@ export function renderTilePanel(container, state) {
     <div class="stat"><span>Владелец</span><strong>${tile.ownerId ?? 'нет'}</strong></div>
     <div class="stat"><span>Ресурсы</span><strong>${resourceLines || 'нет'}</strong></div>
     <div class="stat"><span>Влияние</span><strong>${influenceLines}</strong></div>
+    <div class="stat"><span>Источник</span><strong>${source?.id ?? 'нет'}</strong></div>
   `;
 }
 
