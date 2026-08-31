@@ -1,4 +1,5 @@
 import { getSelectedTile } from '../game/state.js';
+import { TERRAIN_BY_ID } from '../game/terrain.js';
 
 export function renderPlayerPanel(container, state) {
   const { resources } = state.player;
@@ -17,13 +18,24 @@ export function renderTilePanel(container, state) {
     return;
   }
 
+  const terrain = TERRAIN_BY_ID[tile.terrain];
+  const resourceLines = Object.entries(tile.resources)
+    .filter(([, amount]) => amount > 0)
+    .map(([resource, amount]) => `${resource}: ${amount}`)
+    .join(', ');
+  const influenceLines = Object.entries(tile.influence)
+    .map(([actor, amount]) => `${actor}: ${amount}`)
+    .join(', ') || 'нет';
+
   container.innerHTML = `
     <div class="stat"><span>Координаты</span><strong>${tile.x}, ${tile.y}</strong></div>
-    <div class="stat"><span>Ландшафт</span><strong>${tile.terrain}</strong></div>
+    <div class="stat"><span>Ландшафт</span><strong>${terrain?.name ?? tile.terrain}</strong></div>
     <div class="stat"><span>Владелец</span><strong>${tile.ownerId ?? 'нет'}</strong></div>
+    <div class="stat"><span>Ресурсы</span><strong>${resourceLines || 'нет'}</strong></div>
+    <div class="stat"><span>Влияние</span><strong>${influenceLines}</strong></div>
   `;
 }
 
 export function renderTurnInfo(container, state) {
-  container.textContent = `Ход: ${state.turn}`;
+  container.textContent = `Ход: ${state.turn} · Радиус влияния/рабочей зоны: ${state.rules.influenceRadius}`;
 }
