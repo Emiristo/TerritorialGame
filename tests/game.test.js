@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createGameState, MAP_WIDTH, MAP_HEIGHT } from '../src/game/state.js';
 import { TERRAIN_BY_ID } from '../src/game/terrain.js';
 import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence.js';
-import { WORKER_TYPES, createWorkZone, createWorker, assignWorkerToZone, extractForWorker } from '../src/game/workers.js';
+import { WORKER_TYPES, createWorkZone, createWorker, assignWorkerToBuilding, extractForWorker } from '../src/game/workers.js';
+import { BUILDING_TYPES, addBuilding, canBuildOnTile, getBuildingAtTile, createBuilding } from '../src/game/buildings.js';
 import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
 
 describe('game state', () => {
@@ -30,27 +31,37 @@ describe('terrain and resources', () => {
   });
 });
 
-describe('influence and work zones', () => {
-  it('uses a radius of five cells for influence', () => {
-    const center = { x: 0, y: 0 };
-    expect(INFLUENCE_RADIUS).toBe(5);
-    expect(isWithinInfluenceRadius(center, { x: 5, y: 0 })).toBe(true);
-    expect(isWithinInfluenceRadius(center, { x: 6, y: 0 })).toBe(false);
+describe('buildings, workers and work zones', () => {
+  it('creates a starting workplace for the starting worker', () => {
+    const state = createGameState();
+    const worker = state.workers[0];
+    const building = getBuildingAtTile(state, worker.buildingId ? state.buildings.find((b) => b.id === worker.buildingId).tileId : null);
+    expect(state.buildings).toHaveLength(1);
+    expect(building?.typeId).toBe(BUILDING_TYPES.LUMBER_CAMP.id);
+    expect(worker.buildingId).toBe(state.buildings[0].id);
+    expect(worker.zoneId).toBe(state.workZones[0].id);
   });
-  it('uses the same five-cell radius for work zones', () => {
+
+  it('uses a radius of five cells for work zones', () => {
     expect(createWorkZone('zone-1', 'player', '0-0').radius).toBe(5);
+    expect(INFLUENCE_RADIUS).toBe(5);
+    expect(isWithinInfluenceRadius({ x: 0, y: 0 }, { x: 5, y: 0 })).toBe(true);
+    expect(isWithinInfluenceRadius({ x: 0, y: 0 }, { x: 6, y: 0 })).toBe(false);
   });
-  it('assigns a worker to an owned work zone', () => {
+
+  it('allows only compatible workers to work in a building', () => {
     const state = createGameState();
     const worker = createWorker('worker-1', 'player', WORKER_TYPES.LUMBERJACK.id);
     state.workers.push(worker);
-    const assigned = assignWorkerToZone(state, worker.id, 'capital-zone');
-    expect(assigned.workZoneId).toBe('capital-zone');
+    const building = state.buildings[0];
+    const assigned = assignWorkerToBuilding(state, worker.id, building.id);
+    expect(assigned.buildingId).toBe(building.id);
+    expect(assigned.zoneId).toBe(state.workZones[0].id);
   });
+
   it('extracts exactly one unit for a worker', () => {
     const state = createGameState();
     const worker = state.workers[0];
-    assignWorkerToZone(state, worker.id, 'capital-zone');
     const forest = state.tiles.find((tile) => tile.terrain === 'forest' && tile.ownerId === 'player');
     expect(forest.resources.wood).toBe(9);
     const result = extractForWorker(state, worker);
@@ -59,14 +70,23 @@ describe('influence and work zones', () => {
     expect(state.player.resources.wood).toBe(1);
     expect(state.tiles.find((tile) => tile.id === result.tileId).resources.wood).toBe(8);
   });
+
   it('does not extract from a depleted deposit', () => {
     const state = createGameState();
     const worker = state.workers[0];
-    assignWorkerToZone(state, worker.id, 'capital-zone');
     for (let i = 0; i < 9; i += 1) extractForWorker(state, worker);
     const result = extractForWorker(state, worker);
     expect(result.extracted).toBe(false);
     expect(state.player.resources.wood).toBe(9);
+  });
+
+  it('places a resource building only on owned compatible terrain', () => {
+    const state = createGameState();
+    const forest = state.tiles.find((tile) => tile.terrain === 'forest' && tile.ownerId === 'player');
+    const plains = state.tiles.find((tile) => tile.terrain === 'plains' && tile.ownerId === 'player');
+    expect(canBuildOnTile(state, BUILDING_TYPES.LUMBER_CAMP.id, forest.id)).toBe(true);
+    expect(canBuildOnTile(state, BUILDING_TYPES.LUMBER_CAMP.id, plains.id)).toBe(false);
+    expect(() => addBuilding(state, createBuilding('invalid', 'player', BUILDING_TYPES.LUMBER_CAMP.id, plains.id))).toThrow();
   });
 });
 
