@@ -3,6 +3,7 @@ import { createGameState, MAP_WIDTH, MAP_HEIGHT } from '../src/game/state.js';
 import { TERRAIN_BY_ID } from '../src/game/terrain.js';
 import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence.js';
 import { WORKER_TYPES, createWorkZone, isTileInWorkZone, extractOneResource } from '../src/game/workZones.js';
+import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
 
 describe('game state', () => {
   it('creates the expected map dimensions', () => {
@@ -10,11 +11,12 @@ describe('game state', () => {
     expect(state.tiles).toHaveLength(MAP_WIDTH * MAP_HEIGHT);
   });
 
-  it('creates a valid starting capital', () => {
+  it('creates a starting territory around the capital', () => {
     const state = createGameState();
-    const capital = state.tiles.find((tile) => tile.ownerId === 'player');
-    expect(capital).toBeDefined();
+    const capital = state.tiles.find((tile) => tile.x === 5 && tile.y === 4);
+    expect(capital.ownerId).toBe('player');
     expect(capital.influence.player).toBe(1);
+    expect(getOwnedTiles(state, 'player').length).toBe(48);
   });
 });
 
@@ -56,5 +58,22 @@ describe('influence and work zones', () => {
   it('allows a tile inside the work zone', () => {
     const zone = createWorkZone('zone-1', 'player', '0-0', 'lumberjack');
     expect(isTileInWorkZone(zone, { x: 0, y: 0 }, { x: 3, y: 4 })).toBe(true);
+  });
+});
+
+describe('territories', () => {
+  it('lets a new influence source claim uncontested tiles', () => {
+    const state = createGameState();
+    addTerritorySource(state, createTerritorySource('outpost', 'player', '0-0', 1));
+    expect(state.tiles.find((tile) => tile.id === '0-0').ownerId).toBe('player');
+  });
+
+  it('leaves contested tiles neutral on equal influence', () => {
+    const state = createGameState();
+    addTerritorySource(state, createTerritorySource('enemy', 'enemy', '10-4', 1));
+    const contested = state.tiles.find((tile) => tile.id === '7-4');
+    expect(contested.influence.player).toBe(1);
+    expect(contested.influence.enemy).toBe(1);
+    expect(contested.ownerId).toBe(null);
   });
 });
