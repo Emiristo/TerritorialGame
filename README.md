@@ -21,3 +21,7 @@ The project currently contains a browser prototype with:
 The `scaffold` branch is the active development branch.
 
 Automated tests run through GitHub Actions. The game deployment workflow publishes the browser build through GitHub Pages once Pages is enabled for the repository.
+
+## Deployment check
+
+GitHub Pages deployment workflow trigger verification.
