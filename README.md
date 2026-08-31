@@ -1,27 +1,42 @@
 # TerritorialGame
 
-Strategy game by GPT.
+Браузерная стратегическая игра с клеточной картой, территориями, влиянием, ресурсами и рабочими зонами.
 
-## Current scaffold
+## Что уже есть
 
-The project currently contains a browser prototype with:
+- карта 12×8;
+- типы ландшафта и ресурсы клеток;
+- стартовая территория игрока;
+- влияние с радиусом 5 клеток;
+- источники влияния и расширение территории;
+- рабочие зоны с радиусом 5 клеток;
+- типы работников: лесоруб, каменщик, шахтёр;
+- добыча по 1 единице ресурса за операцию;
+- выбор клеток и переход хода;
+- автоматические тесты.
 
-- a grid-based map;
-- central game state;
-- player resource state;
-- tile selection;
-- turn progression;
-- terrain and tile resources;
-- influence and work zones;
-- territory ownership and expansion;
-- separated game-state, rendering, and UI modules.
+## Запуск разработки
 
-## Development
+Требуется Node.js 20+.
 
-The `scaffold` branch is the active development branch.
+```bash
+npm install
+npm run dev
+```
 
-Automated tests run through GitHub Actions. The game deployment workflow publishes the browser build through GitHub Pages once Pages is enabled for the repository.
+После запуска Vite покажет локальный адрес игры в терминале.
 
-## Deployment check
+## Проверка проекта
 
-GitHub Pages deployment workflow trigger verification.
+```bash
+npm test
+npm run build
+```
+
+`npm test` проверяет игровые правила, а `npm run build` проверяет, что браузерная версия действительно собирается.
+
+## GitHub Pages
+
+Для текущего прототипа публикация настроена через **Settings → Pages → Deploy from a branch → scaffold → /(root)**.
+
+`.nojekyll` оставляет статические JavaScript-модули и остальные игровые файлы без обработки Jekyll.
