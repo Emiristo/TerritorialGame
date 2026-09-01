@@ -13,9 +13,9 @@ describe('starter map', () => {
 
 describe('buildings', () => {
   it('defines exactly the 21 agreed building types', () => { expect(Object.keys(BUILDING_TYPES)).toHaveLength(21); });
-  it('allows regular buildings on plains and rejects them on forest', () => { const state = createGameState(); const plain = state.tiles.find((t) => t.x >= 35 && t.x <= 45 && t.y >= 45 && t.y <= 55 && t.terrain === 'plains'); const forest = state.tiles.find((t) => t.terrain === 'forest'); expect(canBuildOnTile(state, BUILDING_TYPES.WAREHOUSE.id, plain.id)).toBe(true); expect(canBuildOnTile(state, BUILDING_TYPES.WAREHOUSE.id, forest.id)).toBe(false); });
+  it('allows regular buildings on plains and rejects them on forest', () => { const state = createGameState(); const plain = state.tiles.find((t) => t.x >= 35 && t.x <= 45 && t.y >= 45 && t.y <= 55 && t.terrain === 'plains' && t.influence.player === 1); const forest = state.tiles.find((t) => t.terrain === 'forest'); expect(plain).toBeTruthy(); expect(canBuildOnTile(state, BUILDING_TYPES.WAREHOUSE.id, plain.id)).toBe(true); expect(canBuildOnTile(state, BUILDING_TYPES.WAREHOUSE.id, forest.id)).toBe(false); });
   it('allows mines on hills and mountains', () => { const state = createGameState(); const hills = state.tiles.find((t) => t.terrain === 'hills' && t.x >= 43 && t.x <= 44 && t.y >= 54 && t.y <= 55); const mountains = state.tiles.find((t) => t.terrain === 'mountains' && t.x >= 56 && t.x <= 57 && t.y >= 43 && t.y <= 44); expect(canBuildOnTile(state, BUILDING_TYPES.IRON_MINE.id, hills.id)).toBe(true); expect(canBuildOnTile(state, BUILDING_TYPES.IRON_MINE.id, mountains.id)).toBe(true); });
-  it('calculates the complete footprint for a building', () => { const state = createGameState(); const plain = state.tiles.find((t) => t.x >= 35 && t.x <= 45 && t.y >= 45 && t.y <= 55 && t.terrain === 'plains'); expect(getFootprintTiles(state, BUILDING_TYPES.WAREHOUSE.id, plain.id)).toHaveLength(9); });
+  it('calculates the complete footprint for a building', () => { const state = createGameState(); const plain = state.tiles.find((t) => t.x >= 35 && t.x <= 45 && t.y >= 45 && t.y <= 55 && t.terrain === 'plains' && t.influence.player === 1); expect(plain).toBeTruthy(); expect(getFootprintTiles(state, BUILDING_TYPES.WAREHOUSE.id, plain.id)).toHaveLength(9); });
 });
 
 describe('workers and work zones', () => {
