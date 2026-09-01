@@ -5,21 +5,15 @@ import { createTerritorySource, recalculateTerritories } from './territory.js';
 import { createWorkZone, createWorker, WORKER_TYPES } from './workers.js';
 import { BUILDING_TYPES, createBuilding } from './buildings.js';
 
-// A 24x16 map gives enough room for several production buildings and their
-// five-cell work zones while keeping the starting area easy to read.
 export const MAP_WIDTH = 24;
 export const MAP_HEIGHT = 16;
 export const CAPITAL_X = 12;
 export const CAPITAL_Y = 8;
 
 function getInitialTerrain(x, y) {
-  // Resource regions are deliberately close enough to the starting territory
-  // for the player to establish the first production chain immediately.
   if (y <= 3) return TERRAIN_TYPES.FOREST.id;
   if (x <= 7 || x >= MAP_WIDTH - 8) return TERRAIN_TYPES.HILLS.id;
-  if ((x === 10 || x === 11 || x === 12 || x === 13) && (y === 6 || y === 7)) {
-    return TERRAIN_TYPES.MOUNTAINS.id;
-  }
+  if ((x === 10 || x === 11 || x === 12 || x === 13) && (y === 6 || y === 7)) return TERRAIN_TYPES.MOUNTAINS.id;
   return TERRAIN_TYPES.PLAINS.id;
 }
 
@@ -62,8 +56,6 @@ export function createGameState() {
     state.territorySources.push(createTerritorySource('capital-player', 'player', capital.id, 1));
     recalculateTerritories(state);
 
-    // The initial lumber camp is deliberately on a forest tile inside the
-    // starting territory. The capital itself remains free for civic buildings.
     const lumberTile = tiles.find((tile) => tile.terrain === TERRAIN_TYPES.FOREST.id && tile.ownerId === 'player');
     if (lumberTile) {
       const building = createBuilding('lumber-camp-1', 'player', BUILDING_TYPES.LUMBER_CAMP.id, lumberTile.id);
@@ -74,6 +66,7 @@ export function createGameState() {
       state.workers.push(worker);
       worker.buildingId = building.id;
       worker.zoneId = zone.id;
+      worker.targetTileId = lumberTile.id;
       worker.state = 'working';
       building.workerIds.push(worker.id);
       zone.workerIds.push(worker.id);
