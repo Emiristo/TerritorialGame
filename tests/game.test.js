@@ -1,15 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState, MAP_WIDTH, MAP_HEIGHT, HEADQUARTERS_INFLUENCE_RADIUS, STARTER_FOREST_AREA, STARTER_STONE_AREA, STARTER_HILLS_AREA, STARTER_MOUNTAINS_AREA } from '../src/game/state.js';
 import { BUILDING_TYPES, BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, advanceConstruction, getConstructionTime, canBuildOnTile, getFootprintTiles, getReservedTiles, isReservedForBuilding } from '../src/game/buildings.js';
+import { createGameClock, startGameClock, tickGameClock } from '../src/game/clock.js';
+import { startConstruction, advanceConstruction as advanceClockConstruction } from '../src/game/construction.js';
 import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence.js';
 import { WORKER_TYPES, createWorker, createWorkZone, assignWorkerToBuilding } from '../src/game/workers.js';
 import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
+
+describe('game clock and construction integration', () => {
+  it('starts at zero and advances by elapsed seconds', () => { const clock = createGameClock(); expect(clock.elapsedSeconds).toBe(0); startGameClock(clock, 1000); tickGameClock(clock, 3500); expect(clock.elapsedSeconds).toBe(2.5); });
+  it('advances multiple constructions from one clock', () => { const clock = createGameClock(); const state = { buildings: [{ id: 'a', remainingConstructionTime: 5, constructionComplete: false, active: false, lastConstructionUpdateAt: 1000 }, { id: 'b', remainingConstructionTime: 2, constructionComplete: false, active: false, lastConstructionUpdateAt: 1000 }] }; startGameClock(clock, 1000); tickGameClock(clock, 2000); const completed = advanceClockConstruction(state, 2000); expect(completed).toHaveLength(1); expect(state.buildings[0].remainingConstructionTime).toBe(4); expect(state.buildings[1].remainingConstructionTime).toBe(1); tickGameClock(clock, 3000); advanceClockConstruction(state, 3000); expect(state.buildings[1].constructionComplete).toBe(true); expect(state.buildings[1].active).toBe(true); });
+});
 
 describe('construction time', () => {
   it('uses 10 seconds per plank and 15 seconds per stone', () => { expect(BUILD_TIME_PER_PLANK).toBe(10); expect(BUILD_TIME_PER_STONE).toBe(15); });
   it('calculates time from construction resources', () => { expect(getConstructionTime({ planks: 2, stone: 2 })).toBe(50); expect(getConstructionTime({ planks: 10, stone: 10 })).toBe(250); expect(getConstructionTime({ planks: 4 })).toBe(40); });
   it('counts construction down in real time and activates at zero', () => { const building = { constructionTime: 75, remainingConstructionTime: 75, constructionComplete: false, active: false }; advanceConstruction(building, 25); expect(building.remainingConstructionTime).toBe(50); expect(building.constructionComplete).toBe(false); expect(building.active).toBe(false); advanceConstruction(building, 49); expect(building.remainingConstructionTime).toBe(1); advanceConstruction(building, 1); expect(building.remainingConstructionTime).toBe(0); expect(building.constructionComplete).toBe(true); expect(building.active).toBe(true); });
   it('does not move the timer backwards or below zero', () => { const building = { constructionTime: 20, remainingConstructionTime: 20, constructionComplete: false, active: false }; advanceConstruction(building, 0); expect(building.remainingConstructionTime).toBe(20); advanceConstruction(building, -5); expect(building.remainingConstructionTime).toBe(20); advanceConstruction(building, 100); expect(building.remainingConstructionTime).toBe(0); });
+  it('starts construction with a clock timestamp', () => { const building = { remainingConstructionTime: 5, constructionComplete: false, active: false }; startConstruction({}, building, 5000); expect(building.constructionStartedAt).toBe(5000); expect(building.lastConstructionUpdateAt).toBe(5000); });
 });
 
 describe('starter map', () => {
