@@ -52,15 +52,15 @@ export function assignWorkerToZone(state, workerId, zoneId, targetTileId = null)
 export function findAvailableResourceTile(state, worker) {
   const type = Object.values(WORKER_TYPES).find((item) => item.id === worker.typeId);
   const zone = state.workZones?.find((item) => item.id === worker.zoneId && item.active !== false);
-  if (!type || !zone) return null;
+  if (!type || !zone || !worker.targetTileId) return null;
   const center = state.tiles.find((tile) => tile.id === zone.centerTileId);
-  if (!center) return null;
-  if (worker.targetTileId) {
-    const target = state.tiles.find((tile) => tile.id === worker.targetTileId);
-    if (!target || target.ownerId !== worker.ownerId || target.terrain !== type.terrainId || target.resources?.[type.resourceId] <= 0 || !isInsideWorkZone(center, target, zone.radius)) return null;
-    return target;
-  }
-  return null;
+  const target = state.tiles.find((tile) => tile.id === worker.targetTileId);
+  if (!center || !target) return null;
+  // Territory ownership is deliberately not checked: the only spatial rule
+  // for extraction is that the selected resource is inside the work zone.
+  if (target.terrain !== type.terrainId || target.resources?.[type.resourceId] <= 0) return null;
+  if (!isInsideWorkZone(center, target, zone.radius)) return null;
+  return target;
 }
 
 export function extractForWorker(state, worker) {
