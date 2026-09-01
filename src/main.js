@@ -7,20 +7,133 @@ import { startGameClock } from './game/clock.js';
 import { processWorkersTurn } from './game/workers.js';
 
 const state = createGameState();
-const elements = { map: document.querySelector('#map'), playerPanel: document.querySelector('#player-panel'), buildMenu: document.querySelector('#build-menu-panel'), tilePanel: document.querySelector('#tile-panel'), turnInfo: document.querySelector('#turn-info'), status: document.querySelector('#status'), endTurn: document.querySelector('#end-turn') };
+const elements = {
+  map: document.querySelector('#map'),
+  playerPanel: document.querySelector('#player-panel'),
+  buildMenu: document.querySelector('#build-menu-panel'),
+  tilePanel: document.querySelector('#tile-panel'),
+  turnInfo: document.querySelector('#turn-info'),
+  status: document.querySelector('#status'),
+  endTurn: document.querySelector('#end-turn'),
+};
+
 if (Object.values(elements).some((element) => !element)) throw new Error('Игровой интерфейс не найден: проверьте index.html.');
+
 let selectedBuildingTypeId = null;
 let previewTileId = null;
-function render() { renderMap(elements.map, state, selectedBuildingTypeId, previewTileId); renderPlayerPanel(elements.playerPanel, state); renderBuildMenu(elements.buildMenu, state, selectedBuildingTypeId); renderTilePanel(elements.tilePanel, state, selectedBuildingTypeId); renderTurnInfo(elements.turnInfo, state); }
-function canAfford(cost) { return Object.entries(cost).every(([resource, amount]) => (state.player.resources[resource] ?? 0) >= amount); }
-function pay(cost) { for (const [resource, amount] of Object.entries(cost)) state.player.resources[resource] = (state.player.resources[resource] ?? 0) - amount; }
-function selectPreview(tileId) { previewTileId = selectedBuildingTypeId ? tileId : null; state.selectedTileId = tileId; }
 
-elements.map.addEventListener('pointerover', (event) => { const tile = event.target.closest('[data-tile-id]'); if (!tile || !selectedBuildingTypeId) return; selectPreview(tile.dataset.tileId); render(); });
-elements.map.addEventListener('click', (event) => { const tile = event.target.closest('[data-tile-id]'); if (!tile) return; selectPreview(tile.dataset.tileId); elements.status.textContent = selectedBuildingTypeId ? `Выбрана клетка ${state.selectedTileId}. Проверьте предпросмотр и подтвердите строительство.` : `Выбрана клетка ${state.selectedTileId}.`; render(); });
-elements.buildMenu.addEventListener('click', (event) => { const action = event.target.closest('[data-action="select-building"]'); if (!action) return; const type = Object.values(BUILDING_TYPES).find((item) => item.id === action.dataset.typeId); if (!type || !canAfford(type.cost)) { elements.status.textContent = 'Недостаточно ресурсов для строительства.'; return; } selectedBuildingTypeId = type.id; previewTileId = state.selectedTileId; elements.status.textContent = `Выбрано здание: ${type.name}. Наведите или нажмите на клетку для предпросмотра.`; render(); });
-elements.tilePanel.addEventListener('click', (event) => { const action = event.target.closest('[data-action]'); if (!action || action.dataset.action !== 'build') return; const tile = getSelectedTile(state); const typeId = selectedBuildingTypeId; if (!tile || !typeId) return; const type = Object.values(BUILDING_TYPES).find((item) => item.id === typeId); if (!type || !canAfford(type.cost)) { elements.status.textContent = 'Недостаточно ресурсов для строительства.'; return; } if (!canBuildOnTile(state, typeId, tile.id)) { elements.status.textContent = 'Здесь нельзя построить это здание.'; return; } pay(type.cost); const building = createBuilding(`building-${state.buildings.length + 1}`, state.player.id, typeId, tile.id); addBuilding(state, building); startConstruction(state, building); elements.status.textContent = building.constructionComplete ? `Построено: ${type.name}.` : `Строительство начато: ${type.name}. Время: ${building.constructionTime} с.`; selectedBuildingTypeId = null; previewTileId = null; render(); });
-elements.endTurn.addEventListener('click', () => { const results = processWorkersTurn(state); const extracted = results.reduce((sum, result) => sum + result.amount, 0); state.selectedTileId = null; previewTileId = null; elements.status.textContent = extracted > 0 ? `Ход завершён. Добыто ресурсов: ${extracted}.` : 'Ход завершён. Работники без добычи.'; render(); });
+function findBuildingType(typeId) {
+  return Object.values(BUILDING_TYPES).find((type) => type.id === typeId) ?? null;
+}
+
+function canAfford(cost) {
+  return Object.entries(cost).every(([resource, amount]) => (state.player.resources[resource] ?? 0) >= amount);
+}
+
+function spendResources(cost) {
+  for (const [resource, amount] of Object.entries(cost)) {
+    state.player.resources[resource] = (state.player.resources[resource] ?? 0) - amount;
+  }
+}
+
+function clearBuildSelection() {
+  selectedBuildingTypeId = null;
+  previewTileId = null;
+}
+
+function selectMapTile(tileId) {
+  state.selectedTileId = tileId;
+  previewTileId = selectedBuildingTypeId ? tileId : null;
+}
+
+function render() {
+  renderMap(elements.map, state, selectedBuildingTypeId, previewTileId);
+  renderPlayerPanel(elements.playerPanel, state);
+  renderBuildMenu(elements.buildMenu, state, selectedBuildingTypeId);
+  renderTilePanel(elements.tilePanel, state, selectedBuildingTypeId);
+  renderTurnInfo(elements.turnInfo, state);
+}
+
+elements.map.addEventListener('pointerover', (event) => {
+  if (!selectedBuildingTypeId) return;
+  const tile = event.target.closest('[data-tile-id]');
+  if (!tile) return;
+  previewTileId = tile.dataset.tileId;
+  render();
+});
+
+elements.map.addEventListener('click', (event) => {
+  const tile = event.target.closest('[data-tile-id]');
+  if (!tile) return;
+  selectMapTile(tile.dataset.tileId);
+  elements.status.textContent = selectedBuildingTypeId
+    ? 'Место выбрано. Проверьте предпросмотр и подтвердите строительство.'
+    : `Выбрана клетка ${state.selectedTileId}.`;
+  render();
+});
+
+elements.buildMenu.addEventListener('click', (event) => {
+  const action = event.target.closest('[data-action="select-building"]');
+  if (!action) return;
+  const type = findBuildingType(action.dataset.typeId);
+  if (!type) return;
+  if (!canAfford(type.cost)) {
+    elements.status.textContent = 'Недостаточно ресурсов для строительства.';
+    return;
+  }
+  selectedBuildingTypeId = type.id;
+  previewTileId = state.selectedTileId;
+  elements.status.textContent = `Выбрано здание: ${type.name}. Наведите на карту для предпросмотра.`;
+  render();
+});
+
+elements.tilePanel.addEventListener('click', (event) => {
+  const action = event.target.closest('[data-action="build"]');
+  if (!action || !selectedBuildingTypeId) return;
+
+  const tile = getSelectedTile(state);
+  const type = findBuildingType(selectedBuildingTypeId);
+  if (!tile || !type) return;
+
+  if (!canAfford(type.cost)) {
+    elements.status.textContent = 'Недостаточно ресурсов для строительства.';
+    return;
+  }
+  if (!canBuildOnTile(state, type.id, tile.id)) {
+    elements.status.textContent = 'Здесь нельзя построить это здание.';
+    return;
+  }
+
+  spendResources(type.cost);
+  const building = createBuilding(`building-${state.buildings.length + 1}`, state.player.id, type.id, tile.id);
+  addBuilding(state, building);
+  startConstruction(state, building);
+
+  elements.status.textContent = building.constructionComplete
+    ? `Построено: ${type.name}.`
+    : `Строительство начато: ${type.name}. Время: ${building.constructionTime} с.`;
+  clearBuildSelection();
+  render();
+});
+
+elements.endTurn.addEventListener('click', () => {
+  const results = processWorkersTurn(state);
+  const extracted = results.reduce((sum, result) => sum + result.amount, 0);
+  state.selectedTileId = null;
+  clearBuildSelection();
+  elements.status.textContent = extracted > 0
+    ? `Ход завершён. Добыто ресурсов: ${extracted}.`
+    : 'Ход завершён. Работники без добычи.';
+  render();
+});
+
 startGameClock(state.clock);
-setInterval(() => { const completed = advanceConstruction(state); if (completed.length) elements.status.textContent = `Строительство завершено: ${completed.map((building) => Object.values(BUILDING_TYPES).find((type) => type.id === building.typeId)?.name ?? building.typeId).join(', ')}.`; render(); }, 1000);
+setInterval(() => {
+  const completed = advanceConstruction(state);
+  if (completed.length) {
+    elements.status.textContent = `Строительство завершено: ${completed.map((building) => findBuildingType(building.typeId)?.name ?? building.typeId).join(', ')}.`;
+  }
+  render();
+}, 1000);
+
 render();
