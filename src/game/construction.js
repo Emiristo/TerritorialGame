@@ -7,14 +7,21 @@ export function startConstruction(state, building, now = Date.now()) {
   building.lastConstructionUpdateAt = now;
   building.constructionComplete = false;
   building.active = false;
-  building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
+  building.constructionState = CONSTRUCTION_STATES.PLACED;
   building.constructionTimer = 0;
   building.constructionTimerStartedAt = null;
   return building;
 }
 
+export function beginConstructionWaiting(building) {
+  if (!building || building.constructionComplete) return building;
+  if (building.constructionState === CONSTRUCTION_STATES.PLACED) building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
+  return building;
+}
+
 export function advanceConstruction(building, elapsedSeconds) {
   if (!building || building.constructionComplete) return building;
+  beginConstructionWaiting(building);
   advanceBuildingConstruction(building, elapsedSeconds);
   if (building.constructionComplete) building.constructionState = CONSTRUCTION_STATES.COMPLETED;
   else if (building.currentConstructionMaterial) building.constructionState = CONSTRUCTION_STATES.BUILDING;
@@ -24,6 +31,7 @@ export function advanceConstruction(building, elapsedSeconds) {
 
 export function deliverMaterialAndStartConstruction(building, resourceId, amount = 1) {
   if (!building || building.constructionComplete) return 0;
+  beginConstructionWaiting(building);
   const delivered = queueConstructionMaterial(building, resourceId, amount);
   if (delivered > 0) building.constructionState = building.currentConstructionMaterial ? CONSTRUCTION_STATES.BUILDING : CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
   return delivered;
