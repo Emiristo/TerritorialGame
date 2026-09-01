@@ -38,6 +38,18 @@ function getBuildingType(state, building) {
   return Object.values(state.buildingTypes ?? {}).find((item) => item.id === building.typeId) ?? null;
 }
 
+function getWorkerZone(state, building) {
+  return state.workZones?.find((item) => item.buildingId === building.id && item.active !== false) ?? null;
+}
+
+function validateTargetTile(state, building, zone, targetTileId) {
+  if (!targetTileId) return true;
+  const target = state.tiles.find((tile) => tile.id === targetTileId);
+  const center = state.tiles.find((tile) => tile.id === zone.centerTileId);
+  if (!target || !center) return false;
+  return isInsideWorkZone(center, target, zone.radius);
+}
+
 export function assignWorkerToBuilding(state, workerId, buildingId, targetTileId = null) {
   const worker = state.workers?.find((item) => item.id === workerId);
   const building = state.buildings?.find((item) => item.id === buildingId && item.active);
@@ -45,8 +57,9 @@ export function assignWorkerToBuilding(state, workerId, buildingId, targetTileId
   if (worker.ownerId !== building.ownerId) throw new Error('Worker and building owners differ');
   const buildingType = getBuildingType(state, building);
   if (!buildingType || buildingType.workerTypeId !== worker.typeId) throw new Error('Worker type is incompatible with building');
-  const zone = state.workZones?.find((item) => item.buildingId === buildingId && item.active !== false);
+  const zone = getWorkerZone(state, building);
   if (!zone) throw new Error('Building has no work zone');
+  if (!validateTargetTile(state, building, zone, targetTileId)) throw new Error('Target tile is outside work zone');
   if (!zone.workerIds.includes(workerId)) zone.workerIds.push(workerId);
   if (!building.workerIds.includes(workerId)) building.workerIds.push(workerId);
   worker.buildingId = buildingId;
