@@ -25,3 +25,7 @@ export function advanceGameClock(clock, now = Date.now()) {
   clock.lastUpdateAt = now;
   return elapsed;
 }
+
+export function tickGameClock(clock, now = Date.now()) {
+  return advanceGameClock(clock, now);
+}
