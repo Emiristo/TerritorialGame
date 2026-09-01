@@ -32,9 +32,6 @@ export function deliverMaterialAndStartConstruction(building, resourceId, amount
   building.constructionMaterialsDelivered[resourceId] = delivered + units;
   for (let i = 0; i < units; i += 1) building.constructionQueue.push(resourceId);
 
-  // A delivery immediately starts the building's own timer when it is idle.
-  // Zero elapsed time is intentional: it initializes the next material segment
-  // without advancing construction or coupling it to the global game clock.
   if (!building.currentConstructionMaterial) {
     advanceBuildingConstruction(building, 0);
     building.constructionState = CONSTRUCTION_STATES.BUILDING;
@@ -54,7 +51,6 @@ export function completeConstruction(state, buildingId, now = Date.now()) {
   building.constructionQueue = [];
   building.currentConstructionMaterial = null;
   building.currentConstructionMaterialRemainingTime = 0;
-  building.remainingConstructionTime = 0;
   building.constructionComplete = true;
   building.active = true;
   building.constructionState = CONSTRUCTION_STATES.COMPLETED;
