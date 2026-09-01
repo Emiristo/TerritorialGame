@@ -8,7 +8,7 @@ button { font: inherit; }
 .game-header h1 { margin: 0; font-size: 22px; }
 .game-header p { margin: 4px 0 0; color: #8e9aa7; font-size: 13px; }
 .turn-info { font-weight: 600; }
-.game-layout { flex: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr) 220px; gap: 12px; padding: 12px; }
+.game-layout { flex: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr) 280px; gap: 12px; padding: 12px; }
 .panel, .map-panel { background: #181e25; border: 1px solid #29313a; border-radius: 8px; }
 .panel { padding: 16px; }
 .panel h2 { margin: 0 0 14px; font-size: 15px; }
@@ -24,8 +24,18 @@ button { font: inherit; }
 .stat { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #29313a; font-size: 13px; }
 .stat span { color: #8e9aa7; }
 .panel-action { width: 100%; margin-top: 14px; border: 0; border-radius: 6px; padding: 9px 10px; background: #e8edf2; color: #101419; cursor: pointer; font-weight: 700; }
+.build-menu { margin-bottom: 18px; }
+.build-menu-title { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+.build-item { width: 100%; display: flex; align-items: center; gap: 10px; margin-bottom: 6px; padding: 8px; border: 1px solid #29313a; border-radius: 7px; background: #20272f; color: #e8edf2; text-align: left; cursor: pointer; }
+.build-item:hover { filter: brightness(1.12); }
+.build-item.is-selected { outline: 2px solid #e8edf2; }
+.build-item[data-unaffordable="true"] { opacity: .45; }
+.build-item-icon { width: 28px; text-align: center; font-size: 20px; flex: 0 0 28px; }
+.build-item-info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.build-item-info strong { font-size: 13px; }
+.build-item-info small { color: #8e9aa7; font-size: 11px; }
 .game-footer { display: flex; align-items: center; gap: 14px; border-top: 1px solid; }
 #end-turn { border: 0; border-radius: 6px; padding: 9px 14px; background: #e8edf2; color: #101419; cursor: pointer; font-weight: 700; }
 #status { color: #8e9aa7; font-size: 13px; }
-@media (max-width: 850px) { .game-layout { grid-template-columns: 1fr; } .panel { min-height: 0; } .map-panel { order: -1; } }
+@media (max-width: 850px) { .game-layout { grid-template-columns: 1fr; } .panel { min-height: 0; } .map-panel { order: -1; } .build-menu { max-height: 360px; overflow-y: auto; } }
 @media (max-width: 600px) { .game-header, .game-footer { padding: 12px; } .game-header h1 { font-size: 18px; } .map-panel { padding: 8px; } .map { min-width: 680px; } }
