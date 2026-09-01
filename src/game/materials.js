@@ -15,9 +15,10 @@ export function deliverConstructionMaterial(state, buildingId, resourceId, amoun
   if (!building) throw new Error('Building not found');
   const available = Number(state.player?.resources?.[resourceId] ?? 0);
   const requested = Math.max(0, Math.floor(Number(amount) || 0));
-  if (available < requested) return 0;
+  const deliverable = Math.min(requested, available);
+  if (!deliverable) return 0;
 
-  const delivered = deliverMaterialAndStartConstruction(building, resourceId, requested);
+  const delivered = deliverMaterialAndStartConstruction(building, resourceId, deliverable);
   if (delivered > 0) state.player.resources[resourceId] = available - delivered;
   return delivered;
 }
