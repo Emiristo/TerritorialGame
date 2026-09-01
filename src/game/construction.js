@@ -1,4 +1,4 @@
-import { advanceConstruction as advanceBuildingConstruction } from './buildings.js';
+import { advanceConstruction as advanceBuildingConstruction, deliverConstructionMaterial as queueConstructionMaterial } from './buildings.js';
 
 export const CONSTRUCTION_STATES = Object.freeze({ PLACED: 'PLACED', WAITING_FOR_MATERIAL: 'WAITING_FOR_MATERIAL', BUILDING: 'BUILDING', COMPLETED: 'COMPLETED' });
 
@@ -7,7 +7,7 @@ export function startConstruction(state, building, now = Date.now()) {
   building.lastConstructionUpdateAt = now;
   building.constructionComplete = false;
   building.active = false;
-  building.constructionState = CONSTRUCTION_STATES.PLACED;
+  building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
   building.constructionTimer = 0;
   building.constructionTimerStartedAt = null;
   return building;
@@ -15,10 +15,6 @@ export function startConstruction(state, building, now = Date.now()) {
 
 export function advanceConstruction(building, elapsedSeconds) {
   if (!building || building.constructionComplete) return building;
-  if (building.constructionState === CONSTRUCTION_STATES.PLACED) {
-    building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
-    return building;
-  }
   advanceBuildingConstruction(building, elapsedSeconds);
   if (building.constructionComplete) building.constructionState = CONSTRUCTION_STATES.COMPLETED;
   else if (building.currentConstructionMaterial) building.constructionState = CONSTRUCTION_STATES.BUILDING;
@@ -28,20 +24,9 @@ export function advanceConstruction(building, elapsedSeconds) {
 
 export function deliverMaterialAndStartConstruction(building, resourceId, amount = 1) {
   if (!building || building.constructionComplete) return 0;
-  const delivered = Number(building.constructionMaterialsDelivered?.[resourceId] ?? 0);
-  const required = Number(building.constructionMaterialsRequired?.[resourceId] ?? 0);
-  const units = Math.max(0, Math.min(Math.floor(Number(amount) || 0), required - delivered));
-  if (!units) return 0;
-
-  building.constructionMaterialsDelivered[resourceId] = delivered + units;
-  for (let i = 0; i < units; i += 1) building.constructionQueue.push(resourceId);
-
-  if (!building.currentConstructionMaterial) {
-    advanceBuildingConstruction(building, 0);
-    building.constructionState = CONSTRUCTION_STATES.BUILDING;
-    building.constructionTimerStartedAt = Date.now();
-  }
-  return units;
+  const delivered = queueConstructionMaterial(building, resourceId, amount);
+  if (delivered > 0) building.constructionState = building.currentConstructionMaterial ? CONSTRUCTION_STATES.BUILDING : CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
+  return delivered;
 }
 
 export function completeConstruction(state, buildingId, now = Date.now()) {
