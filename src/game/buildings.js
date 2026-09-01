@@ -26,23 +26,20 @@ export const BUILDING_TYPES = {
 };
 
 function findType(typeId) { return Object.values(BUILDING_TYPES).find((item) => item.id === typeId) ?? null; }
-
 export function getConstructionTime(materials = {}) { return Number(materials.planks ?? 0) * BUILD_TIME_PER_PLANK + Number(materials.stone ?? 0) * BUILD_TIME_PER_STONE; }
-
 export function getConstructionMaterials(building) { return { ...(findType(building.typeId)?.constructionMaterials ?? {}) }; }
 
 export function createBuilding(id, ownerId, typeId, tileId) {
   const type = findType(typeId);
   if (!type) throw new Error(`Unknown building type: ${typeId}`);
   const required = getConstructionMaterials({ typeId });
-  const totalTime = getConstructionTime(required);
   return {
-    id, ownerId, typeId, tileId, active: totalTime === 0, constructionTime: totalTime,
-    remainingConstructionTime: totalTime, constructionComplete: totalTime === 0,
+    id, ownerId, typeId, tileId, active: Object.keys(required).length === 0, constructionTime: getConstructionTime(required),
+    remainingConstructionTime: getConstructionTime(required), constructionComplete: Object.keys(required).length === 0,
     constructionMaterialsRequired: required,
     constructionMaterialsDelivered: Object.fromEntries(Object.keys(required).map((resource) => [resource, 0])),
     constructionQueue: [], currentConstructionMaterial: null, currentConstructionMaterialRemainingTime: 0,
-    workerIds: [], soldierIds: [],
+    workerIds: [], soldierIds: [], constructionTimer: 0,
   };
 }
 
@@ -51,36 +48,48 @@ export function deliverConstructionMaterial(building, resourceId, amount = 1) {
   const required = Number(building.constructionMaterialsRequired?.[resourceId] ?? 0);
   const delivered = Number(building.constructionMaterialsDelivered?.[resourceId] ?? 0);
   const units = Math.max(0, Math.min(Math.floor(Number(amount) || 0), required - delivered));
-  if (units === 0) return 0;
+  if (!units) return 0;
   building.constructionMaterialsDelivered[resourceId] = delivered + units;
   for (let i = 0; i < units; i += 1) building.constructionQueue.push(resourceId);
+  if (!building.currentConstructionMaterial) startNextConstructionMaterial(building);
   return units;
+}
+
+function startNextConstructionMaterial(building) {
+  const next = building.constructionQueue.shift();
+  if (!next) return false;
+  building.currentConstructionMaterial = next;
+  building.currentConstructionMaterialRemainingTime = next === 'stone' ? BUILD_TIME_PER_STONE : next === 'planks' ? BUILD_TIME_PER_PLANK : 0;
+  building.constructionTimer = building.currentConstructionMaterialRemainingTime;
+  building.constructionState = 'BUILDING';
+  return true;
 }
 
 export function advanceConstruction(building, elapsedSeconds) {
   if (!building || building.constructionComplete) return building;
   let remaining = Math.max(0, Number(elapsedSeconds) || 0);
   while (remaining > 0) {
-    if (!building.currentConstructionMaterial) {
-      const next = building.constructionQueue.shift();
-      if (!next) break;
-      building.currentConstructionMaterial = next;
-      building.currentConstructionMaterialRemainingTime = next === 'stone' ? BUILD_TIME_PER_STONE : next === 'planks' ? BUILD_TIME_PER_PLANK : 0;
-    }
+    if (!building.currentConstructionMaterial && !startNextConstructionMaterial(building)) break;
     const work = Math.min(remaining, building.currentConstructionMaterialRemainingTime);
     building.currentConstructionMaterialRemainingTime -= work;
+    building.constructionTimer = building.currentConstructionMaterialRemainingTime;
     building.remainingConstructionTime = Math.max(0, building.remainingConstructionTime - work);
     remaining -= work;
-    if (building.currentConstructionMaterialRemainingTime === 0) building.currentConstructionMaterial = null;
+    if (building.currentConstructionMaterialRemainingTime === 0) {
+      building.currentConstructionMaterial = null;
+      building.constructionTimer = 0;
+      if (!building.constructionQueue.length && Object.entries(building.constructionMaterialsRequired).some(([resource, amount]) => building.constructionMaterialsDelivered[resource] < amount)) building.constructionState = 'WAITING_FOR_MATERIAL';
+    }
   }
-  if (building.remainingConstructionTime === 0 && !building.currentConstructionMaterial && building.constructionQueue.length === 0) {
+  const allDelivered = Object.entries(building.constructionMaterialsRequired).every(([resource, amount]) => building.constructionMaterialsDelivered[resource] >= amount);
+  if (allDelivered && building.remainingConstructionTime === 0 && !building.currentConstructionMaterial && !building.constructionQueue.length) {
     building.constructionComplete = true;
     building.active = true;
+    building.constructionState = 'COMPLETED';
   }
   return building;
 }
 
-export function advanceAllConstructions(state, elapsedSeconds) { for (const building of state.buildings ?? []) advanceConstruction(building, elapsedSeconds); return state; }
 export function getBuildingType(building) { return findType(building.typeId); }
 export function getFootprintTiles(state, typeId, originTileId) { const type = findType(typeId); const origin = state.tiles.find((tile) => tile.id === originTileId); if (!type || !origin) return []; const footprint = []; for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) { const tile = state.tiles.find((candidate) => candidate.x === origin.x + dx && candidate.y === origin.y + dy); if (!tile) return []; footprint.push(tile); } return footprint; }
 export function getReservedTiles(state, typeId, originTileId) { const footprint = getFootprintTiles(state, typeId, originTileId); if (!footprint.length) return []; const coords = new Set(footprint.map((tile) => `${tile.x},${tile.y}`)); return state.tiles.filter((tile) => !coords.has(`${tile.x},${tile.y}`) && footprint.some((cell) => Math.max(Math.abs(tile.x - cell.x), Math.abs(tile.y - cell.y)) === 1)); }
