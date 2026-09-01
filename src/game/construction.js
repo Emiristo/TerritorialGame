@@ -1,13 +1,13 @@
 import { advanceConstruction as advanceBuildingConstruction } from './buildings.js';
 
-export const CONSTRUCTION_STATES = Object.freeze({ WAITING_FOR_MATERIAL: 'WAITING_FOR_MATERIAL', BUILDING: 'BUILDING', COMPLETED: 'COMPLETED' });
+export const CONSTRUCTION_STATES = Object.freeze({ PLACED: 'PLACED', WAITING_FOR_MATERIAL: 'WAITING_FOR_MATERIAL', BUILDING: 'BUILDING', COMPLETED: 'COMPLETED' });
 
 export function startConstruction(state, building, now = Date.now()) {
   building.constructionStartedAt = now;
   building.lastConstructionUpdateAt = now;
   building.constructionComplete = false;
   building.active = false;
-  building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
+  building.constructionState = CONSTRUCTION_STATES.PLACED;
   building.constructionTimer = 0;
   building.constructionTimerStartedAt = null;
   return building;
@@ -15,6 +15,9 @@ export function startConstruction(state, building, now = Date.now()) {
 
 export function advanceConstruction(building, elapsedSeconds) {
   if (!building || building.constructionComplete) return building;
+  if (building.constructionState === CONSTRUCTION_STATES.PLACED) {
+    building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
+  }
   advanceBuildingConstruction(building, elapsedSeconds);
   if (building.constructionComplete) building.constructionState = CONSTRUCTION_STATES.COMPLETED;
   else if (building.currentConstructionMaterial) building.constructionState = CONSTRUCTION_STATES.BUILDING;
