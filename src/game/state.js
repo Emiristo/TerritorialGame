@@ -12,10 +12,12 @@ export const HEADQUARTERS_CENTER_X = 50;
 export const HEADQUARTERS_CENTER_Y = 50;
 export const HEADQUARTERS_INFLUENCE_RADIUS = 10;
 
-// Deterministic starter layout: plains around the headquarters, with one
-// dedicated forest area and one dedicated stone area for early testing.
-export const STARTER_FOREST_AREA = { minX: 20, maxX: 29, minY: 45, maxY: 54 };
-export const STARTER_STONE_AREA = { minX: 71, maxX: 80, minY: 45, maxY: 54 };
+// Deterministic starter layout for development. All normal building space
+// around headquarters is plains; resource/test patches stay inside R=10.
+export const STARTER_FOREST_AREA = { minX: 46, maxX: 47, minY: 42, maxY: 46 };
+export const STARTER_STONE_AREA = { minX: 53, maxX: 54, minY: 54, maxY: 58 };
+export const STARTER_HILLS_AREA = { minX: 43, maxX: 44, minY: 54, maxY: 55 };
+export const STARTER_MOUNTAINS_AREA = { minX: 56, maxX: 57, minY: 43, maxY: 44 };
 
 function inArea(x, y, area) {
   return x >= area.minX && x <= area.maxX && y >= area.minY && y <= area.maxY;
@@ -23,9 +25,8 @@ function inArea(x, y, area) {
 
 function getInitialTerrain(x, y) {
   if (inArea(x, y, STARTER_FOREST_AREA)) return TERRAIN_TYPES.FOREST.id;
-  if (inArea(x, y, STARTER_STONE_AREA)) return TERRAIN_TYPES.HILLS.id;
-  // The area used for building/testing around the headquarters is deliberately
-  // flat. Other terrain is left for later map-generation work.
+  if (inArea(x, y, STARTER_STONE_AREA) || inArea(x, y, STARTER_HILLS_AREA)) return TERRAIN_TYPES.HILLS.id;
+  if (inArea(x, y, STARTER_MOUNTAINS_AREA)) return TERRAIN_TYPES.MOUNTAINS.id;
   return TERRAIN_TYPES.PLAINS.id;
 }
 
