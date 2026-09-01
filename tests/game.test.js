@@ -86,7 +86,7 @@ describe('buildings, workers and work zones', () => {
     const center = state.tiles.find((tile) => tile.id === zone.centerTileId);
     const target = state.tiles.find((tile) => tile.terrain === 'forest' && Math.max(Math.abs(tile.x - center.x), Math.abs(tile.y - center.y)) <= zone.radius && tile.id !== worker.targetTileId);
     expect(target).toBeDefined();
-    target.ownerId = 'enemy';
+    target.ownerId = null;
     target.resources.wood = 9;
     worker.targetTileId = target.id;
     const result = extractForWorker(state, worker);
