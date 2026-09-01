@@ -1,4 +1,4 @@
-const MAX_DELTA_SECONDS = 1;
+import { advanceGameClock } from './clock.js';
 
 export function startConstruction(state, building, now = Date.now()) {
   building.constructionStartedAt = now;
@@ -9,14 +9,13 @@ export function startConstruction(state, building, now = Date.now()) {
 }
 
 export function advanceConstruction(state, now = Date.now()) {
+  const elapsed = advanceGameClock(state.clock, now);
+  if (elapsed <= 0) return [];
   const completed = [];
   for (const building of state.buildings ?? []) {
     if (building.constructionComplete) continue;
-    const last = building.lastConstructionUpdateAt ?? now;
-    const elapsed = Math.max(0, Math.min((now - last) / 1000, MAX_DELTA_SECONDS));
-    if (elapsed <= 0) continue;
-    building.lastConstructionUpdateAt = now;
     building.remainingConstructionTime = Math.max(0, building.remainingConstructionTime - elapsed);
+    building.lastConstructionUpdateAt = now;
     if (building.remainingConstructionTime === 0) {
       building.constructionComplete = true;
       building.active = true;
