@@ -33,9 +33,9 @@ export function createBuilding(id, ownerId, typeId, tileId) {
   const type = findType(typeId);
   if (!type) throw new Error(`Unknown building type: ${typeId}`);
   const required = getConstructionMaterials({ typeId });
+  const complete = Object.keys(required).length === 0;
   return {
-    id, ownerId, typeId, tileId, active: Object.keys(required).length === 0, constructionTime: getConstructionTime(required),
-    remainingConstructionTime: getConstructionTime(required), constructionComplete: Object.keys(required).length === 0,
+    id, ownerId, typeId, tileId, active: complete, constructionComplete: complete,
     constructionMaterialsRequired: required,
     constructionMaterialsDelivered: Object.fromEntries(Object.keys(required).map((resource) => [resource, 0])),
     constructionQueue: [], currentConstructionMaterial: null, currentConstructionMaterialRemainingTime: 0,
@@ -73,19 +73,19 @@ export function advanceConstruction(building, elapsedSeconds) {
     const work = Math.min(remaining, building.currentConstructionMaterialRemainingTime);
     building.currentConstructionMaterialRemainingTime -= work;
     building.constructionTimer = building.currentConstructionMaterialRemainingTime;
-    building.remainingConstructionTime = Math.max(0, building.remainingConstructionTime - work);
     remaining -= work;
     if (building.currentConstructionMaterialRemainingTime === 0) {
       building.currentConstructionMaterial = null;
       building.constructionTimer = 0;
-      if (!building.constructionQueue.length && Object.entries(building.constructionMaterialsRequired).some(([resource, amount]) => building.constructionMaterialsDelivered[resource] < amount)) building.constructionState = 'WAITING_FOR_MATERIAL';
     }
   }
   const allDelivered = Object.entries(building.constructionMaterialsRequired).every(([resource, amount]) => building.constructionMaterialsDelivered[resource] >= amount);
-  if (allDelivered && building.remainingConstructionTime === 0 && !building.currentConstructionMaterial && !building.constructionQueue.length) {
+  if (allDelivered && !building.currentConstructionMaterial && !building.constructionQueue.length) {
     building.constructionComplete = true;
     building.active = true;
     building.constructionState = 'COMPLETED';
+  } else if (!building.currentConstructionMaterial && !building.constructionQueue.length) {
+    building.constructionState = 'WAITING_FOR_MATERIAL';
   }
   return building;
 }
