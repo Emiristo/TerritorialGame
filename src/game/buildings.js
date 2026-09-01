@@ -22,48 +22,50 @@ export const BUILDING_TYPES = {
   FORTRESS: { id: 'fortress', name: 'Крепость', width: 5, height: 5, cost: { planks: 10, stone: 10 }, terrainIds: ['plains'], workerTypeId: 'soldier', toolId: null, workRadius: null, input: {}, output: null, productionTime: null, influenceMultiplier: 1.5, requiredSoldiers: 9, blockChanceBonus: 0.05, role: 'military' },
 };
 
+function findType(typeId) { return Object.values(BUILDING_TYPES).find((item) => item.id === typeId) ?? null; }
+
 export function createBuilding(id, ownerId, typeId, tileId) {
-  if (!getBuildingType({ typeId })) throw new Error(`Unknown building type: ${typeId}`);
+  if (!findType(typeId)) throw new Error(`Unknown building type: ${typeId}`);
   return { id, ownerId, typeId, tileId, active: true, workerIds: [], soldierIds: [] };
 }
 
-export function getBuildingType(building) {
-  return Object.values(BUILDING_TYPES).find((item) => item.id === building.typeId) ?? null;
-}
+export function getBuildingType(building) { return findType(building.typeId); }
 
 export function getFootprintTiles(state, typeId, originTileId) {
-  const type = Object.values(BUILDING_TYPES).find((item) => item.id === typeId);
-  const origin = state.tiles.find((tile) => tile.id === originTileId);
-  if (!type || !origin) return [];
+  const type = findType(typeId); const origin = state.tiles.find((tile) => tile.id === originTileId); if (!type || !origin) return [];
   const footprint = [];
-  for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) {
-    const tile = state.tiles.find((candidate) => candidate.x === origin.x + dx && candidate.y === origin.y + dy);
-    if (!tile) return [];
-    footprint.push(tile);
-  }
+  for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) { const tile = state.tiles.find((candidate) => candidate.x === origin.x + dx && candidate.y === origin.y + dy); if (!tile) return []; footprint.push(tile); }
   return footprint;
 }
 
+export function getReservedTiles(state, typeId, originTileId) {
+  const footprint = getFootprintTiles(state, typeId, originTileId); if (!footprint.length) return [];
+  const coords = new Set(footprint.map((tile) => `${tile.x},${tile.y}`)); const reserved = [];
+  for (const tile of state.tiles) {
+    if (coords.has(`${tile.x},${tile.y}`)) continue;
+    const adjacent = footprint.some((cell) => Math.max(Math.abs(tile.x - cell.x), Math.abs(tile.y - cell.y)) === 1);
+    if (adjacent) reserved.push(tile);
+  }
+  return reserved;
+}
+
+export function getBuildingAtTile(state, tileId) {
+  return (state.buildings ?? []).find((building) => building.active && getFootprintTiles(state, building.typeId, building.tileId).some((tile) => tile.id === tileId)) ?? null;
+}
+
+export function isReservedForBuilding(state, tileId) {
+  return (state.buildings ?? []).some((building) => building.active && getReservedTiles(state, building.typeId, building.tileId).some((tile) => tile.id === tileId));
+}
+
 export function canBuildOnTile(state, typeId, tileId, ownerId = state.player.id) {
-  const type = Object.values(BUILDING_TYPES).find((item) => item.id === typeId);
-  const footprint = getFootprintTiles(state, typeId, tileId);
-  if (!type || footprint.length !== type.width * type.height) return false;
+  const type = findType(typeId); const footprint = getFootprintTiles(state, typeId, tileId); if (!type || footprint.length !== type.width * type.height) return false;
   if (footprint.some((tile) => tile.ownerId !== ownerId)) return false;
   if (type.terrainIds && footprint.some((tile) => !type.terrainIds.includes(tile.terrain))) return false;
-  if (footprint.some((tile) => getBuildingAtTile(state, tile.id))) return false;
+  if (footprint.some((tile) => getBuildingAtTile(state, tile.id) || isReservedForBuilding(state, tile.id))) return false;
   return true;
 }
 
 export function addBuilding(state, building) {
   if (!canBuildOnTile(state, building.typeId, building.tileId, building.ownerId)) throw new Error('Building cannot be placed on this footprint');
-  state.buildings ??= [];
-  state.buildings.push(building);
-  return building;
-}
-
-export function getBuildingAtTile(state, tileId) {
-  return (state.buildings ?? []).find((building) => {
-    if (!building.active) return false;
-    return getFootprintTiles(state, building.typeId, building.tileId).some((tile) => tile.id === tileId);
-  }) ?? null;
+  state.buildings ??= []; state.buildings.push(building); return building;
 }
