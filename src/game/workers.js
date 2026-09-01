@@ -15,10 +15,9 @@ export const WORKER_TYPES = {
 };
 
 const RESOURCE_RULES = {
-  forester: { resourceId: 'wood', terrainId: 'forest' },
-  stonemason: { resourceId: 'stone', terrainId: 'hills' },
-  lumberjack: { resourceId: 'wood', terrainId: 'forest' },
-  miner: { resourceId: 'ore', terrainId: 'mountains' },
+  forester: { resourceId: 'wood', terrainIds: ['forest'] },
+  stonemason: { resourceId: 'stone', terrainIds: ['plains'] },
+  lumberjack: { resourceId: 'wood', terrainIds: ['forest'] },
 };
 
 export function createWorker(id, ownerId, typeId) {
@@ -34,13 +33,8 @@ export function createWorkZone(id, ownerId, centerTileId, radius = 5, buildingId
 function distance(a, b) { return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)); }
 export function isInsideWorkZone(center, tile, radius) { return distance(center, tile) <= radius; }
 
-function getBuildingType(state, building) {
-  return Object.values(state.buildingTypes ?? {}).find((item) => item.id === building.typeId) ?? null;
-}
-
-function getWorkerZone(state, building) {
-  return state.workZones?.find((item) => item.buildingId === building.id && item.active !== false) ?? null;
-}
+function getBuildingType(state, building) { return Object.values(state.buildingTypes ?? {}).find((item) => item.id === building.typeId) ?? null; }
+function getWorkerZone(state, building) { return state.workZones?.find((item) => item.buildingId === building.id && item.active !== false) ?? null; }
 
 function validateTargetTile(state, building, zone, targetTileId) {
   if (!targetTileId) return true;
@@ -73,22 +67,31 @@ export function findAvailableResourceTile(state, worker) {
   const rule = RESOURCE_RULES[worker.typeId];
   const zone = state.workZones?.find((item) => item.id === worker.zoneId && item.active !== false);
   if (!rule || !zone || !worker.targetTileId) return null;
-  const center = state.tiles.find((tile) => tile.id === zone.centerTileId);
   const target = state.tiles.find((tile) => tile.id === worker.targetTileId);
-  if (!center || !target || target.terrain !== rule.terrainId) return null;
-  if (target.resources?.[rule.resourceId] <= 0) return null;
+  const center = state.tiles.find((tile) => tile.id === zone.centerTileId);
+  if (!target || !center || !rule.terrainIds.includes(target.terrain)) return null;
+  if ((target.resources?.[rule.resourceId] ?? 0) <= 0) return null;
   if (!isInsideWorkZone(center, target, zone.radius)) return null;
   return target;
 }
 
+function getMinerRule(state, worker) {
+  const building = state.buildings?.find((item) => item.id === worker.buildingId && item.active);
+  const type = building ? getBuildingType(state, building) : null;
+  if (!type || worker.typeId !== 'miner' || type.role !== 'extraction') return null;
+  const resourceId = type.output?.resourceId;
+  if (!resourceId) return null;
+  return { resourceId, terrainIds: ['hills', 'mountains'] };
+}
+
 export function extractForWorker(state, worker) {
-  const rule = RESOURCE_RULES[worker.typeId];
-  const tile = findAvailableResourceTile(state, worker);
+  const rule = worker.typeId === 'miner' ? getMinerRule(state, worker) : RESOURCE_RULES[worker.typeId];
+  const tile = findAvailableResourceTile(state, { ...worker, _resourceRule: rule });
   if (!rule || !tile) { worker.state = 'idle'; return { extracted: false, amount: 0, tileId: null }; }
   const amount = state.rules.resourceUnitPerExtraction;
-  if (tile.resources[rule.resourceId] < amount) { worker.state = 'idle'; return { extracted: false, amount: 0, tileId: tile.id }; }
+  if ((tile.resources?.[rule.resourceId] ?? 0) < amount) { worker.state = 'idle'; return { extracted: false, amount: 0, tileId: tile.id }; }
   tile.resources[rule.resourceId] -= amount;
-  state.player.resources[rule.resourceId] += amount;
+  state.player.resources[rule.resourceId] = (state.player.resources[rule.resourceId] ?? 0) + amount;
   worker.state = 'working';
   return { extracted: true, amount, tileId: tile.id };
 }
