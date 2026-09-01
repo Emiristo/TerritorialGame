@@ -34,13 +34,7 @@ export function createBuilding(id, ownerId, typeId, tileId) {
   if (!type) throw new Error(`Unknown building type: ${typeId}`);
   const required = getConstructionMaterials({ typeId });
   const complete = Object.keys(required).length === 0;
-  return {
-    id, ownerId, typeId, tileId, active: complete, constructionComplete: complete,
-    constructionMaterialsRequired: required,
-    constructionMaterialsDelivered: Object.fromEntries(Object.keys(required).map((resource) => [resource, 0])),
-    constructionQueue: [], currentConstructionMaterial: null, currentConstructionMaterialRemainingTime: 0,
-    workerIds: [], soldierIds: [], constructionTimer: 0,
-  };
+  return { id, ownerId, typeId, tileId, active: complete, constructionComplete: complete, constructionMaterialsRequired: required, constructionMaterialsDelivered: Object.fromEntries(Object.keys(required).map((resource) => [resource, 0])), constructionQueue: [], currentConstructionMaterial: null, currentConstructionMaterialRemainingTime: 0, workerIds: [], soldierIds: [], constructionTimer: 0 };
 }
 
 export function deliverConstructionMaterial(building, resourceId, amount = 1) {
@@ -68,8 +62,9 @@ function startNextConstructionMaterial(building) {
 export function advanceConstruction(building, elapsedSeconds) {
   if (!building || building.constructionComplete) return building;
   let remaining = Math.max(0, Number(elapsedSeconds) || 0);
+  if (!building.currentConstructionMaterial) startNextConstructionMaterial(building);
   while (remaining > 0) {
-    if (!building.currentConstructionMaterial && !startNextConstructionMaterial(building)) break;
+    if (!building.currentConstructionMaterial) break;
     const work = Math.min(remaining, building.currentConstructionMaterialRemainingTime);
     building.currentConstructionMaterialRemainingTime -= work;
     building.constructionTimer = building.currentConstructionMaterialRemainingTime;
@@ -77,16 +72,12 @@ export function advanceConstruction(building, elapsedSeconds) {
     if (building.currentConstructionMaterialRemainingTime === 0) {
       building.currentConstructionMaterial = null;
       building.constructionTimer = 0;
+      if (remaining > 0) startNextConstructionMaterial(building);
     }
   }
   const allDelivered = Object.entries(building.constructionMaterialsRequired).every(([resource, amount]) => building.constructionMaterialsDelivered[resource] >= amount);
-  if (allDelivered && !building.currentConstructionMaterial && !building.constructionQueue.length) {
-    building.constructionComplete = true;
-    building.active = true;
-    building.constructionState = 'COMPLETED';
-  } else if (!building.currentConstructionMaterial && !building.constructionQueue.length) {
-    building.constructionState = 'WAITING_FOR_MATERIAL';
-  }
+  if (allDelivered && !building.currentConstructionMaterial && !building.constructionQueue.length) { building.constructionComplete = true; building.active = true; building.constructionState = 'COMPLETED'; }
+  else if (!building.currentConstructionMaterial && !building.constructionQueue.length) building.constructionState = 'WAITING_FOR_MATERIAL';
   return building;
 }
 
