@@ -32,7 +32,6 @@ export function createWorkZone(id, ownerId, centerTileId, radius = 5, buildingId
 
 function distance(a, b) { return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)); }
 export function isInsideWorkZone(center, tile, radius) { return distance(center, tile) <= radius; }
-
 function getBuildingType(state, building) { return Object.values(state.buildingTypes ?? {}).find((item) => item.id === building.typeId) ?? null; }
 function getWorkerZone(state, building) { return state.workZones?.find((item) => item.buildingId === building.id && item.active !== false) ?? null; }
 
@@ -63,8 +62,17 @@ export function assignWorkerToBuilding(state, workerId, buildingId, targetTileId
   return worker;
 }
 
+function getExtractionRule(state, worker) {
+  if (worker.typeId !== 'miner') return RESOURCE_RULES[worker.typeId] ?? null;
+  const building = state.buildings?.find((item) => item.id === worker.buildingId && item.active);
+  const type = building ? getBuildingType(state, building) : null;
+  if (!type || type.role !== 'extraction') return null;
+  const resourceId = type.output?.resourceId;
+  return resourceId ? { resourceId, terrainIds: ['hills', 'mountains'] } : null;
+}
+
 export function findAvailableResourceTile(state, worker) {
-  const rule = RESOURCE_RULES[worker.typeId];
+  const rule = worker._resourceRule ?? getExtractionRule(state, worker);
   const zone = state.workZones?.find((item) => item.id === worker.zoneId && item.active !== false);
   if (!rule || !zone || !worker.targetTileId) return null;
   const target = state.tiles.find((tile) => tile.id === worker.targetTileId);
@@ -75,17 +83,8 @@ export function findAvailableResourceTile(state, worker) {
   return target;
 }
 
-function getMinerRule(state, worker) {
-  const building = state.buildings?.find((item) => item.id === worker.buildingId && item.active);
-  const type = building ? getBuildingType(state, building) : null;
-  if (!type || worker.typeId !== 'miner' || type.role !== 'extraction') return null;
-  const resourceId = type.output?.resourceId;
-  if (!resourceId) return null;
-  return { resourceId, terrainIds: ['hills', 'mountains'] };
-}
-
 export function extractForWorker(state, worker) {
-  const rule = worker.typeId === 'miner' ? getMinerRule(state, worker) : RESOURCE_RULES[worker.typeId];
+  const rule = getExtractionRule(state, worker);
   const tile = findAvailableResourceTile(state, { ...worker, _resourceRule: rule });
   if (!rule || !tile) { worker.state = 'idle'; return { extracted: false, amount: 0, tileId: null }; }
   const amount = state.rules.resourceUnitPerExtraction;
