@@ -21,6 +21,10 @@ button { font: inherit; }
 .tile.is-territory-source { box-shadow: inset 0 0 0 2px #e8edf2; font-weight: 800; }
 .tile.is-building { font-size: clamp(10px, 1.6vw, 20px); text-shadow: 0 1px 2px #101419; }
 .tile.is-selected { outline: 2px solid #e8edf2; outline-offset: -2px; z-index: 1; }
+.tile.preview-footprint { position: relative; z-index: 2; box-shadow: inset 0 0 0 2px currentColor; opacity: .88; }
+.tile.preview-valid { background: rgba(70, 150, 90, .72); }
+.tile.preview-invalid { background: rgba(170, 65, 65, .72); }
+.tile.preview-reserved { box-shadow: inset 0 0 0 1px rgba(232,237,242,.55); opacity: .6; }
 .stat { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #29313a; font-size: 13px; }
 .stat span { color: #8e9aa7; }
 .panel-action { width: 100%; margin-top: 14px; border: 0; border-radius: 6px; padding: 9px 10px; background: #e8edf2; color: #101419; cursor: pointer; font-weight: 700; }
