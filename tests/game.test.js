@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState, MAP_WIDTH, MAP_HEIGHT, HEADQUARTERS_INFLUENCE_RADIUS, STARTER_FOREST_AREA, STARTER_STONE_AREA, STARTER_HILLS_AREA, STARTER_MOUNTAINS_AREA } from '../src/game/state.js';
-import { BUILDING_TYPES, canBuildOnTile, getFootprintTiles } from '../src/game/buildings.js';
+import { BUILDING_TYPES, BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, canBuildOnTile, getConstructionTime, getFootprintTiles, getReservedTiles, isReservedForBuilding } from '../src/game/buildings.js';
 import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence.js';
 import { WORKER_TYPES, createWorker, createWorkZone, assignWorkerToBuilding } from '../src/game/workers.js';
 import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
+
+describe('construction time', () => {
+  it('uses 10 seconds per plank and 15 seconds per stone', () => { expect(BUILD_TIME_PER_PLANK).toBe(10); expect(BUILD_TIME_PER_STONE).toBe(15); });
+  it('calculates time from construction resources', () => { expect(getConstructionTime({ planks: 2, stone: 2 })).toBe(50); expect(getConstructionTime({ planks: 10, stone: 10 })).toBe(250); expect(getConstructionTime({ planks: 4 })).toBe(40); });
+  it('stores construction progress on a building', () => { const state = createGameState(); const buildingType = BUILDING_TYPES.WAREHOUSE; const building = { ...state.buildings[0], typeId: buildingType.id, constructionTime: getConstructionTime(buildingType.cost), remainingConstructionTime: getConstructionTime(buildingType.cost), constructionComplete: false }; expect(building.constructionTime).toBe(75); expect(building.remainingConstructionTime).toBe(75); });
+});
 
 describe('starter map', () => {
   it('creates a 100x100 map', () => { const state = createGameState(); expect(state.tiles).toHaveLength(MAP_WIDTH * MAP_HEIGHT); });
@@ -16,6 +22,8 @@ describe('buildings', () => {
   it('allows regular buildings on plains and rejects them on forest', () => { const state = createGameState(); const plain = state.tiles.find((t) => t.x >= 35 && t.x <= 45 && t.y >= 45 && t.y <= 55 && t.terrain === 'plains' && t.influence.player === 1); const forest = state.tiles.find((t) => t.terrain === 'forest'); expect(plain).toBeTruthy(); expect(canBuildOnTile(state, BUILDING_TYPES.WAREHOUSE.id, plain.id)).toBe(true); expect(canBuildOnTile(state, BUILDING_TYPES.WAREHOUSE.id, forest.id)).toBe(false); });
   it('allows mines on hills and mountains', () => { const state = createGameState(); const hills = state.tiles.find((t) => t.terrain === 'hills' && t.x >= 43 && t.x <= 44 && t.y >= 54 && t.y <= 55); const mountains = state.tiles.find((t) => t.terrain === 'mountains' && t.x >= 56 && t.x <= 57 && t.y >= 43 && t.y <= 44); expect(canBuildOnTile(state, BUILDING_TYPES.IRON_MINE.id, hills.id)).toBe(true); expect(canBuildOnTile(state, BUILDING_TYPES.IRON_MINE.id, mountains.id)).toBe(true); });
   it('calculates the complete footprint for a building', () => { const state = createGameState(); const plain = state.tiles.find((t) => t.x >= 35 && t.x <= 45 && t.y >= 45 && t.y <= 55 && t.terrain === 'plains' && t.influence.player === 1); expect(plain).toBeTruthy(); expect(getFootprintTiles(state, BUILDING_TYPES.WAREHOUSE.id, plain.id)).toHaveLength(9); });
+  it('creates a one-cell reservation around the footprint', () => { const state = createGameState(); const plain = state.tiles.find((t) => t.x >= 35 && t.x <= 45 && t.y >= 45 && t.y <= 55 && t.terrain === 'plains' && t.influence.player === 1); const reserved = getReservedTiles(state, BUILDING_TYPES.WAREHOUSE.id, plain.id); expect(reserved.length).toBeGreaterThan(0); expect(reserved.every((tile) => !getFootprintTiles(state, BUILDING_TYPES.WAREHOUSE.id, plain.id).includes(tile))).toBe(true); });
+  it('allows reservation overlap but blocks building placement in reservation', () => { const state = createGameState(); const a = state.tiles.find((t) => t.x >= 35 && t.x <= 45 && t.y >= 45 && t.y <= 55 && t.terrain === 'plains' && t.influence.player === 1); const reserved = getReservedTiles(state, BUILDING_TYPES.WAREHOUSE.id, a.id); expect(reserved.length).toBeGreaterThan(0); expect(isReservedForBuilding({ ...state, buildings: [{ ...state.buildings[0], typeId: BUILDING_TYPES.WAREHOUSE.id, tileId: a.id }] }, reserved[0].id)).toBe(true); });
 });
 
 describe('workers and work zones', () => {
