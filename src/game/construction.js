@@ -1,26 +1,39 @@
-import { advanceGameClock } from './clock.js';
 import { advanceConstruction as advanceBuildingConstruction } from './buildings.js';
+
+export const CONSTRUCTION_STATES = Object.freeze({ WAITING_FOR_MATERIAL: 'WAITING_FOR_MATERIAL', BUILDING: 'BUILDING', COMPLETED: 'COMPLETED' });
 
 export function startConstruction(state, building, now = Date.now()) {
   building.constructionStartedAt = now;
   building.lastConstructionUpdateAt = now;
-  building.constructionComplete = building.constructionTime === 0;
-  building.active = building.constructionComplete;
+  building.constructionComplete = false;
+  building.active = false;
+  building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
+  building.constructionTimer = 0;
+  building.constructionTimerStartedAt = null;
   return building;
 }
 
-export function advanceConstruction(state, now = Date.now()) {
-  const elapsed = advanceGameClock(state.clock, now);
-  if (elapsed <= 0) return [];
-  const completed = [];
-  for (const building of state.buildings ?? []) {
-    if (building.constructionComplete) continue;
-    const wasComplete = building.constructionComplete;
-    advanceBuildingConstruction(building, elapsed);
-    building.lastConstructionUpdateAt = now;
-    if (!wasComplete && building.constructionComplete) completed.push(building);
+export function advanceConstruction(building, elapsedSeconds) {
+  if (!building || building.constructionComplete) return building;
+  advanceBuildingConstruction(building, elapsedSeconds);
+  if (building.constructionComplete) building.constructionState = CONSTRUCTION_STATES.COMPLETED;
+  else if (building.currentConstructionMaterial) building.constructionState = CONSTRUCTION_STATES.BUILDING;
+  else building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
+  return building;
+}
+
+export function deliverMaterialAndStartConstruction(building, resourceId, amount = 1) {
+  const delivered = building.constructionMaterialsDelivered?.[resourceId] ?? 0;
+  const required = building.constructionMaterialsRequired?.[resourceId] ?? 0;
+  const units = Math.max(0, Math.min(Math.floor(Number(amount) || 0), required - delivered));
+  if (!units) return 0;
+  building.constructionMaterialsDelivered[resourceId] = delivered + units;
+  for (let i = 0; i < units; i += 1) building.constructionQueue.push(resourceId);
+  if (!building.constructionComplete && !building.currentConstructionMaterial) {
+    building.constructionState = CONSTRUCTION_STATES.BUILDING;
+    building.constructionTimerStartedAt = Date.now();
   }
-  return completed;
+  return units;
 }
 
 export function completeConstruction(state, buildingId, now = Date.now()) {
@@ -37,6 +50,13 @@ export function completeConstruction(state, buildingId, now = Date.now()) {
   building.remainingConstructionTime = 0;
   building.constructionComplete = true;
   building.active = true;
+  building.constructionState = CONSTRUCTION_STATES.COMPLETED;
+  building.constructionTimer = 0;
   building.lastConstructionUpdateAt = now;
   return building;
+}
+
+export function advanceAllConstructions(state, elapsedSeconds) {
+  for (const building of state.buildings ?? []) advanceConstruction(building, elapsedSeconds);
+  return state;
 }
