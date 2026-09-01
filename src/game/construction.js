@@ -17,6 +17,7 @@ export function advanceConstruction(building, elapsedSeconds) {
   if (!building || building.constructionComplete) return building;
   if (building.constructionState === CONSTRUCTION_STATES.PLACED) {
     building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
+    return building;
   }
   advanceBuildingConstruction(building, elapsedSeconds);
   if (building.constructionComplete) building.constructionState = CONSTRUCTION_STATES.COMPLETED;
