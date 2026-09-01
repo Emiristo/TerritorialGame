@@ -5,13 +5,17 @@ import { createTerritorySource, recalculateTerritories } from './territory.js';
 import { createWorkZone, createWorker, WORKER_TYPES } from './workers.js';
 import { BUILDING_TYPES, createBuilding } from './buildings.js';
 
-export const MAP_WIDTH = 12;
-export const MAP_HEIGHT = 8;
+// The map is deliberately larger than a single work zone (radius 5), so
+// several production sites can coexist without immediately overlapping.
+export const MAP_WIDTH = 24;
+export const MAP_HEIGHT = 16;
+export const CAPITAL_X = 12;
+export const CAPITAL_Y = 8;
 
 function getInitialTerrain(x, y) {
-  if (y <= 1 || y >= MAP_HEIGHT - 2) return TERRAIN_TYPES.FOREST.id;
-  if (x <= 1 || x >= MAP_WIDTH - 2) return TERRAIN_TYPES.HILLS.id;
-  if ((x === 4 || x === 5) && y === 3) return TERRAIN_TYPES.MOUNTAINS.id;
+  if (y <= 2 || y >= MAP_HEIGHT - 3) return TERRAIN_TYPES.FOREST.id;
+  if (x <= 2 || x >= MAP_WIDTH - 3) return TERRAIN_TYPES.HILLS.id;
+  if ((x === 10 || x === 11 || x === 12 || x === 13) && (y === 6 || y === 7)) return TERRAIN_TYPES.MOUNTAINS.id;
   return TERRAIN_TYPES.PLAINS.id;
 }
 
@@ -36,7 +40,7 @@ export function createGameState() {
     }
   }
 
-  const capital = tiles.find((tile) => tile.x === 5 && tile.y === 4);
+  const capital = tiles.find((tile) => tile.x === CAPITAL_X && tile.y === CAPITAL_Y);
   const state = {
     turn: 1,
     selectedTileId: null,
@@ -54,6 +58,8 @@ export function createGameState() {
     state.territorySources.push(createTerritorySource('capital-player', 'player', capital.id, 1));
     recalculateTerritories(state);
 
+    // The starting production site is placed on owned forest, leaving the
+    // capital itself free for future civic buildings.
     const lumberTile = tiles.find((tile) => tile.terrain === TERRAIN_TYPES.FOREST.id && tile.ownerId === 'player');
     if (lumberTile) {
       const building = createBuilding('lumber-camp-1', 'player', BUILDING_TYPES.LUMBER_CAMP.id, lumberTile.id);
