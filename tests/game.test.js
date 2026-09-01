@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState, MAP_WIDTH, MAP_HEIGHT, HEADQUARTERS_INFLUENCE_RADIUS, STARTER_FOREST_AREA, STARTER_STONE_AREA, STARTER_HILLS_AREA, STARTER_MOUNTAINS_AREA } from '../src/game/state.js';
-import { BUILDING_TYPES, BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, canBuildOnTile, getConstructionTime, getFootprintTiles, getReservedTiles, isReservedForBuilding } from '../src/game/buildings.js';
+import { BUILDING_TYPES, BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, advanceConstruction, getConstructionTime, canBuildOnTile, getFootprintTiles, getReservedTiles, isReservedForBuilding } from '../src/game/buildings.js';
 import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence.js';
 import { WORKER_TYPES, createWorker, createWorkZone, assignWorkerToBuilding } from '../src/game/workers.js';
 import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
@@ -8,7 +8,8 @@ import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src
 describe('construction time', () => {
   it('uses 10 seconds per plank and 15 seconds per stone', () => { expect(BUILD_TIME_PER_PLANK).toBe(10); expect(BUILD_TIME_PER_STONE).toBe(15); });
   it('calculates time from construction resources', () => { expect(getConstructionTime({ planks: 2, stone: 2 })).toBe(50); expect(getConstructionTime({ planks: 10, stone: 10 })).toBe(250); expect(getConstructionTime({ planks: 4 })).toBe(40); });
-  it('stores construction progress on a building', () => { const state = createGameState(); const buildingType = BUILDING_TYPES.WAREHOUSE; const building = { ...state.buildings[0], typeId: buildingType.id, constructionTime: getConstructionTime(buildingType.cost), remainingConstructionTime: getConstructionTime(buildingType.cost), constructionComplete: false }; expect(building.constructionTime).toBe(75); expect(building.remainingConstructionTime).toBe(75); });
+  it('counts construction down in real time and activates at zero', () => { const building = { constructionTime: 75, remainingConstructionTime: 75, constructionComplete: false, active: false }; advanceConstruction(building, 25); expect(building.remainingConstructionTime).toBe(50); expect(building.constructionComplete).toBe(false); expect(building.active).toBe(false); advanceConstruction(building, 49); expect(building.remainingConstructionTime).toBe(1); advanceConstruction(building, 1); expect(building.remainingConstructionTime).toBe(0); expect(building.constructionComplete).toBe(true); expect(building.active).toBe(true); });
+  it('does not move the timer backwards or below zero', () => { const building = { constructionTime: 20, remainingConstructionTime: 20, constructionComplete: false, active: false }; advanceConstruction(building, 0); expect(building.remainingConstructionTime).toBe(20); advanceConstruction(building, -5); expect(building.remainingConstructionTime).toBe(20); advanceConstruction(building, 100); expect(building.remainingConstructionTime).toBe(0); });
 });
 
 describe('starter map', () => {
