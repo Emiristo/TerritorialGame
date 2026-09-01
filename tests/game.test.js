@@ -3,7 +3,7 @@ import { createGameState, MAP_WIDTH, MAP_HEIGHT, CAPITAL_X, CAPITAL_Y } from '..
 import { TERRAIN_BY_ID } from '../src/game/terrain.js';
 import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence.js';
 import { WORKER_TYPES, createWorkZone, createWorker, assignWorkerToBuilding, extractForWorker } from '../src/game/workers.js';
-import { BUILDING_TYPES, addBuilding, canBuildOnTile, getBuildingAtTile, createBuilding } from '../src/game/buildings.js';
+import { BUILDING_TYPES, addBuilding, canBuildOnTile, createBuilding } from '../src/game/buildings.js';
 import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
 
 describe('game state', () => {
@@ -46,6 +46,7 @@ describe('buildings, workers and work zones', () => {
     expect(building?.typeId).toBe(BUILDING_TYPES.LUMBER_CAMP.id);
     expect(worker.buildingId).toBe(building.id);
     expect(worker.zoneId).toBe(state.workZones[0].id);
+    expect(worker.targetTileId).toBe(building.tileId);
     expect(state.workZones[0].buildingId).toBe(building.id);
   });
 
@@ -61,7 +62,7 @@ describe('buildings, workers and work zones', () => {
     const worker = createWorker('worker-1', 'player', WORKER_TYPES.LUMBERJACK.id);
     state.workers.push(worker);
     const building = state.buildings[0];
-    const assigned = assignWorkerToBuilding(state, worker.id, building.id);
+    const assigned = assignWorkerToBuilding(state, worker.id, building.id, building.tileId);
     expect(assigned.buildingId).toBe(building.id);
     expect(assigned.zoneId).toBe(state.workZones[0].id);
   });
@@ -69,7 +70,7 @@ describe('buildings, workers and work zones', () => {
   it('extracts exactly one unit for a worker', () => {
     const state = createGameState();
     const worker = state.workers[0];
-    const forest = state.tiles.find((tile) => tile.terrain === 'forest' && tile.ownerId === 'player');
+    const forest = state.tiles.find((tile) => tile.id === worker.targetTileId);
     expect(forest.resources.wood).toBe(9);
     const result = extractForWorker(state, worker);
     expect(result.extracted).toBe(true);
@@ -78,12 +79,44 @@ describe('buildings, workers and work zones', () => {
     expect(state.tiles.find((tile) => tile.id === result.tileId).resources.wood).toBe(8);
   });
 
-  it('does not extract from a depleted deposit', () => {
+  it('allows extraction from an unowned resource inside the work zone', () => {
     const state = createGameState();
     const worker = state.workers[0];
-    for (let i = 0; i < 9; i += 1) extractForWorker(state, worker);
+    const zone = state.workZones[0];
+    const center = state.tiles.find((tile) => tile.id === zone.centerTileId);
+    const target = state.tiles.find((tile) => tile.terrain === 'forest' && Math.max(Math.abs(tile.x - center.x), Math.abs(tile.y - center.y)) <= zone.radius && tile.id !== worker.targetTileId);
+    expect(target).toBeDefined();
+    target.ownerId = 'enemy';
+    target.resources.wood = 9;
+    worker.targetTileId = target.id;
     const result = extractForWorker(state, worker);
-    expect(result.extracted).toBe(false);
+    expect(result.extracted).toBe(true);
+    expect(target.resources.wood).toBe(8);
+    expect(state.player.resources.wood).toBe(1);
+  });
+
+  it('does not extract when the selected resource is outside the work zone', () => {
+    const state = createGameState();
+    const worker = state.workers[0];
+    const zone = state.workZones[0];
+    const center = state.tiles.find((tile) => tile.id === zone.centerTileId);
+    const target = state.tiles.find((tile) => tile.terrain === 'forest' && Math.max(Math.abs(tile.x - center.x), Math.abs(tile.y - center.y)) > zone.radius);
+    expect(target).toBeDefined();
+    worker.targetTileId = target.id;
+    expect(extractForWorker(state, worker).extracted).toBe(false);
+    expect(state.player.resources.wood).toBe(0);
+  });
+
+  it('does not switch to another deposit after the assigned deposit is depleted', () => {
+    const state = createGameState();
+    const worker = state.workers[0];
+    const assigned = state.tiles.find((tile) => tile.id === worker.targetTileId);
+    for (let i = 0; i < 9; i += 1) expect(extractForWorker(state, worker).extracted).toBe(true);
+    const other = state.tiles.find((tile) => tile.terrain === 'forest' && tile.id !== assigned.id && tile.resources.wood > 0);
+    expect(other).toBeDefined();
+    expect(extractForWorker(state, worker).extracted).toBe(false);
+    expect(assigned.resources.wood).toBe(0);
+    expect(other.resources.wood).toBe(9);
     expect(state.player.resources.wood).toBe(9);
   });
 
