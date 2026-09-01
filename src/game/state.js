@@ -12,21 +12,28 @@ export const HEADQUARTERS_CENTER_X = 50;
 export const HEADQUARTERS_CENTER_Y = 50;
 export const HEADQUARTERS_INFLUENCE_RADIUS = 10;
 
+// Deterministic starter layout: plains around the headquarters, with one
+// dedicated forest area and one dedicated stone area for early testing.
+export const STARTER_FOREST_AREA = { minX: 20, maxX: 29, minY: 45, maxY: 54 };
+export const STARTER_STONE_AREA = { minX: 71, maxX: 80, minY: 45, maxY: 54 };
+
+function inArea(x, y, area) {
+  return x >= area.minX && x <= area.maxX && y >= area.minY && y <= area.maxY;
+}
+
 function getInitialTerrain(x, y) {
-  const dx = Math.abs(x - HEADQUARTERS_CENTER_X);
-  const dy = Math.abs(y - HEADQUARTERS_CENTER_Y);
-  if (dx <= 3 && dy <= 3) return TERRAIN_TYPES.PLAINS.id;
-  if (y < 15) return TERRAIN_TYPES.FOREST.id;
-  if (x < 20 || x >= 80) return TERRAIN_TYPES.HILLS.id;
-  if ((x + y) % 17 === 0 || (x * 3 + y) % 29 === 0) return TERRAIN_TYPES.MOUNTAINS.id;
+  if (inArea(x, y, STARTER_FOREST_AREA)) return TERRAIN_TYPES.FOREST.id;
+  if (inArea(x, y, STARTER_STONE_AREA)) return TERRAIN_TYPES.HILLS.id;
+  // The area used for building/testing around the headquarters is deliberately
+  // flat. Other terrain is left for later map-generation work.
   return TERRAIN_TYPES.PLAINS.id;
 }
 
 function createInitialResources(terrainId) {
   const resources = createTileResources();
   if (terrainId === TERRAIN_TYPES.FOREST.id) resources.wood = 9;
-  if (terrainId === TERRAIN_TYPES.MOUNTAINS.id) { resources.stone = 9; resources.ore = 9; }
-  if (terrainId === TERRAIN_TYPES.HILLS.id) resources.stone = 9;
+  if (terrainId === TERRAIN_TYPES.HILLS.id) resources.stone = 25;
+  if (terrainId === TERRAIN_TYPES.MOUNTAINS.id) { resources.stone = 25; resources.ore = 25; }
   if (terrainId === TERRAIN_TYPES.PLAINS.id) resources.food = 9;
   return resources;
 }
