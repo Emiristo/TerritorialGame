@@ -23,13 +23,20 @@ export function advanceConstruction(building, elapsedSeconds) {
 }
 
 export function deliverMaterialAndStartConstruction(building, resourceId, amount = 1) {
-  const delivered = building.constructionMaterialsDelivered?.[resourceId] ?? 0;
-  const required = building.constructionMaterialsRequired?.[resourceId] ?? 0;
+  if (!building || building.constructionComplete) return 0;
+  const delivered = Number(building.constructionMaterialsDelivered?.[resourceId] ?? 0);
+  const required = Number(building.constructionMaterialsRequired?.[resourceId] ?? 0);
   const units = Math.max(0, Math.min(Math.floor(Number(amount) || 0), required - delivered));
   if (!units) return 0;
+
   building.constructionMaterialsDelivered[resourceId] = delivered + units;
   for (let i = 0; i < units; i += 1) building.constructionQueue.push(resourceId);
-  if (!building.constructionComplete && !building.currentConstructionMaterial) {
+
+  // A delivery immediately starts the building's own timer when it is idle.
+  // Zero elapsed time is intentional: it initializes the next material segment
+  // without advancing construction or coupling it to the global game clock.
+  if (!building.currentConstructionMaterial) {
+    advanceBuildingConstruction(building, 0);
     building.constructionState = CONSTRUCTION_STATES.BUILDING;
     building.constructionTimerStartedAt = Date.now();
   }
