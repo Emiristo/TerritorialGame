@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createGameState, MAP_WIDTH, MAP_HEIGHT } from '../src/game/state.js';
+import { createGameState, MAP_WIDTH, MAP_HEIGHT, CAPITAL_X, CAPITAL_Y } from '../src/game/state.js';
 import { TERRAIN_BY_ID } from '../src/game/terrain.js';
 import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence.js';
 import { WORKER_TYPES, createWorkZone, createWorker, assignWorkerToBuilding, extractForWorker } from '../src/game/workers.js';
@@ -7,13 +7,18 @@ import { BUILDING_TYPES, addBuilding, canBuildOnTile, getBuildingAtTile, createB
 import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
 
 describe('game state', () => {
-  it('creates the expected map dimensions', () => expect(createGameState().tiles).toHaveLength(MAP_WIDTH * MAP_HEIGHT));
-  it('creates a starting territory around the capital', () => {
+  it('creates the expanded map', () => {
     const state = createGameState();
-    const capital = state.tiles.find((tile) => tile.x === 5 && tile.y === 4);
-    expect(capital.ownerId).toBe('player');
-    expect(capital.influence.player).toBe(1);
-    expect(getOwnedTiles(state, 'player').length).toBe(88);
+    expect(state.tiles).toHaveLength(MAP_WIDTH * MAP_HEIGHT);
+    expect(MAP_WIDTH).toBe(24);
+    expect(MAP_HEIGHT).toBe(16);
+  });
+
+  it('places the capital in the centre area', () => {
+    const state = createGameState();
+    const capital = state.tiles.find((tile) => tile.x === CAPITAL_X && tile.y === CAPITAL_Y);
+    expect(capital?.ownerId).toBe('player');
+    expect(capital?.influence.player).toBe(1);
   });
 });
 
@@ -25,6 +30,7 @@ describe('terrain and resources', () => {
     expect(TERRAIN_BY_ID.mountains).toBeDefined();
     expect(TERRAIN_BY_ID.water).toBeDefined();
   });
+
   it('uses nine units as the base resource reserve', () => {
     const forest = createGameState().tiles.find((tile) => tile.terrain === 'forest');
     expect(forest.resources.wood).toBe(9);
@@ -35,11 +41,12 @@ describe('buildings, workers and work zones', () => {
   it('creates a starting workplace for the starting worker', () => {
     const state = createGameState();
     const worker = state.workers[0];
-    const building = getBuildingAtTile(state, worker.buildingId ? state.buildings.find((b) => b.id === worker.buildingId).tileId : null);
+    const building = state.buildings.find((item) => item.id === worker.buildingId);
     expect(state.buildings).toHaveLength(1);
     expect(building?.typeId).toBe(BUILDING_TYPES.LUMBER_CAMP.id);
-    expect(worker.buildingId).toBe(state.buildings[0].id);
+    expect(worker.buildingId).toBe(building.id);
     expect(worker.zoneId).toBe(state.workZones[0].id);
+    expect(state.workZones[0].buildingId).toBe(building.id);
   });
 
   it('uses a radius of five cells for work zones', () => {
@@ -93,22 +100,24 @@ describe('buildings, workers and work zones', () => {
 describe('territories', () => {
   it('lets a new influence source claim uncontested tiles', () => {
     const state = createGameState();
-    addTerritorySource(state, createTerritorySource('outpost', 'player', '10-0', 1));
-    expect(state.tiles.find((tile) => tile.id === '11-0').ownerId).toBe('player');
+    addTerritorySource(state, createTerritorySource('outpost', 'player', '20-2', 1));
+    expect(state.tiles.find((tile) => tile.id === '21-2').ownerId).toBe('player');
   });
+
   it('leaves contested tiles neutral on equal influence', () => {
     const state = createGameState();
-    addTerritorySource(state, createTerritorySource('enemy', 'enemy', '10-4', 1));
-    const contested = state.tiles.find((tile) => tile.id === '7-4');
+    addTerritorySource(state, createTerritorySource('enemy', 'enemy', '20-8', 1));
+    const contested = state.tiles.find((tile) => tile.id === '17-8');
     expect(contested.influence.player).toBe(1);
     expect(contested.influence.enemy).toBe(1);
     expect(contested.ownerId).toBe(null);
   });
+
   it('expands territory when a second source is added', () => {
     const state = createGameState();
     const before = getOwnedTiles(state, 'player').length;
-    addTerritorySource(state, createTerritorySource('outpost', 'player', '10-0', 1));
+    addTerritorySource(state, createTerritorySource('outpost', 'player', '20-2', 1));
     expect(getOwnedTiles(state, 'player').length).toBeGreaterThan(before);
-    expect(state.tiles.find((tile) => tile.id === '11-0').ownerId).toBe('player');
+    expect(state.tiles.find((tile) => tile.id === '21-2').ownerId).toBe('player');
   });
 });
