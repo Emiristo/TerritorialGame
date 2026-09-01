@@ -2,28 +2,30 @@ import { TERRAIN_TYPES } from './terrain.js';
 import { createTileResources } from './resources.js';
 import { INFLUENCE_RADIUS } from './influence.js';
 import { createTerritorySource, recalculateTerritories } from './territory.js';
-import { createWorkZone, createWorker, WORKER_TYPES } from './workers.js';
-import { BUILDING_TYPES, createBuilding } from './buildings.js';
+import { BUILDING_TYPES, createBuilding, getFootprintTiles } from './buildings.js';
 
-export const MAP_WIDTH = 24;
-export const MAP_HEIGHT = 16;
-export const CAPITAL_X = 12;
-export const CAPITAL_Y = 8;
+export const MAP_WIDTH = 100;
+export const MAP_HEIGHT = 100;
+export const CAPITAL_X = 49;
+export const CAPITAL_Y = 49;
+export const HEADQUARTERS_CENTER_X = 50;
+export const HEADQUARTERS_CENTER_Y = 50;
+export const HEADQUARTERS_INFLUENCE_RADIUS = 10;
 
 function getInitialTerrain(x, y) {
-  if (y <= 3) return TERRAIN_TYPES.FOREST.id;
-  if (x <= 7 || x >= MAP_WIDTH - 8) return TERRAIN_TYPES.HILLS.id;
-  if ((x === 10 || x === 11 || x === 12 || x === 13) && (y === 6 || y === 7)) return TERRAIN_TYPES.MOUNTAINS.id;
+  const dx = Math.abs(x - HEADQUARTERS_CENTER_X);
+  const dy = Math.abs(y - HEADQUARTERS_CENTER_Y);
+  if (dx <= 3 && dy <= 3) return TERRAIN_TYPES.PLAINS.id;
+  if (y < 15) return TERRAIN_TYPES.FOREST.id;
+  if (x < 20 || x >= 80) return TERRAIN_TYPES.HILLS.id;
+  if ((x + y) % 17 === 0 || (x * 3 + y) % 29 === 0) return TERRAIN_TYPES.MOUNTAINS.id;
   return TERRAIN_TYPES.PLAINS.id;
 }
 
 function createInitialResources(terrainId) {
   const resources = createTileResources();
   if (terrainId === TERRAIN_TYPES.FOREST.id) resources.wood = 9;
-  if (terrainId === TERRAIN_TYPES.MOUNTAINS.id) {
-    resources.stone = 9;
-    resources.ore = 9;
-  }
+  if (terrainId === TERRAIN_TYPES.MOUNTAINS.id) { resources.stone = 9; resources.ore = 9; }
   if (terrainId === TERRAIN_TYPES.HILLS.id) resources.stone = 9;
   if (terrainId === TERRAIN_TYPES.PLAINS.id) resources.food = 9;
   return resources;
@@ -38,12 +40,11 @@ export function createGameState() {
     }
   }
 
-  const capital = tiles.find((tile) => tile.x === CAPITAL_X && tile.y === CAPITAL_Y);
   const state = {
     turn: 1,
     selectedTileId: null,
     player: { id: 'player', name: 'Игрок', resources: { wood: 0, stone: 0, ore: 0, food: 0 } },
-    rules: { influenceRadius: INFLUENCE_RADIUS, workZoneRadius: INFLUENCE_RADIUS, resourceUnitPerExtraction: 1 },
+    rules: { influenceRadius: INFLUENCE_RADIUS, headquartersInfluenceRadius: HEADQUARTERS_INFLUENCE_RADIUS, workZoneRadius: 5, resourceUnitPerExtraction: 1 },
     buildingTypes: Object.values(BUILDING_TYPES),
     territorySources: [],
     buildings: [],
@@ -52,25 +53,13 @@ export function createGameState() {
     tiles,
   };
 
-  if (capital) {
-    state.territorySources.push(createTerritorySource('capital-player', 'player', capital.id, 1));
-    recalculateTerritories(state);
+  const headquarters = createBuilding('headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
+  state.buildings.push(headquarters);
 
-    const lumberTile = tiles.find((tile) => tile.terrain === TERRAIN_TYPES.FOREST.id && tile.ownerId === 'player');
-    if (lumberTile) {
-      const building = createBuilding('sawmill-1', 'player', BUILDING_TYPES.SAWMILL.id, lumberTile.id);
-      state.buildings.push(building);
-      const zone = createWorkZone('zone-sawmill-1', 'player', lumberTile.id, state.rules.workZoneRadius, building.id);
-      state.workZones.push(zone);
-      const worker = createWorker('lumberjack-1', 'player', WORKER_TYPES.LUMBERJACK.id);
-      state.workers.push(worker);
-      worker.buildingId = building.id;
-      worker.zoneId = zone.id;
-      worker.targetTileId = lumberTile.id;
-      worker.state = 'working';
-      building.workerIds.push(worker.id);
-      zone.workerIds.push(worker.id);
-    }
+  const headquartersCenter = tiles.find((tile) => tile.x === HEADQUARTERS_CENTER_X && tile.y === HEADQUARTERS_CENTER_Y);
+  if (headquartersCenter) {
+    state.territorySources.push(createTerritorySource('headquarters-player', 'player', headquartersCenter.id, 1, HEADQUARTERS_INFLUENCE_RADIUS));
+    recalculateTerritories(state);
   }
 
   return state;
@@ -78,4 +67,8 @@ export function createGameState() {
 
 export function getSelectedTile(state) {
   return state.tiles.find((tile) => tile.id === state.selectedTileId) ?? null;
+}
+
+export function getHeadquartersTiles(state) {
+  return getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
 }
