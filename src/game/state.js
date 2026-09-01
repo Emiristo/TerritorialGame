@@ -58,9 +58,9 @@ export function createGameState() {
 
     const lumberTile = tiles.find((tile) => tile.terrain === TERRAIN_TYPES.FOREST.id && tile.ownerId === 'player');
     if (lumberTile) {
-      const building = createBuilding('lumber-camp-1', 'player', BUILDING_TYPES.LUMBER_CAMP.id, lumberTile.id);
+      const building = createBuilding('sawmill-1', 'player', BUILDING_TYPES.SAWMILL.id, lumberTile.id);
       state.buildings.push(building);
-      const zone = createWorkZone('zone-lumber-camp-1', 'player', lumberTile.id, state.rules.workZoneRadius, building.id);
+      const zone = createWorkZone('zone-sawmill-1', 'player', lumberTile.id, state.rules.workZoneRadius, building.id);
       state.workZones.push(zone);
       const worker = createWorker('lumberjack-1', 'player', WORKER_TYPES.LUMBERJACK.id);
       state.workers.push(worker);
