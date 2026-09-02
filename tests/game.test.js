@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState, MAP_WIDTH, MAP_HEIGHT, HEADQUARTERS_INFLUENCE_RADIUS, STARTER_FOREST_AREA, STARTER_STONE_AREA, STARTER_HILLS_AREA, STARTER_MOUNTAINS_AREA } from '../src/game/state.js';
-import { BUILDING_TYPES, BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, canBuildOnTile, getFootprintTiles, getReservedTiles, isReservedForBuilding, createBuilding } from '../src/game/buildings.js';
+import { BUILDING_TYPES, canBuildOnTile, getFootprintTiles, getReservedTiles, isReservedForBuilding, createBuilding } from '../src/game/buildings.js';
 import { deliverConstructionMaterial } from '../src/game/materials.js';
 import { createGameClock, startGameClock, tickGameClock } from '../src/game/clock.js';
-import { CONSTRUCTION_STATES, startConstruction, advanceConstruction } from '../src/game/construction.js';
+import { BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, startConstruction, advanceConstruction } from '../src/game/construction.js';
 import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence.js';
 import { WORKER_TYPES, createWorker, createWorkZone, assignWorkerToBuilding, workWorker } from '../src/game/workers.js';
 import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
