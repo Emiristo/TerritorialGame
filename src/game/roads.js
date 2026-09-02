@@ -8,6 +8,23 @@ function areAdjacent(a, b) {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
 }
 
+function rebuildNetworkFromRoads(state) {
+  const flags = state.flags ?? [];
+  const roads = state.roads ?? [];
+  const adjacency = Object.fromEntries(flags.map((flag) => [flag.id, []]));
+
+  for (const road of roads) {
+    if (!road.active || !adjacency[road.startFlagId] || !adjacency[road.endFlagId]) continue;
+    adjacency[road.startFlagId].push({ flagId: road.endFlagId, roadId: road.id });
+    adjacency[road.endFlagId].push({ flagId: road.startFlagId, roadId: road.id });
+  }
+
+  state.logisticsNetwork = { adjacency };
+  for (const flag of flags) {
+    flag.connected = adjacency[flag.id].length > 0;
+  }
+}
+
 export function createRoad(id, startFlagId, endFlagId, cells = []) {
   return {
     id,
@@ -49,6 +66,8 @@ export function addRoad(state, road) {
     const flag = (state.flags ?? []).find((item) => item.id === flagId);
     if (flag && !flag.roadIds.includes(road.id)) flag.roadIds.push(road.id);
   }
+
+  rebuildNetworkFromRoads(state);
   return road;
 }
 
@@ -59,6 +78,7 @@ export function removeRoad(state, roadId) {
   for (const flag of state.flags ?? []) {
     flag.roadIds = flag.roadIds.filter((id) => id !== roadId);
   }
+  rebuildNetworkFromRoads(state);
   return removed;
 }
 
