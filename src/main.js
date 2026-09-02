@@ -2,6 +2,7 @@ import { createGameState, getSelectedTile } from './game/state.js';
 import { renderMap } from './ui/map.js';
 import { renderBuildMenu, renderPlayerPanel, renderTilePanel, renderClockInfo } from './ui/panels.js';
 import { BUILDING_TYPES, addBuilding, canBuildOnTile, createBuilding } from './game/buildings.js';
+import { syncBuildingFlags } from './game/buildingLogistics.js';
 import { deliverConstructionMaterial } from './game/materials.js';
 import { advanceAllConstructions, advanceConstruction, startConstruction } from './game/construction.js';
 import { advanceGameClock, GAME_SPEEDS, pauseGameClock, setGameSpeed, startGameClock } from './game/clock.js';
@@ -25,6 +26,7 @@ function findBuildingType(typeId) { return Object.values(BUILDING_TYPES).find((t
 function clearBuildSelection() { selectedBuildingTypeId = null; previewTileId = null; }
 function selectMapTile(tileId) { state.selectedTileId = tileId; previewTileId = selectedBuildingTypeId ? tileId : null; }
 function render() {
+  syncBuildingFlags(state);
   renderMap(elements.map, state, selectedBuildingTypeId, previewTileId);
   renderPlayerPanel(elements.playerPanel, state);
   renderBuildMenu(elements.buildMenu, state, selectedBuildingTypeId);
@@ -74,6 +76,7 @@ elements.tilePanel.addEventListener('click', (event) => {
   }
   const building = createBuilding(`building-${state.buildings.length + 1}`, state.player.id, type.id, tile.id);
   addBuilding(state, building);
+  syncBuildingFlags(state);
   startConstruction(state, building);
   elements.status.textContent = `Место строительства подготовлено: ${type.name}. Ожидание строительных материалов.`;
   clearBuildSelection();
