@@ -71,7 +71,10 @@ export function deliverMaterialAndStartConstruction(building, resourceId, amount
   return units;
 }
 
-export function advanceConstruction(state, building, elapsedSeconds) {
+export function advanceConstruction(stateOrBuilding, buildingOrElapsed, elapsedMaybe) {
+  const state = elapsedMaybe === undefined ? null : stateOrBuilding;
+  const building = elapsedMaybe === undefined ? stateOrBuilding : buildingOrElapsed;
+  const elapsedSeconds = elapsedMaybe === undefined ? buildingOrElapsed : elapsedMaybe;
   if (!building || building.constructionComplete) return building;
   beginConstructionWaiting(building);
   let remaining = Math.max(0, Number(elapsedSeconds) || 0);
@@ -91,7 +94,7 @@ export function advanceConstruction(state, building, elapsedSeconds) {
         building.constructionComplete = true;
         building.active = true;
         building.constructionState = CONSTRUCTION_STATES.COMPLETED;
-        syncWorkZones(state);
+        if (state) syncWorkZones(state);
         break;
       }
 
