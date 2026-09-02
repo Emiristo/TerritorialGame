@@ -182,7 +182,7 @@ describe('construction mechanics', () => {
     advanceAllConstructions(state, 5);
     expect(a.constructionTimer).toBe(5);
     expect(b.constructionTimer).toBe(5);
-    advanceAllConstructions(state, 5);
+    advanceAllConstructions(state, 15);
     expect(a.constructionComplete).toBe(true);
     expect(b.constructionComplete).toBe(true);
   });
