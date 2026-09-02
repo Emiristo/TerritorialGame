@@ -1,15 +1,13 @@
 import { createFlag } from './flags.js';
+import { getBuildingFlagPosition } from './buildings.js';
 import { removeRoadsForFlag } from './roads.js';
 import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 
-function getPosition(tileId) {
-  const [x, y] = String(tileId).split('-').map(Number);
-  return { x, y };
-}
-
 export function ensureBuildingFlag(state, building) {
   state.flags ??= [];
-  const position = building.flagPosition ?? getPosition(building.tileId);
+  const position = building.flagPosition ?? getBuildingFlagPosition(state, building);
+  if (!position) throw new Error(`Cannot place logistics flag for building: ${building.id}`);
+
   building.flagId ??= `${building.id}-flag`;
   building.flagPosition = { x: position.x, y: position.y };
 
