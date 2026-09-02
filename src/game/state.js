@@ -4,6 +4,8 @@ import { INFLUENCE_RADIUS } from './influence.js';
 import { createTerritorySource, recalculateTerritories } from './territory.js';
 import { BUILDING_TYPES, createBuilding, getFootprintTiles } from './buildings.js';
 import { createGameClock } from './clock.js';
+import { addFlag } from './flags.js';
+import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 
 export const MAP_WIDTH = 100;
 export const MAP_HEIGHT = 100;
@@ -42,10 +44,12 @@ export function createGameState(now = Date.now()) {
     selectedTileId: null, clock: createGameClock(now),
     player: { id: 'player', name: 'Игрок', resources: createPlayerResources() },
     rules: { influenceRadius: INFLUENCE_RADIUS, headquartersInfluenceRadius: HEADQUARTERS_INFLUENCE_RADIUS, workZoneRadius: 5, resourceUnitPerExtraction: 1 },
-    buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], workZones: [], workers: [], workerRequests: [], tiles,
+    buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} }, workZones: [], workers: [], workerRequests: [], tiles,
   };
   const headquarters = createBuilding('headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   state.buildings.push(headquarters);
+  addFlag(state, { id: headquarters.flagId, buildingId: headquarters.id, ownerId: headquarters.ownerId, x: headquarters.flagPosition.x, y: headquarters.flagPosition.y, roadIds: [], connected: false });
+  rebuildLogisticsNetwork(state);
   const headquartersCenter = tiles.find((tile) => tile.x === HEADQUARTERS_CENTER_X && tile.y === HEADQUARTERS_CENTER_Y);
   if (headquartersCenter) { state.territorySources.push(createTerritorySource('headquarters-player', 'player', headquartersCenter.id, 1, HEADQUARTERS_INFLUENCE_RADIUS)); recalculateTerritories(state); }
   return state;
