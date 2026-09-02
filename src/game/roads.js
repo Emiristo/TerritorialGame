@@ -39,9 +39,7 @@ function rebuildNetworkFromRoads(state) {
   }
 
   state.logisticsNetwork = { adjacency };
-  for (const flag of flags) {
-    flag.connected = adjacency[flag.id].length > 0;
-  }
+  for (const flag of flags) flag.connected = adjacency[flag.id].length > 0;
 }
 
 function countRoadsForFlag(state, flagId) {
@@ -55,13 +53,7 @@ function occupiedRoadCells(state) {
 }
 
 export function createRoad(id, startFlagId, endFlagId, cells = []) {
-  return {
-    id,
-    startFlagId,
-    endFlagId,
-    cells: [...cells],
-    active: true,
-  };
+  return { id, startFlagId, endFlagId, cells: [...cells], active: true };
 }
 
 export function isRoadPathValid(state, road) {
@@ -75,11 +67,11 @@ export function isRoadPathValid(state, road) {
   if (road.cells[0] !== expectedStart || road.cells[road.cells.length - 1] !== expectedEnd) return false;
 
   const seen = new Set();
-  const roadCells = occupiedRoadCells(state);
-  roadCells.delete(expectedStart);
-  roadCells.delete(expectedEnd);
-
+  const occupied = occupiedRoadCells(state);
+  occupied.delete(expectedStart);
+  occupied.delete(expectedEnd);
   let previousDirection = null;
+
   for (let index = 0; index < road.cells.length; index += 1) {
     const currentId = road.cells[index];
     if (seen.has(currentId)) return false;
@@ -96,7 +88,7 @@ export function isRoadPathValid(state, road) {
       previousDirection = currentDirection;
     }
 
-    if (index > 0 && index < road.cells.length - 1 && roadCells.has(currentId)) return false;
+    if (index > 0 && index < road.cells.length - 1 && occupied.has(currentId)) return false;
   }
 
   return true;
@@ -111,12 +103,10 @@ export function addRoad(state, road) {
   if (countRoadsForFlag(state, road.endFlagId) >= MAX_ROADS_PER_FLAG) throw new Error('End flag has reached the road limit');
 
   state.roads.push(road);
-
   for (const flagId of [road.startFlagId, road.endFlagId]) {
     const flag = getFlag(state, flagId);
     if (flag && !flag.roadIds.includes(road.id)) flag.roadIds.push(road.id);
   }
-
   rebuildNetworkFromRoads(state);
   return road;
 }
@@ -125,9 +115,7 @@ export function removeRoad(state, roadId) {
   const index = (state.roads ?? []).findIndex((road) => road.id === roadId);
   if (index < 0) return null;
   const [removed] = state.roads.splice(index, 1);
-  for (const flag of state.flags ?? []) {
-    flag.roadIds = flag.roadIds.filter((id) => id !== roadId);
-  }
+  for (const flag of state.flags ?? []) flag.roadIds = flag.roadIds.filter((id) => id !== roadId);
   rebuildNetworkFromRoads(state);
   return removed;
 }
@@ -160,7 +148,6 @@ function gridDistance(a, b) {
 export function findNearestFlag(state, flagId) {
   const startFlag = getFlag(state, flagId);
   if (!startFlag) return null;
-
   return (state.flags ?? [])
     .filter((flag) => flag.id !== flagId)
     .sort((a, b) => {
@@ -207,15 +194,11 @@ function getShortestPaths(state, startFlag, endFlag) {
       } else if (nextDistance === previousDistance) {
         parents.get(nextStateId).push(current.stateId);
       }
-
-      if (nextId === endId) {
-        if (targetDistance == null || nextDistance < targetDistance) targetDistance = nextDistance;
-      }
+      if (nextId === endId && (targetDistance == null || nextDistance < targetDistance)) targetDistance = nextDistance;
     }
   }
 
   if (targetDistance == null || targetDistance + 1 < MIN_ROAD_CELLS) return [];
-
   const endStates = [...distances.entries()]
     .filter(([stateId, distance]) => stateId.startsWith(`${endId}|`) && distance === targetDistance)
     .map(([stateId]) => stateId);
@@ -254,6 +237,20 @@ export function findShortestRoadPaths(state, startFlagId, endFlagId) {
   return getShortestPaths(state, startFlag, endFlag);
 }
 
+function selectCompatiblePaths(state, paths) {
+  const selected = [];
+  const occupied = occupiedRoadCells(state);
+  const used = new Set(occupied);
+
+  for (const path of paths) {
+    const interior = path.slice(1, -1);
+    if (interior.some((cell) => used.has(cell))) continue;
+    selected.push(path);
+    for (const cell of interior) used.add(cell);
+  }
+  return selected;
+}
+
 export function buildRoadToNearestFlag(state, startFlagId, roadId) {
   const startFlag = getFlag(state, startFlagId);
   const endFlag = findNearestFlag(state, startFlagId);
@@ -261,11 +258,15 @@ export function buildRoadToNearestFlag(state, startFlagId, roadId) {
   if (!endFlag) return null;
   if (!roadId) throw new Error('Road id is required');
 
-  const paths = findShortestRoadPaths(state, startFlagId, endFlag.id);
-  if (paths.length === 0) return null;
-  if (paths.length > Math.min(MAX_ROADS_PER_FLAG - countRoadsForFlag(state, startFlagId), MAX_ROADS_PER_FLAG - countRoadsForFlag(state, endFlag.id))) return null;
+  const paths = selectCompatiblePaths(state, findShortestRoadPaths(state, startFlagId, endFlag.id));
+  const capacity = Math.min(
+    MAX_ROADS_PER_FLAG - countRoadsForFlag(state, startFlagId),
+    MAX_ROADS_PER_FLAG - countRoadsForFlag(state, endFlag.id),
+  );
+  const selectedPaths = paths.slice(0, capacity);
+  if (selectedPaths.length === 0) return null;
 
-  const roads = paths.map((cells, index) =>
+  const roads = selectedPaths.map((cells, index) =>
     addRoad(state, createRoad(index === 0 ? roadId : `${roadId}-${index + 1}`, startFlag.id, endFlag.id, cells)),
   );
   return roads.length === 1 ? roads[0] : roads;
