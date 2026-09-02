@@ -33,14 +33,6 @@ function render() {
   lastRenderedClockSeconds = state.clock.elapsedSeconds;
 }
 
-function updateSpeedControls() {
-  elements.clockInfo.querySelectorAll('[data-speed]').forEach((button) => {
-    button.classList.toggle('is-selected', Number(button.dataset.speed) === state.clock.speed && state.clock.running);
-  });
-  const pauseButton = elements.clockInfo.querySelector('[data-action="pause-game"]');
-  if (pauseButton) pauseButton.textContent = state.clock.running ? 'Пауза' : 'Продолжить';
-}
-
 elements.map.addEventListener('pointerover', (event) => {
   if (!selectedBuildingTypeId) return;
   const tile = event.target.closest('[data-tile-id]');
