@@ -44,10 +44,7 @@ describe('building catalog', () => {
     expect(getBuildingType(building).id).toBe('warehouse');
   });
   it('defines the lumberjack hut and updated sawmill roles', () => {
-    expect(BUILDING_TYPES.LUMBERJACK_HUT).toMatchObject({
-      id: 'lumberjack_hut', width: 2, height: 2, constructionMaterials: { planks: 2 }, terrainIds: ['plains'],
-      workerTypeId: 'lumberjack', toolId: 'axe', workRadius: 5,
-    });
+    expect(BUILDING_TYPES.LUMBERJACK_HUT).toMatchObject({ id: 'lumberjack_hut', width: 2, height: 2, constructionMaterials: { planks: 2 }, terrainIds: ['plains'], workerTypeId: 'lumberjack', toolId: 'axe', workRadius: 5 });
     expect(BUILDING_TYPES.SAWMILL).toMatchObject({ workerTypeId: 'carpenter', toolId: 'saw', workRadius: null });
   });
 });
@@ -140,10 +137,10 @@ describe('construction mechanics', () => {
     deliverConstructionMaterial(state, building.id, 'planks', 2);
     expect(building.constructionMaterialsDelivered.planks).toBe(2);
     expect(building.constructionQueue).toEqual(['planks']);
-    advanceConstruction(building, 10);
+    advanceConstruction(state, building, 10);
     expect(building.currentConstructionMaterial).toBe('planks');
     expect(building.constructionTimer).toBe(10);
-    advanceConstruction(building, 10);
+    advanceConstruction(state, building, 10);
     expect(building.constructionState).toBe(CONSTRUCTION_STATES.COMPLETED);
     expect(building.active).toBe(true);
   });
@@ -158,7 +155,7 @@ describe('construction mechanics', () => {
     state.player.resources.planks = 1;
     deliverConstructionMaterial(state, building.id, 'planks', 1);
     expect(building.constructionState).toBe(CONSTRUCTION_STATES.BUILDING);
-    advanceConstruction(building, 10);
+    advanceConstruction(state, building, 10);
     expect(building.constructionState).toBe(CONSTRUCTION_STATES.WAITING_FOR_MATERIAL);
     expect(building.constructionComplete).toBe(false);
   });
@@ -170,10 +167,10 @@ describe('construction mechanics', () => {
     state.player.resources.stone = 1;
     deliverConstructionMaterial(state, building.id, 'planks', 1);
     deliverConstructionMaterial(state, building.id, 'stone', 1);
-    advanceConstruction(building, BUILD_TIME_PER_PLANK);
+    advanceConstruction(state, building, BUILD_TIME_PER_PLANK);
     expect(building.currentConstructionMaterial).toBe('stone');
     expect(building.constructionTimer).toBe(BUILD_TIME_PER_STONE);
-    advanceConstruction(building, BUILD_TIME_PER_STONE);
+    advanceConstruction(state, building, BUILD_TIME_PER_STONE);
     expect(building.constructionState).toBe(CONSTRUCTION_STATES.WAITING_FOR_MATERIAL);
   });
   it('rejects over-delivery, unavailable stock, invalid amounts, and unrequired materials', () => {
@@ -222,7 +219,7 @@ describe('construction mechanics', () => {
     expect(building.active).toBe(true);
     expect(building.constructionState).toBe(CONSTRUCTION_STATES.COMPLETED);
     expect(building.lastConstructionUpdateAt).toBe(2000);
-    advanceConstruction(building, 100);
+    advanceConstruction(state, building, 100);
     expect(building.constructionState).toBe(CONSTRUCTION_STATES.COMPLETED);
     expect(building.constructionTimer).toBe(0);
   });
