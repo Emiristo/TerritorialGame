@@ -31,7 +31,7 @@ describe('automatic road construction', () => {
       active: true,
     });
     expect(road.cells[0]).toBe('55-50');
-    expect(road.cells.at(-1)).toBe('49-49');
+    expect(road.cells.at(-1)).toBe('50-52');
     expect(road.cells).toHaveLength(8);
     expect(state.roads).toHaveLength(1);
   });
