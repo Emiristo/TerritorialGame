@@ -16,13 +16,18 @@ export function rebuildLogisticsNetwork(state) {
   state.logisticsNetwork = { adjacency };
   for (const flag of flags) {
     flag.connected = adjacency[flag.id].length > 0;
+    flag.roadIds = adjacency[flag.id].map((edge) => edge.roadId);
   }
   return state.logisticsNetwork;
 }
 
+export function getConnectedFlagIds(state, flagId) {
+  return (state.logisticsNetwork?.adjacency?.[flagId] ?? []).map((edge) => edge.flagId);
+}
+
 export function areFlagsConnected(state, startFlagId, endFlagId) {
   if (startFlagId === endFlagId) return Boolean(getFlag(state, startFlagId));
-  const network = state.logisticsNetwork ?? rebuildLogisticsNetwork(state);
+  const network = rebuildLogisticsNetwork(state);
   if (!network.adjacency[startFlagId] || !network.adjacency[endFlagId]) return false;
 
   const visited = new Set([startFlagId]);
@@ -42,7 +47,7 @@ export function areFlagsConnected(state, startFlagId, endFlagId) {
 
 export function findFlagRoute(state, startFlagId, endFlagId) {
   if (startFlagId === endFlagId) return { flagIds: [startFlagId], roadIds: [] };
-  const network = state.logisticsNetwork ?? rebuildLogisticsNetwork(state);
+  const network = rebuildLogisticsNetwork(state);
   if (!network.adjacency[startFlagId] || !network.adjacency[endFlagId]) return null;
 
   const queue = [startFlagId];
@@ -73,6 +78,10 @@ export function findFlagRoute(state, startFlagId, endFlagId) {
   flagIds.reverse();
   roadIds.reverse();
   return { flagIds, roadIds };
+}
+
+export function getRoadsOnFlagRoute(state, startFlagId, endFlagId) {
+  return findFlagRoute(state, startFlagId, endFlagId)?.roadIds ?? [];
 }
 
 export function rebuildAndGetFlagRoute(state, startFlagId, endFlagId) {
