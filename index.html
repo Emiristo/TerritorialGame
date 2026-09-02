@@ -9,13 +9,13 @@
   </head>
   <body>
     <main id="app" class="game-shell">
-      <header class="game-header"><div><h1>TerritorialGame</h1><p>Strategy game by GPT</p></div><div id="turn-info" class="turn-info">Ход: 1</div></header>
+      <header class="game-header"><div><h1>TerritorialGame</h1><p>Strategy game by GPT</p></div><div id="clock-info" class="turn-info">Игровое время: 0 мин 00 с</div></header>
       <section class="game-layout" aria-label="Игровое поле">
         <aside class="panel panel-left"><h2>Государство</h2><div id="player-panel"></div></aside>
         <section class="map-panel"><div id="map" class="map" role="grid" aria-label="Карта мира"></div></section>
         <aside class="panel panel-right"><div id="build-menu-panel"></div><h2>Клетка</h2><div id="tile-panel">Выберите клетку.</div></aside>
       </section>
-      <footer class="game-footer"><button id="end-turn" type="button">Завершить ход</button><span id="status" aria-live="polite">Игра готова.</span></footer>
+      <footer class="game-footer"><span id="status" aria-live="polite">Игра готова.</span></footer>
     </main>
     <script type="module" src="./src/main.js"></script>
   </body>
