@@ -1,3 +1,5 @@
+import { syncWorkZones } from './workZones.js';
+
 export const BUILD_TIME_PER_PLANK = 10;
 export const BUILD_TIME_PER_STONE = 15;
 
@@ -117,10 +119,12 @@ export function completeConstruction(state, buildingId, now = Date.now()) {
   building.constructionState = CONSTRUCTION_STATES.COMPLETED;
   building.constructionTimer = 0;
   building.lastConstructionUpdateAt = now;
+  syncWorkZones(state);
   return building;
 }
 
 export function advanceAllConstructions(state, elapsedSeconds) {
   for (const building of state.buildings ?? []) advanceConstruction(building, elapsedSeconds);
+  syncWorkZones(state);
   return state;
 }
