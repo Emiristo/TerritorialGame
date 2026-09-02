@@ -6,6 +6,10 @@ function findBuilding(state, buildingId) {
   return (state.buildings ?? []).find((building) => building.id === buildingId) ?? null;
 }
 
+function findWorker(state, workerId) {
+  return (state.workers ?? []).find((worker) => worker.id === workerId) ?? null;
+}
+
 function findTile(state, tileId) {
   return (state.tiles ?? []).find((tile) => tile.id === tileId) ?? null;
 }
@@ -31,14 +35,7 @@ export function getWorkZoneCells(state, zone) {
 }
 
 export function createWorkZone(id, ownerId, buildingId, centerTileId, radius) {
-  return {
-    id,
-    ownerId,
-    buildingId,
-    centerTileId,
-    radius,
-    workerIds: [],
-  };
+  return { id, ownerId, buildingId, centerTileId, radius, workerIds: [] };
 }
 
 export function getWorkZoneForBuilding(state, buildingId) {
@@ -48,14 +45,12 @@ export function getWorkZoneForBuilding(state, buildingId) {
 export function createWorkZoneForBuilding(state, buildingId, id = `work-zone-${buildingId}`) {
   const building = findBuilding(state, buildingId);
   if (!building || !building.constructionComplete || !building.active) return null;
-  if (getWorkZoneForBuilding(state, buildingId)) return getWorkZoneForBuilding(state, buildingId);
-
+  const existing = getWorkZoneForBuilding(state, buildingId);
+  if (existing) return existing;
   const radius = getWorkZoneRadius(state, building);
   if (radius == null) return null;
-
   const center = findTile(state, building.tileId);
   if (!center) return null;
-
   const zone = createWorkZone(id, building.ownerId, building.id, center.id, radius);
   state.workZones ??= [];
   state.workZones.push(zone);
@@ -69,14 +64,22 @@ export function syncWorkZones(state) {
       .filter((building) => building.active && building.constructionComplete && getWorkZoneRadius(state, building) != null)
       .map((building) => building.id),
   );
-
-  state.workZones = state.workZones.filter((zone) => activeBuildingIds.has(zone.buildingId));
-
-  for (const building of state.buildings ?? []) {
-    if (!activeBuildingIds.has(building.id)) continue;
-    createWorkZoneForBuilding(state, building.id);
+  for (const zone of state.workZones) {
+    if (!activeBuildingIds.has(zone.buildingId)) {
+      for (const workerId of zone.workerIds ?? []) {
+        const worker = findWorker(state, workerId);
+        if (worker?.zoneId === zone.id) {
+          worker.zoneId = null;
+          worker.state = 'idle';
+          worker.buildingId = null;
+        }
+      }
+    }
   }
-
+  state.workZones = state.workZones.filter((zone) => activeBuildingIds.has(zone.buildingId));
+  for (const building of state.buildings ?? []) {
+    if (activeBuildingIds.has(building.id)) createWorkZoneForBuilding(state, building.id);
+  }
   return state;
 }
 
@@ -90,40 +93,53 @@ export function isTileInWorkZone(state, zoneId, tileId) {
 }
 
 export function canWorkerUseWorkZone(state, workerId, zoneId) {
-  const worker = (state.workers ?? []).find((item) => item.id === workerId);
+  const worker = findWorker(state, workerId);
   const zone = (state.workZones ?? []).find((item) => item.id === zoneId);
   if (!worker || !zone) return false;
   return worker.ownerId === zone.ownerId;
 }
 
 export function assignWorkerToWorkZone(state, workerId, zoneId) {
-  const worker = (state.workers ?? []).find((item) => item.id === workerId);
+  const worker = findWorker(state, workerId);
   const zone = (state.workZones ?? []).find((item) => item.id === zoneId);
   if (!worker || !zone || !canWorkerUseWorkZone(state, workerId, zoneId)) return false;
-
   for (const otherZone of state.workZones ?? []) {
     otherZone.workerIds = (otherZone.workerIds ?? []).filter((id) => id !== workerId);
   }
-
   zone.workerIds ??= [];
   if (!zone.workerIds.includes(workerId)) zone.workerIds.push(workerId);
   worker.zoneId = zoneId;
+  worker.buildingId = zone.buildingId;
   worker.state = 'working';
   return true;
+}
+
+export function assignWorkerToBuilding(state, workerId, buildingId, zoneId, targetTileId = null) {
+  const worker = findWorker(state, workerId);
+  const building = findBuilding(state, buildingId);
+  const zone = (state.workZones ?? []).find((item) => item.id === zoneId);
+  const type = findBuildingType(building);
+  if (!worker || !building || !zone || !type || !building.active || !building.constructionComplete) return false;
+  if (worker.ownerId !== building.ownerId || worker.typeId !== type.workerTypeId) return false;
+  if (zone.buildingId !== building.id || zone.ownerId !== building.ownerId) return false;
+  if (targetTileId != null && !isTileInWorkZone(state, zone.id, targetTileId)) return false;
+  return assignWorkerToWorkZone(state, workerId, zone.id) && ((worker.targetTileId = targetTileId), (building.workerIds ??= []), building.workerIds.includes(worker.id) || building.workerIds.push(worker.id), true);
 }
 
 export function removeWorkZoneForBuilding(state, buildingId) {
   const zone = getWorkZoneForBuilding(state, buildingId);
   if (!zone) return false;
-
   for (const workerId of zone.workerIds ?? []) {
-    const worker = (state.workers ?? []).find((item) => item.id === workerId);
-    if (worker && worker.zoneId === zone.id) {
+    const worker = findWorker(state, workerId);
+    if (worker?.zoneId === zone.id) {
       worker.zoneId = null;
+      worker.buildingId = null;
+      worker.targetTileId = null;
       worker.state = 'idle';
     }
   }
-
   state.workZones = (state.workZones ?? []).filter((item) => item.id !== zone.id);
+  const building = findBuilding(state, buildingId);
+  if (building) building.workerIds = (building.workerIds ?? []).filter((id) => !zone.workerIds.includes(id));
   return true;
 }
