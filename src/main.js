@@ -13,7 +13,6 @@ const elements = {
   buildMenu: document.querySelector('#build-menu-panel'),
   tilePanel: document.querySelector('#tile-panel'),
   clockInfo: document.querySelector('#clock-info'),
-  speedControls: document.querySelector('#speed-controls'),
   status: document.querySelector('#status'),
 };
 if (Object.values(elements).some((element) => !element)) throw new Error('Игровой интерфейс не найден: проверьте index.html.');
@@ -35,10 +34,10 @@ function render() {
 }
 
 function updateSpeedControls() {
-  elements.speedControls.querySelectorAll('[data-speed]').forEach((button) => {
+  elements.clockInfo.querySelectorAll('[data-speed]').forEach((button) => {
     button.classList.toggle('is-selected', Number(button.dataset.speed) === state.clock.speed && state.clock.running);
   });
-  const pauseButton = elements.speedControls.querySelector('[data-action="pause-game"]');
+  const pauseButton = elements.clockInfo.querySelector('[data-action="pause-game"]');
   if (pauseButton) pauseButton.textContent = state.clock.running ? 'Пауза' : 'Продолжить';
 }
 
@@ -89,7 +88,7 @@ elements.tilePanel.addEventListener('click', (event) => {
   render();
 });
 
-elements.speedControls.addEventListener('click', (event) => {
+elements.clockInfo.addEventListener('click', (event) => {
   const speedButton = event.target.closest('[data-speed]');
   if (speedButton) {
     const speed = Number(speedButton.dataset.speed);
@@ -97,7 +96,6 @@ elements.speedControls.addEventListener('click', (event) => {
     setGameSpeed(state.clock, speed);
     if (!state.clock.running) startGameClock(state.clock);
     elements.status.textContent = `Скорость игры: ×${speed}.`;
-    updateSpeedControls();
     render();
     return;
   }
@@ -110,12 +108,10 @@ elements.speedControls.addEventListener('click', (event) => {
     startGameClock(state.clock);
     elements.status.textContent = `Игра продолжена: ×${state.clock.speed}.`;
   }
-  updateSpeedControls();
   render();
 });
 
 startGameClock(state.clock);
-updateSpeedControls();
 
 setInterval(() => {
   const elapsedSeconds = advanceGameClock(state.clock);
