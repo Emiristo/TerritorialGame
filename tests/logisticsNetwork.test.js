@@ -15,23 +15,32 @@ function prepareArea(state, x, y, width, height) {
 }
 
 describe('building logistics flags', () => {
-  it('creates one flag for the headquarters', () => {
+  it('creates one flag for the headquarters on its south side', () => {
     const state = createGameState();
     expect(state.flags).toHaveLength(1);
     const headquarters = state.buildings[0];
     const flag = getFlagForBuilding(state, headquarters.id);
-    expect(flag).toMatchObject({ buildingId: headquarters.id, ownerId: 'player', x: 49, y: 49 });
+    expect(flag).toMatchObject({ buildingId: headquarters.id, ownerId: 'player', x: 50, y: 52 });
   });
 
-  it('synchronizes a flag for every building', () => {
+  it('creates a building flag automatically when the building is added', () => {
+    const state = createGameState();
+    prepareArea(state, 30, 30, 2, 2);
+    const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
+    addBuilding(state, building);
+    const flag = getFlagForBuilding(state, building.id);
+    expect(flag).toMatchObject({ buildingId: building.id, x: 30, y: 32 });
+    expect(state.flags).toHaveLength(2);
+  });
+
+  it('keeps automatic flag creation idempotent when synchronization runs', () => {
     const state = createGameState();
     prepareArea(state, 30, 30, 2, 2);
     const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
     addBuilding(state, building);
     syncBuildingFlags(state);
-    const flag = getFlagForBuilding(state, building.id);
-    expect(flag).toMatchObject({ buildingId: building.id, x: 30, y: 30 });
     expect(state.flags).toHaveLength(2);
+    expect(getFlagForBuilding(state, building.id)).toMatchObject({ x: 30, y: 32 });
   });
 
   it('destroys the building flag and its roads with the building', () => {
@@ -39,10 +48,9 @@ describe('building logistics flags', () => {
     prepareArea(state, 30, 30, 2, 2);
     const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
     addBuilding(state, building);
-    syncBuildingFlags(state);
     const buildingFlag = getFlagForBuilding(state, building.id);
     const headquartersFlag = getFlagForBuilding(state, state.buildings[0].id);
-    const cells = ['49-49', '48-49', '47-49', '46-49', '45-49', '44-49', '43-49', '42-49', '41-49', '40-49', '39-49', '38-49', '37-49', '36-49', '35-49', '34-49', '33-49', '32-49', '31-49', '30-49', '30-48', '30-47', '30-46', '30-45', '30-44', '30-43', '30-42', '30-41', '30-40', '30-39', '30-38', '30-37', '30-36', '30-35', '30-34', '30-33', '30-32', '30-31', '30-30'];
+    const cells = ['50-52', '49-52', '48-52', '47-52', '46-52', '45-52', '44-52', '43-52', '42-52', '41-52', '40-52', '39-52', '38-52', '37-52', '36-52', '35-52', '34-52', '33-52', '32-52', '31-52', '30-52', '30-51', '30-50', '30-49', '30-48', '30-47', '30-46', '30-45', '30-44', '30-43', '30-42', '30-41', '30-40', '30-39', '30-38', '30-37', '30-36', '30-35', '30-34', '30-33', '30-32'];
     addRoad(state, createRoad('road-1', headquartersFlag.id, buildingFlag.id, cells));
     expect(areFlagsConnected(state, headquartersFlag.id, buildingFlag.id)).toBe(true);
     destroyBuilding(state, building.id);
@@ -60,7 +68,6 @@ describe('logistics road network', () => {
     prepareArea(state, 30, 30, 2, 2);
     const second = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
     addBuilding(state, second);
-    syncBuildingFlags(state);
     const secondFlag = getFlagForBuilding(state, second.id);
     rebuildLogisticsNetwork(state);
     expect(areFlagsConnected(state, headquartersFlag.id, secondFlag.id)).toBe(false);
@@ -75,12 +82,11 @@ describe('logistics road network', () => {
     const second = createBuilding('building-3', 'player', 'stonecutter_hut', '20-30');
     addBuilding(state, first);
     addBuilding(state, second);
-    syncBuildingFlags(state);
     const hqFlag = getFlagForBuilding(state, state.buildings[0].id);
     const firstFlag = getFlagForBuilding(state, first.id);
     const secondFlag = getFlagForBuilding(state, second.id);
-    addRoad(state, createRoad('road-1', hqFlag.id, firstFlag.id, ['49-49', '48-49', '47-49', '46-49', '45-49', '44-49', '43-49', '42-49', '41-49', '40-49', '39-49', '38-49', '37-49', '36-49', '35-49', '34-49', '33-49', '32-49', '31-49', '30-49', '30-48', '30-47', '30-46', '30-45', '30-44', '30-43', '30-42', '30-41', '30-40', '30-39', '30-38', '30-37', '30-36', '30-35', '30-34', '30-33', '30-32', '30-31', '30-30']));
-    addRoad(state, createRoad('road-2', firstFlag.id, secondFlag.id, ['30-30', '29-30', '28-30', '27-30', '26-30', '25-30', '24-30', '23-30', '22-30', '21-30', '20-30']));
+    addRoad(state, createRoad('road-1', hqFlag.id, firstFlag.id, ['50-52', '49-52', '48-52', '47-52', '46-52', '45-52', '44-52', '43-52', '42-52', '41-52', '40-52', '39-52', '38-52', '37-52', '36-52', '35-52', '34-52', '33-52', '32-52', '31-52', '30-52', '30-51', '30-50', '30-49', '30-48', '30-47', '30-46', '30-45', '30-44', '30-43', '30-42', '30-41', '30-40', '30-39', '30-38', '30-37', '30-36', '30-35', '30-34', '30-33', '30-32']));
+    addRoad(state, createRoad('road-2', firstFlag.id, secondFlag.id, ['30-32', '29-32', '28-32', '27-32', '26-32', '25-32', '24-32', '23-32', '22-32', '21-32', '20-32']));
     const route = findFlagRoute(state, hqFlag.id, secondFlag.id);
     expect(route.flagIds).toEqual([hqFlag.id, firstFlag.id, secondFlag.id]);
     expect(route.roadIds).toEqual(['road-1', 'road-2']);
@@ -91,10 +97,9 @@ describe('logistics road network', () => {
     prepareArea(state, 30, 30, 2, 2);
     const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
     addBuilding(state, building);
-    syncBuildingFlags(state);
     const hqFlag = getFlagForBuilding(state, state.buildings[0].id);
     const buildingFlag = getFlagForBuilding(state, building.id);
-    addRoad(state, createRoad('road-1', hqFlag.id, buildingFlag.id, ['49-49', '48-49', '47-49', '46-49', '45-49', '44-49', '43-49', '42-49', '41-49', '40-49', '39-49', '38-49', '37-49', '36-49', '35-49', '34-49', '33-49', '32-49', '31-49', '30-49', '30-48', '30-47', '30-46', '30-45', '30-44', '30-43', '30-42', '30-41', '30-40', '30-39', '30-38', '30-37', '30-36', '30-35', '30-34', '30-33', '30-32', '30-31', '30-30']));
+    addRoad(state, createRoad('road-1', hqFlag.id, buildingFlag.id, ['50-52', '49-52', '48-52', '47-52', '46-52', '45-52', '44-52', '43-52', '42-52', '41-52', '40-52', '39-52', '38-52', '37-52', '36-52', '35-52', '34-52', '33-52', '32-52', '31-52', '30-52', '30-51', '30-50', '30-49', '30-48', '30-47', '30-46', '30-45', '30-44', '30-43', '30-42', '30-41', '30-40', '30-39', '30-38', '30-37', '30-36', '30-35', '30-34', '30-33', '30-32']));
     removeRoadsForFlag(state, buildingFlag.id);
     expect(state.roads).toHaveLength(0);
     expect(hqFlag.roadIds).toEqual([]);
