@@ -15,7 +15,7 @@ function prepareArea(state, x, y, width, height, ownerId = 'player', terrain = '
 
 const expectedBuildings = {
   headquarters: [3, 3, {}], warehouse: [3, 3, { planks: 3, stone: 3 }], forester_hut: [2, 2, { planks: 2 }],
-  stonecutter_hut: [2, 2, { planks: 2 }], sawmill: [2, 3, { planks: 2, stone: 2 }], well: [2, 2, { planks: 2 }],
+  lumberjack_hut: [2, 2, { planks: 2 }], stonecutter_hut: [2, 2, { planks: 2 }], sawmill: [2, 3, { planks: 2, stone: 2 }], well: [2, 2, { planks: 2 }],
   farm: [4, 4, { planks: 4, stone: 3 }], mill: [2, 2, { planks: 2, stone: 2 }], bakery: [2, 2, { planks: 2, stone: 2 }],
   coal_mine: [2, 2, { planks: 4 }], iron_mine: [2, 2, { planks: 4 }], gold_mine: [2, 2, { planks: 4 }], marble_mine: [2, 2, { planks: 4 }],
   foundry: [2, 2, { planks: 2, stone: 2 }], forge: [2, 2, { planks: 2, stone: 2 }], workshop: [3, 3, { planks: 2, stone: 2 }],
@@ -24,9 +24,9 @@ const expectedBuildings = {
 };
 
 describe('building catalog', () => {
-  it('contains exactly the agreed 21 building types', () => {
-    expect(Object.keys(BUILDING_TYPES)).toHaveLength(21);
-    expect(new Set(Object.values(BUILDING_TYPES).map((type) => type.id)).size).toBe(21);
+  it('contains exactly the agreed 22 building types', () => {
+    expect(Object.keys(BUILDING_TYPES)).toHaveLength(22);
+    expect(new Set(Object.values(BUILDING_TYPES).map((type) => type.id)).size).toBe(22);
   });
   it('keeps agreed geometry and construction costs for every type', () => {
     for (const [id, [width, height, materials]] of Object.entries(expectedBuildings)) {
@@ -43,6 +43,13 @@ describe('building catalog', () => {
     expect(getConstructionMaterials(building)).toEqual({ planks: 3, stone: 3 });
     expect(getBuildingType(building).id).toBe('warehouse');
   });
+  it('defines the lumberjack hut and updated sawmill roles', () => {
+    expect(BUILDING_TYPES.LUMBERJACK_HUT).toMatchObject({
+      id: 'lumberjack_hut', width: 2, height: 2, constructionMaterials: { planks: 2 }, terrainIds: ['plains'],
+      workerTypeId: 'lumberjack', toolId: 'axe', workRadius: 5,
+    });
+    expect(BUILDING_TYPES.SAWMILL).toMatchObject({ workerTypeId: 'carpenter', toolId: 'saw', workRadius: null });
+  });
 });
 
 describe('building geometry and placement', () => {
@@ -50,6 +57,7 @@ describe('building geometry and placement', () => {
     const state = createGameState();
     expect(getFootprintTiles(state, 'warehouse', '30-30')).toHaveLength(9);
     expect(getFootprintTiles(state, 'sawmill', '30-30')).toHaveLength(6);
+    expect(getFootprintTiles(state, 'lumberjack_hut', '30-30')).toHaveLength(4);
     expect(getFootprintTiles(state, 'farm', '30-30')).toHaveLength(16);
     expect(getFootprintTiles(state, 'fortress', '30-30')).toHaveLength(25);
   });
@@ -102,6 +110,13 @@ describe('building geometry and placement', () => {
     expect(canBuildOnTile(state, 'stonecutter_hut', '33-33')).toBe(true);
     addBuilding(state, createBuilding('second', 'player', 'stonecutter_hut', '33-33'));
     expect(isReservedForBuilding(state, '32-32')).toBe(true);
+  });
+  it('allows the lumberjack hut only on plains', () => {
+    const state = createGameState();
+    prepareArea(state, 30, 30, 2, 2, 'player', 'plains');
+    prepareArea(state, 40, 30, 2, 2, 'player', 'forest');
+    expect(canBuildOnTile(state, 'lumberjack_hut', '30-30')).toBe(true);
+    expect(canBuildOnTile(state, 'lumberjack_hut', '40-30')).toBe(false);
   });
   it('throws when addBuilding receives an invalid placement', () => {
     const state = createGameState();
