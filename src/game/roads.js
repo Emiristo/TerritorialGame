@@ -8,6 +8,10 @@ function areAdjacent(a, b) {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
 }
 
+function getFlag(state, flagId) {
+  return (state.flags ?? []).find((flag) => flag.id === flagId) ?? null;
+}
+
 function rebuildNetworkFromRoads(state) {
   const flags = state.flags ?? [];
   const roads = state.roads ?? [];
@@ -36,8 +40,8 @@ export function createRoad(id, startFlagId, endFlagId, cells = []) {
 }
 
 export function isRoadPathValid(state, road) {
-  const startFlag = (state.flags ?? []).find((flag) => flag.id === road.startFlagId);
-  const endFlag = (state.flags ?? []).find((flag) => flag.id === road.endFlagId);
+  const startFlag = getFlag(state, road.startFlagId);
+  const endFlag = getFlag(state, road.endFlagId);
   if (!startFlag || !endFlag || !Array.isArray(road.cells) || road.cells.length === 0) return false;
 
   const expectedStart = tileId(startFlag.x, startFlag.y);
@@ -63,7 +67,7 @@ export function addRoad(state, road) {
   state.roads.push(road);
 
   for (const flagId of [road.startFlagId, road.endFlagId]) {
-    const flag = (state.flags ?? []).find((item) => item.id === flagId);
+    const flag = getFlag(state, flagId);
     if (flag && !flag.roadIds.includes(road.id)) flag.roadIds.push(road.id);
   }
 
@@ -101,4 +105,43 @@ export function getRoadNeighbors(state, tileIdValue) {
     .map(([dx, dy]) => state.tiles.find((item) => item.x === tile.x + dx && item.y === tile.y + dy))
     .filter(Boolean)
     .filter((candidate) => getRoadAtTile(state, candidate.id).some((road) => road.cells.includes(tileIdValue)));
+}
+
+function manhattanDistance(a, b) {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+export function findNearestFlag(state, flagId) {
+  const startFlag = getFlag(state, flagId);
+  if (!startFlag) return null;
+
+  return (state.flags ?? [])
+    .filter((flag) => flag.id !== flagId)
+    .sort((a, b) => {
+      const distanceDifference = manhattanDistance(startFlag, a) - manhattanDistance(startFlag, b);
+      return distanceDifference || String(a.id).localeCompare(String(b.id));
+    })[0] ?? null;
+}
+
+export function buildRoadToNearestFlag(state, startFlagId, roadId) {
+  const startFlag = getFlag(state, startFlagId);
+  const endFlag = findNearestFlag(state, startFlagId);
+  if (!startFlag) throw new Error(`Unknown flag: ${startFlagId}`);
+  if (!endFlag) return null;
+  if (!roadId) throw new Error('Road id is required');
+
+  const cells = [tileId(startFlag.x, startFlag.y)];
+  let x = startFlag.x;
+  let y = startFlag.y;
+
+  while (x !== endFlag.x) {
+    x += Math.sign(endFlag.x - x);
+    cells.push(tileId(x, y));
+  }
+  while (y !== endFlag.y) {
+    y += Math.sign(endFlag.y - y);
+    cells.push(tileId(x, y));
+  }
+
+  return addRoad(state, createRoad(roadId, startFlag.id, endFlag.id, cells));
 }
