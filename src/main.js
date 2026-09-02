@@ -4,7 +4,7 @@ import { renderBuildMenu, renderPlayerPanel, renderTilePanel, renderTurnInfo } f
 import { BUILDING_TYPES, addBuilding, canBuildOnTile, createBuilding } from './game/buildings.js';
 import { deliverConstructionMaterial } from './game/materials.js';
 import { advanceConstruction, startConstruction } from './game/construction.js';
-import { startGameClock, tickGameClock } from './game/clock.js';
+import { startGameClock } from './game/clock.js';
 import { processWorkersTurn } from './game/workers.js';
 
 const state = createGameState();
@@ -37,7 +37,7 @@ elements.endTurn.addEventListener('click', () => { const results = processWorker
 
 startGameClock(state.clock);
 setInterval(() => {
-  const elapsedSeconds = tickGameClock(state.clock);
+  const elapsedSeconds = 1;
   const completed = [];
   for (const building of state.buildings) {
     const wasComplete = building.constructionComplete;
