@@ -5,7 +5,6 @@ import { createTerritorySource, recalculateTerritories } from './territory.js';
 import { BUILDING_TYPES, createBuilding, getFootprintTiles } from './buildings.js';
 import { createGameClock } from './clock.js';
 import { syncBuildingFlags } from './buildingLogistics.js';
-import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 
 export const MAP_WIDTH = 100;
 export const MAP_HEIGHT = 100;
@@ -49,7 +48,6 @@ export function createGameState(now = Date.now()) {
   const headquarters = createBuilding('headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   state.buildings.push(headquarters);
   syncBuildingFlags(state);
-  rebuildLogisticsNetwork(state);
   const headquartersCenter = tiles.find((tile) => tile.x === HEADQUARTERS_CENTER_X && tile.y === HEADQUARTERS_CENTER_Y);
   if (headquartersCenter) { state.territorySources.push(createTerritorySource('headquarters-player', 'player', headquartersCenter.id, 1, HEADQUARTERS_INFLUENCE_RADIUS)); recalculateTerritories(state); }
   return state;
