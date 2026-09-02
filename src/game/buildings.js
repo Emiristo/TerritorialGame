@@ -1,3 +1,5 @@
+import { createFlag } from './flags.js';
+
 export const BUILDING_TYPES = {
   HEADQUARTERS: { id: 'headquarters', name: 'Штаб', width: 3, height: 3, constructionMaterials: {}, terrainIds: null, workerTypeId: null, toolId: null, workZone: null, influenceRadius: 10, input: {}, output: null, productionTime: null, role: 'storage' },
   WAREHOUSE: { id: 'warehouse', name: 'Склад', width: 3, height: 3, constructionMaterials: { planks: 3, stone: 3 }, terrainIds: ['plains'], workerTypeId: null, toolId: null, workZone: null, input: {}, output: null, productionTime: null, role: 'storage' },
@@ -47,6 +49,15 @@ function getTileById(state, tileId) {
 
 export function getConstructionMaterials(building) {
   return { ...(findType(building.typeId)?.constructionMaterials ?? {}) };
+}
+
+export function getBuildingFlagPosition(state, building) {
+  const type = findType(building.typeId);
+  const origin = getTileById(state, building.tileId);
+  if (!type || !origin) return null;
+  const x = origin.x + Math.floor((type.width - 1) / 2);
+  const y = origin.y + type.height;
+  return getTileAt(state, x, y) ? { x, y } : null;
 }
 
 export function createBuilding(id, ownerId, typeId, tileId) {
@@ -122,6 +133,7 @@ export function canBuildOnTile(state, typeId, tileId, ownerId = state.player.id)
   if (footprint.some((tile) => tile.ownerId !== ownerId)) return false;
   if (type.terrainIds && footprint.some((tile) => !type.terrainIds.includes(tile.terrain))) return false;
   if (footprint.some((tile) => getBuildingAtTile(state, tile.id) || isReservedForBuilding(state, tile.id))) return false;
+  if (!getBuildingFlagPosition(state, { typeId, tileId })) return false;
   return true;
 }
 
@@ -130,6 +142,11 @@ export function addBuilding(state, building) {
     throw new Error('Building cannot be placed on this footprint');
   }
   state.buildings ??= [];
+  state.flags ??= [];
+  const flagPosition = getBuildingFlagPosition(state, building);
+  building.flagId = `${building.id}-flag`;
+  building.flagPosition = flagPosition;
   state.buildings.push(building);
+  state.flags.push(createFlag(building.flagId, building.id, building.ownerId, flagPosition.x, flagPosition.y));
   return building;
 }
