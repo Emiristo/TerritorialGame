@@ -39,7 +39,7 @@ export function createGameState(now = Date.now()) {
     tiles.push({ id: `${x}-${y}`, x, y, terrain, ownerId: null, influence: {}, resources: createInitialResources(terrain, x, y) });
   }
   const state = {
-    turn: 1, selectedTileId: null, clock: createGameClock(now),
+    selectedTileId: null, clock: createGameClock(now),
     player: { id: 'player', name: 'Игрок', resources: createPlayerResources() },
     rules: { influenceRadius: INFLUENCE_RADIUS, headquartersInfluenceRadius: HEADQUARTERS_INFLUENCE_RADIUS, workZoneRadius: 5, resourceUnitPerExtraction: 1 },
     buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], workZones: [], workers: [], workerRequests: [], tiles,
