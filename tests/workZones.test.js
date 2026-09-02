@@ -20,7 +20,6 @@ describe('work zones', () => {
     const building = createBuilding('lumberjack', 'player', 'lumberjack_hut', '30-30');
     state.buildings.push(building);
     expect(createWorkZoneForBuilding(state, building.id)).toBeNull();
-
     building.active = true;
     building.constructionComplete = true;
     const zone = createWorkZoneForBuilding(state, building.id);
@@ -46,6 +45,16 @@ describe('work zones', () => {
     expect(cells).toHaveLength(9);
     expect(cells.map((tile) => tile.id)).toEqual(expect.arrayContaining(['0-0', '1-1', '2-2']));
     expect(cells.some((tile) => tile.x < 0 || tile.y < 0)).toBe(false);
+  });
+
+  it('allows work zones to overlap', () => {
+    const state = createGameState();
+    const first = createWorkZone('z1', 'player', 'b1', '50-50', 2);
+    const second = createWorkZone('z2', 'player', 'b2', '52-50', 2);
+    state.workZones.push(first, second);
+    expect(isTileInWorkZone(state, first.id, '51-50')).toBe(true);
+    expect(isTileInWorkZone(state, second.id, '51-50')).toBe(true);
+    expect(state.workZones).toHaveLength(2);
   });
 
   it('reports cells by id and membership', () => {
@@ -84,7 +93,6 @@ describe('work zones', () => {
     const inactive = createBuilding('inactive', 'player', 'lumberjack_hut', '40-40');
     state.buildings.push(active, inactive);
     state.workZones.push(createWorkZone('obsolete', 'player', inactive.id, inactive.tileId, 5));
-
     syncWorkZones(state);
     expect(getWorkZoneForBuilding(state, active.id)).not.toBeNull();
     expect(getWorkZoneForBuilding(state, inactive.id)).toBeNull();
