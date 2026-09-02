@@ -8,6 +8,7 @@ import {
   getWorkZoneCells,
   getWorkZoneForBuilding,
   getWorkZoneRadius,
+  getWorkZoneSpec,
   isTileInWorkZone,
   assignWorkerToBuilding,
   assignWorkerToWorkZone,
@@ -17,7 +18,7 @@ import {
 import { createWorker } from '../src/game/workers.js';
 
 describe('work zones', () => {
-  it('creates a zone only for an active building with workRadius', () => {
+  it('creates an external radius zone for a resource-working building', () => {
     const state = createGameState();
     const building = createBuilding('lumberjack', 'player', 'lumberjack_hut', '30-30');
     state.buildings.push(building);
@@ -25,19 +26,34 @@ describe('work zones', () => {
     building.active = true;
     building.constructionComplete = true;
     const zone = createWorkZoneForBuilding(state, building.id);
-    expect(zone).toMatchObject({ buildingId: building.id, ownerId: 'player', centerTileId: '30-30', radius: 5 });
+    expect(zone).toMatchObject({ buildingId: building.id, ownerId: 'player', centerTileId: '30-30', radius: 5, mode: 'radius' });
     expect(zone.workerIds).toEqual([]);
   });
 
-  it('does not create a zone for buildings without workRadius', () => {
+  it('creates a footprint-sized zone for buildings whose work is inside the building', () => {
     const state = createGameState();
     const building = createBuilding('sawmill', 'player', 'sawmill', '30-30');
     building.active = true;
     building.constructionComplete = true;
     state.buildings.push(building);
+    expect(getWorkZoneSpec(state, building)).toEqual({ mode: 'footprint' });
     expect(getWorkZoneRadius(state, building)).toBeNull();
-    expect(createWorkZoneForBuilding(state, building.id)).toBeNull();
-    expect(state.workZones).toEqual([]);
+    const zone = createWorkZoneForBuilding(state, building.id);
+    expect(zone).toMatchObject({ buildingId: building.id, mode: 'footprint', radius: null });
+    expect(getWorkZoneCells(state, zone).map((tile) => tile.id)).toEqual(['30-30', '31-30', '30-31', '31-31', '30-32', '31-32']);
+  });
+
+  it('uses the full building footprint for the farm work zone', () => {
+    const state = createGameState();
+    const building = createBuilding('farm', 'player', 'farm', '30-30');
+    building.active = true;
+    building.constructionComplete = true;
+    state.buildings.push(building);
+    const zone = createWorkZoneForBuilding(state, building.id);
+    expect(zone).toMatchObject({ mode: 'footprint' });
+    expect(getWorkZoneCells(state, zone)).toHaveLength(16);
+    expect(isTileInWorkZone(state, zone.id, '33-33')).toBe(true);
+    expect(isTileInWorkZone(state, zone.id, '34-34')).toBe(false);
   });
 
   it('uses Chebyshev radius and stays inside map boundaries', () => {
@@ -112,7 +128,7 @@ describe('work zones', () => {
     expect(worker).toMatchObject({ zoneId: null, state: 'idle' });
   });
 
-  it('runs the full chain: building completion creates a zone and the correct worker can be assigned', () => {
+  it('runs the full chain: building completion creates an external zone and the correct worker can be assigned', () => {
     const state = createGameState();
     const building = createBuilding('lumberjack-1', 'player', 'lumberjack_hut', '30-30');
     state.buildings.push(building);
@@ -123,7 +139,7 @@ describe('work zones', () => {
 
     expect(building).toMatchObject({ active: true, constructionComplete: true, constructionState: 'COMPLETED' });
     const zone = getWorkZoneForBuilding(state, building.id);
-    expect(zone).toMatchObject({ buildingId: building.id, ownerId: 'player', radius: 5 });
+    expect(zone).toMatchObject({ buildingId: building.id, ownerId: 'player', radius: 5, mode: 'radius' });
     expect(assignWorkerToBuilding(state, 'worker-1', building.id, zone.id, '31-31')).toBe(true);
     expect(state.workers[0]).toMatchObject({ buildingId: building.id, zoneId: zone.id, targetTileId: '31-31', state: 'working' });
     expect(zone.workerIds).toEqual(['worker-1']);
