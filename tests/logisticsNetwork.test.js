@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
 import { createBuilding, addBuilding } from '../src/game/buildings.js';
-import { destroyBuilding } from '../src/game/buildingLogistics.js';
+import { syncBuildingFlags, destroyBuilding } from '../src/game/buildingLogistics.js';
 import { getFlagForBuilding } from '../src/game/flags.js';
 import { addRoad, createRoad, removeRoadsForFlag } from '../src/game/roads.js';
 import { areFlagsConnected, findFlagRoute, rebuildLogisticsNetwork } from '../src/game/logisticsNetwork.js';
@@ -14,12 +14,6 @@ function prepareArea(state, x, y, width, height) {
   }
 }
 
-function addStraightRoad(state, id, startFlag, endFlag, x, y, endY) {
-  const cells = [];
-  for (let currentY = y; currentY >= endY; currentY -= 1) cells.push(`${x}-${currentY}`);
-  addRoad(state, createRoad(id, startFlag.id, endFlag.id, cells));
-}
-
 describe('building logistics flags', () => {
   it('creates one flag for the headquarters', () => {
     const state = createGameState();
@@ -29,14 +23,15 @@ describe('building logistics flags', () => {
     expect(flag).toMatchObject({ buildingId: headquarters.id, ownerId: 'player', x: 49, y: 49 });
   });
 
-  it('creates a flag when a building is added after synchronization', () => {
+  it('synchronizes a flag for every building', () => {
     const state = createGameState();
     prepareArea(state, 30, 30, 2, 2);
     const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
     addBuilding(state, building);
-    expect(state.flags.some((flag) => flag.buildingId === building.id)).toBe(false);
-    state.buildings.push(building);
-    expect(state.buildings.filter((item) => item.id === building.id)).toHaveLength(2);
+    syncBuildingFlags(state);
+    const flag = getFlagForBuilding(state, building.id);
+    expect(flag).toMatchObject({ buildingId: building.id, x: 30, y: 30 });
+    expect(state.flags).toHaveLength(2);
   });
 
   it('destroys the building flag and its roads with the building', () => {
@@ -44,17 +39,17 @@ describe('building logistics flags', () => {
     prepareArea(state, 30, 30, 2, 2);
     const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
     addBuilding(state, building);
-    state.buildings = state.buildings.filter((item) => item.id !== building.id);
-    state.buildings.push(building);
-    const flag = getFlagForBuilding(state, state.buildings[0].id);
-    state.flags.push({ id: building.id + '-flag', buildingId: building.id, ownerId: 'player', x: 30, y: 30, roadIds: [], connected: false });
+    syncBuildingFlags(state);
     const buildingFlag = getFlagForBuilding(state, building.id);
-    addRoad(state, createRoad('road-1', flag.id, buildingFlag.id, ['49-49', '48-49', '47-49', '46-49', '45-49', '44-49', '43-49', '42-49', '41-49', '40-49', '39-49', '38-49', '37-49', '36-49', '35-49', '34-49', '33-49', '32-49', '31-49', '30-49', '30-48', '30-47', '30-46', '30-45', '30-44', '30-43', '30-42', '30-41', '30-40', '30-39', '30-38', '30-37', '30-36', '30-35', '30-34', '30-33', '30-32', '30-31', '30-30']));
-    expect(areFlagsConnected(state, flag.id, buildingFlag.id)).toBe(true);
+    const headquartersFlag = getFlagForBuilding(state, state.buildings[0].id);
+    const cells = ['49-49', '48-49', '47-49', '46-49', '45-49', '44-49', '43-49', '42-49', '41-49', '40-49', '39-49', '38-49', '37-49', '36-49', '35-49', '34-49', '33-49', '32-49', '31-49', '30-49', '30-48', '30-47', '30-46', '30-45', '30-44', '30-43', '30-42', '30-41', '30-40', '30-39', '30-38', '30-37', '30-36', '30-35', '30-34', '30-33', '30-32', '30-31', '30-30'];
+    addRoad(state, createRoad('road-1', headquartersFlag.id, buildingFlag.id, cells));
+    expect(areFlagsConnected(state, headquartersFlag.id, buildingFlag.id)).toBe(true);
     destroyBuilding(state, building.id);
     expect(state.buildings.find((item) => item.id === building.id)).toBeUndefined();
     expect(state.flags.find((item) => item.id === buildingFlag.id)).toBeUndefined();
     expect(state.roads).toHaveLength(0);
+    expect(areFlagsConnected(state, headquartersFlag.id, buildingFlag.id)).toBe(false);
   });
 });
 
@@ -62,11 +57,10 @@ describe('logistics road network', () => {
   it('keeps disconnected flags disconnected', () => {
     const state = createGameState();
     const headquartersFlag = getFlagForBuilding(state, state.buildings[0].id);
-    const second = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
     prepareArea(state, 30, 30, 2, 2);
+    const second = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
     addBuilding(state, second);
-    state.buildings.push(second);
-    state.flags.push({ id: second.id + '-flag', buildingId: second.id, ownerId: 'player', x: 30, y: 30, roadIds: [], connected: false });
+    syncBuildingFlags(state);
     const secondFlag = getFlagForBuilding(state, second.id);
     rebuildLogisticsNetwork(state);
     expect(areFlagsConnected(state, headquartersFlag.id, secondFlag.id)).toBe(false);
@@ -81,11 +75,7 @@ describe('logistics road network', () => {
     const second = createBuilding('building-3', 'player', 'stonecutter_hut', '20-30');
     addBuilding(state, first);
     addBuilding(state, second);
-    state.buildings.push(first, second);
-    state.flags.push(
-      { id: first.id + '-flag', buildingId: first.id, ownerId: 'player', x: 30, y: 30, roadIds: [], connected: false },
-      { id: second.id + '-flag', buildingId: second.id, ownerId: 'player', x: 20, y: 30, roadIds: [], connected: false },
-    );
+    syncBuildingFlags(state);
     const hqFlag = getFlagForBuilding(state, state.buildings[0].id);
     const firstFlag = getFlagForBuilding(state, first.id);
     const secondFlag = getFlagForBuilding(state, second.id);
@@ -101,8 +91,7 @@ describe('logistics road network', () => {
     prepareArea(state, 30, 30, 2, 2);
     const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
     addBuilding(state, building);
-    state.buildings.push(building);
-    state.flags.push({ id: building.id + '-flag', buildingId: building.id, ownerId: 'player', x: 30, y: 30, roadIds: [], connected: false });
+    syncBuildingFlags(state);
     const hqFlag = getFlagForBuilding(state, state.buildings[0].id);
     const buildingFlag = getFlagForBuilding(state, building.id);
     addRoad(state, createRoad('road-1', hqFlag.id, buildingFlag.id, ['49-49', '48-49', '47-49', '46-49', '45-49', '44-49', '43-49', '42-49', '41-49', '40-49', '39-49', '38-49', '37-49', '36-49', '35-49', '34-49', '33-49', '32-49', '31-49', '30-49', '30-48', '30-47', '30-46', '30-45', '30-44', '30-43', '30-42', '30-41', '30-40', '30-39', '30-38', '30-37', '30-36', '30-35', '30-34', '30-33', '30-32', '30-31', '30-30']));
