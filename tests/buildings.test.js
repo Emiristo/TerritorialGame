@@ -44,8 +44,8 @@ describe('building catalog', () => {
     expect(getBuildingType(building).id).toBe('warehouse');
   });
   it('defines the lumberjack hut and updated sawmill roles', () => {
-    expect(BUILDING_TYPES.LUMBERJACK_HUT).toMatchObject({ id: 'lumberjack_hut', width: 2, height: 2, constructionMaterials: { planks: 2 }, terrainIds: ['plains'], workerTypeId: 'lumberjack', toolId: 'axe', workRadius: 5 });
-    expect(BUILDING_TYPES.SAWMILL).toMatchObject({ workerTypeId: 'carpenter', toolId: 'saw', workRadius: null });
+    expect(BUILDING_TYPES.LUMBERJACK_HUT).toMatchObject({ id: 'lumberjack_hut', width: 2, height: 2, constructionMaterials: { planks: 2 }, terrainIds: ['plains'], workerTypeId: 'lumberjack', toolId: 'axe', workZone: { mode: 'radius', radius: 5 } });
+    expect(BUILDING_TYPES.SAWMILL).toMatchObject({ workerTypeId: 'carpenter', toolId: 'saw', workZone: { mode: 'footprint' } });
   });
 });
 
