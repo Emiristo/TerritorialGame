@@ -1,0 +1,40 @@
+import { createFlag } from './flags.js';
+import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
+
+function getPosition(tileId) {
+  const [x, y] = String(tileId).split('-').map(Number);
+  return { x, y };
+}
+
+export function ensureBuildingFlag(state, building) {
+  state.flags ??= [];
+  const position = building.flagPosition ?? getPosition(building.tileId);
+  building.flagId ??= `${building.id}-flag`;
+  building.flagPosition = { x: position.x, y: position.y };
+
+  const existing = state.flags.find((flag) => flag.id === building.flagId);
+  if (existing) return existing;
+
+  return createFlag(building.flagId, building.id, building.ownerId, position.x, position.y);
+}
+
+export function syncBuildingFlags(state) {
+  state.flags ??= [];
+  const buildingIds = new Set((state.buildings ?? []).map((building) => building.id));
+  state.flags = state.flags.filter((flag) => buildingIds.has(flag.buildingId));
+
+  for (const building of state.buildings ?? []) {
+    const flag = ensureBuildingFlag(state, building);
+    if (!state.flags.includes(flag)) state.flags.push(flag);
+  }
+  rebuildLogisticsNetwork(state);
+  return state.flags;
+}
+
+export function removeBuildingFlag(state, buildingId) {
+  const flag = (state.flags ?? []).find((item) => item.buildingId === buildingId);
+  if (!flag) return null;
+  state.flags = state.flags.filter((item) => item.id !== flag.id);
+  rebuildLogisticsNetwork(state);
+  return flag;
+}
