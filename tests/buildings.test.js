@@ -176,9 +176,9 @@ describe('construction mechanics', () => {
     const a = createBuilding('a', 'player', 'stonecutter_hut', '30-30');
     const b = createBuilding('b', 'player', 'stonecutter_hut', '40-40');
     state.buildings.push(a, b);
-    state.player.resources.planks = 2;
-    deliverConstructionMaterial(state, a.id, 'planks', 1);
-    deliverConstructionMaterial(state, b.id, 'planks', 1);
+    state.player.resources.planks = 4;
+    deliverConstructionMaterial(state, a.id, 'planks', 2);
+    deliverConstructionMaterial(state, b.id, 'planks', 2);
     advanceAllConstructions(state, 5);
     expect(a.constructionTimer).toBe(5);
     expect(b.constructionTimer).toBe(5);
