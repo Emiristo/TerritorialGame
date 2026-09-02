@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
 import { createFlag, addFlag } from '../src/game/flags.js';
 import {
+  addRoad,
   buildRoadToNearestFlag,
+  createRoad,
   findNearestFlag,
   findShortestRoadPaths,
   isRoadPathValid,
@@ -41,20 +43,30 @@ describe('automatic road construction', () => {
 
   it('rejects roads shorter than two cells and road intersections', () => {
     const state = createGameState();
-    addTestFlag(state, 'flag-a', 55, 50);
-    addTestFlag(state, 'flag-b', 56, 50);
+    addTestFlag(state, 'flag-a', 40, 50);
+    addTestFlag(state, 'flag-b', 50, 50);
+    addTestFlag(state, 'flag-c', 45, 45);
+    addTestFlag(state, 'flag-d', 45, 55);
 
-    expect(() => buildRoadToNearestFlag(state, 'flag-a', 'road-auto-1')).not.toThrow();
-    expect(state.roads[0].cells.length).toBeGreaterThanOrEqual(2);
-
-    const intersectingRoad = {
-      id: 'road-invalid',
-      startFlagId: 'headquarters-1-flag',
-      endFlagId: 'flag-a',
-      cells: ['50-52', '51-52', '52-52', '53-52', '54-51', '55-50'],
+    expect(isRoadPathValid(state, {
+      id: 'too-short',
+      startFlagId: 'flag-a',
+      endFlagId: 'flag-b',
+      cells: ['40-50'],
       active: true,
-    };
-    expect(isRoadPathValid(state, intersectingRoad)).toBe(false);
+    })).toBe(false);
+
+    addRoad(state, createRoad('road-existing', 'flag-a', 'flag-b', [
+      '40-50', '41-50', '42-50', '43-50', '44-50', '45-50', '46-50', '47-50', '48-50', '49-50', '50-50',
+    ]));
+
+    expect(isRoadPathValid(state, {
+      id: 'road-invalid',
+      startFlagId: 'flag-c',
+      endFlagId: 'flag-d',
+      cells: ['45-45', '45-46', '45-47', '45-48', '45-49', '45-50', '45-51', '45-52', '45-53', '45-54', '45-55'],
+      active: true,
+    })).toBe(false);
   });
 
   it('enforces a maximum of four roads per flag', () => {
