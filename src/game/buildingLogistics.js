@@ -1,4 +1,5 @@
 import { createFlag } from './flags.js';
+import { removeRoadsForFlag } from './roads.js';
 import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 
 function getPosition(tileId) {
@@ -31,10 +32,14 @@ export function syncBuildingFlags(state) {
   return state.flags;
 }
 
-export function removeBuildingFlag(state, buildingId) {
+export function destroyBuilding(state, buildingId) {
+  const index = (state.buildings ?? []).findIndex((building) => building.id === buildingId);
+  if (index < 0) return null;
+
+  const [building] = state.buildings.splice(index, 1);
   const flag = (state.flags ?? []).find((item) => item.buildingId === buildingId);
-  if (!flag) return null;
-  state.flags = state.flags.filter((item) => item.id !== flag.id);
+  if (flag) removeRoadsForFlag(state, flag.id);
+  state.flags = (state.flags ?? []).filter((item) => item.buildingId !== buildingId);
   rebuildLogisticsNetwork(state);
-  return flag;
+  return building;
 }
