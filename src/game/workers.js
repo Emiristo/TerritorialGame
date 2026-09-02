@@ -87,9 +87,3 @@ export function workWorker(state, workerId) {
   worker.targetTileId = tile.id;
   return extractForWorker(state, worker.id);
 }
-
-export function processWorkersTurn(state) {
-  for (const worker of state.workers ?? []) workWorker(state, worker.id);
-  state.turn += 1;
-  return state;
-}
