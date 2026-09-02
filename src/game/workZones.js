@@ -22,20 +22,38 @@ function chebyshevDistance(a, b) {
   return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }
 
-export function getWorkZoneRadius(state, building) {
+export function getWorkZoneSpec(state, building) {
   const type = findBuildingType(building);
-  if (type?.workRadius == null) return null;
-  return Number(type.workRadius);
+  return type?.workZone ?? null;
+}
+
+export function getWorkZoneRadius(state, building) {
+  const spec = getWorkZoneSpec(state, building);
+  return spec?.mode === 'radius' ? Number(spec.radius) : null;
 }
 
 export function getWorkZoneCells(state, zone) {
   const center = findTile(state, zone?.centerTileId);
-  if (!center || zone?.radius == null || zone.radius < 0) return [];
+  if (!center || !zone) return [];
+
+  if (zone.mode === 'footprint') {
+    const building = findBuilding(state, zone.buildingId);
+    const type = findBuildingType(building);
+    if (!building || !type) return [];
+    return (state.tiles ?? []).filter((tile) => (
+      tile.x >= center.x
+      && tile.x < center.x + type.width
+      && tile.y >= center.y
+      && tile.y < center.y + type.height
+    ));
+  }
+
+  if (zone.radius == null || zone.radius < 0) return [];
   return (state.tiles ?? []).filter((tile) => chebyshevDistance(center, tile) <= zone.radius);
 }
 
-export function createWorkZone(id, ownerId, buildingId, centerTileId, radius) {
-  return { id, ownerId, buildingId, centerTileId, radius, workerIds: [] };
+export function createWorkZone(id, ownerId, buildingId, centerTileId, radius = null, mode = 'radius') {
+  return { id, ownerId, buildingId, centerTileId, radius, mode, workerIds: [] };
 }
 
 export function getWorkZoneForBuilding(state, buildingId) {
@@ -47,11 +65,13 @@ export function createWorkZoneForBuilding(state, buildingId, id = `work-zone-${b
   if (!building || !building.constructionComplete || !building.active) return null;
   const existing = getWorkZoneForBuilding(state, buildingId);
   if (existing) return existing;
-  const radius = getWorkZoneRadius(state, building);
-  if (radius == null) return null;
+  const spec = getWorkZoneSpec(state, building);
+  if (!spec) return null;
   const center = findTile(state, building.tileId);
   if (!center) return null;
-  const zone = createWorkZone(id, building.ownerId, building.id, center.id, radius);
+  const mode = spec.mode;
+  const radius = mode === 'radius' ? Number(spec.radius) : null;
+  const zone = createWorkZone(id, building.ownerId, building.id, center.id, radius, mode);
   state.workZones ??= [];
   state.workZones.push(zone);
   return zone;
@@ -61,7 +81,7 @@ export function syncWorkZones(state) {
   state.workZones ??= [];
   const activeBuildingIds = new Set(
     (state.buildings ?? [])
-      .filter((building) => building.active && building.constructionComplete && getWorkZoneRadius(state, building) != null)
+      .filter((building) => building.active && building.constructionComplete && getWorkZoneSpec(state, building))
       .map((building) => building.id),
   );
   for (const zone of state.workZones) {
