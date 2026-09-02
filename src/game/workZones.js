@@ -123,7 +123,11 @@ export function assignWorkerToBuilding(state, workerId, buildingId, zoneId, targ
   if (worker.ownerId !== building.ownerId || worker.typeId !== type.workerTypeId) return false;
   if (zone.buildingId !== building.id || zone.ownerId !== building.ownerId) return false;
   if (targetTileId != null && !isTileInWorkZone(state, zone.id, targetTileId)) return false;
-  return assignWorkerToWorkZone(state, workerId, zone.id) && ((worker.targetTileId = targetTileId), (building.workerIds ??= []), building.workerIds.includes(worker.id) || building.workerIds.push(worker.id), true);
+  if (!assignWorkerToWorkZone(state, workerId, zone.id)) return false;
+  worker.targetTileId = targetTileId;
+  building.workerIds ??= [];
+  if (!building.workerIds.includes(worker.id)) building.workerIds.push(worker.id);
+  return true;
 }
 
 export function removeWorkZoneForBuilding(state, buildingId) {
