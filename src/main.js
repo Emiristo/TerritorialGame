@@ -4,7 +4,7 @@ import { renderBuildMenu, renderPlayerPanel, renderTilePanel, renderTurnInfo } f
 import { BUILDING_TYPES, addBuilding, canBuildOnTile, createBuilding } from './game/buildings.js';
 import { deliverConstructionMaterial } from './game/materials.js';
 import { advanceConstruction, startConstruction } from './game/construction.js';
-import { startGameClock } from './game/clock.js';
+import { startGameClock, tickGameClock } from './game/clock.js';
 import { processWorkersTurn } from './game/workers.js';
 
 const state = createGameState();
@@ -36,9 +36,27 @@ elements.tilePanel.addEventListener('click', (event) => {
 elements.endTurn.addEventListener('click', () => { const results = processWorkersTurn(state); const extracted = results.reduce((sum, result) => sum + result.amount, 0); state.selectedTileId = null; clearBuildSelection(); elements.status.textContent = extracted > 0 ? `Ход завершён. Добыто ресурсов: ${extracted}.` : 'Ход завершён. Работники без добычи.'; render(); });
 
 startGameClock(state.clock);
-setInterval(() => { const elapsedSeconds = 1; const completed = []; for (const building of state.buildings) { const wasComplete = building.constructionComplete; advanceConstruction(building, elapsedSeconds); if (!wasComplete && building.constructionComplete) completed.push(building); } if (completed.length) elements.status.textContent = `Строительство завершено: ${completed.map((building) => findBuildingType(building.typeId)?.name ?? building.typeId).join(', ')}.`; render(); }, 1000);
+setInterval(() => {
+  const elapsedSeconds = tickGameClock(state.clock);
+  const completed = [];
+  for (const building of state.buildings) {
+    const wasComplete = building.constructionComplete;
+    advanceConstruction(state, building, elapsedSeconds);
+    if (!wasComplete && building.constructionComplete) completed.push(building);
+  }
+  if (completed.length) elements.status.textContent = `Строительство завершено: ${completed.map((building) => findBuildingType(building.typeId)?.name ?? building.typeId).join(', ')}.`;
+  render();
+}, 1000);
 
 // Temporary delivery hook for the current testing stage. Real carriers and routes will replace this later.
-window.deliverConstructionMaterial = (buildingId, resourceId, amount = 1) => { const delivered = deliverConstructionMaterial(state, buildingId, resourceId, amount); if (delivered) { const building = state.buildings.find((item) => item.id === buildingId); advanceConstruction(building, 0); render(); } return delivered; };
+window.deliverConstructionMaterial = (buildingId, resourceId, amount = 1) => {
+  const delivered = deliverConstructionMaterial(state, buildingId, resourceId, amount);
+  if (delivered) {
+    const building = state.buildings.find((item) => item.id === buildingId);
+    advanceConstruction(state, building, 0);
+    render();
+  }
+  return delivered;
+};
 
 render();
