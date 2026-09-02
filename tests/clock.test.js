@@ -18,16 +18,16 @@ describe('game clock speed', () => {
   it('advances game time twice as fast at x2', () => {
     const clock = createGameClock(1000);
     startGameClock(clock, 1000);
-    setGameSpeed(clock, 2, 2000);
-    expect(tickGameClock(clock, 3500)).toBe(3);
+    setGameSpeed(clock, 2, 1000);
+    expect(tickGameClock(clock, 3500)).toBe(5);
     expect(clock.elapsedSeconds).toBe(5);
   });
 
   it('advances game time three times as fast at x3', () => {
     const clock = createGameClock(1000);
     startGameClock(clock, 1000);
-    setGameSpeed(clock, 3, 2000);
-    expect(tickGameClock(clock, 3000)).toBe(3);
+    setGameSpeed(clock, 3, 1000);
+    expect(tickGameClock(clock, 3000)).toBe(6);
     expect(clock.elapsedSeconds).toBe(6);
   });
 
