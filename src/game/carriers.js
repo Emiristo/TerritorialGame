@@ -42,8 +42,6 @@ export function addInputResourceToBuilding(state, buildingId, resourceId, amount
   const type = getBuildingType(state, building);
   if (!type?.input?.[resourceId]) return 0;
   const slots = ensureInputStorage(building);
-  const currentResource = slots.find(Boolean);
-  if (currentResource && currentResource !== resourceId) return 0;
   let added = 0;
   for (let i = 0; i < slots.length && added < units; i += 1) {
     if (slots[i] === null) { slots[i] = resourceId; added += 1; }
