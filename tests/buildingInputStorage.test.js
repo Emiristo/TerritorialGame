@@ -29,15 +29,16 @@ describe('building input storage', () => {
     expect(getBuildingInputStorage(state, building.id)).toEqual([null, null, null, null, null]);
   });
 
-  it('accepts only resources requested by the building and never exceeds five units', () => {
+  it('accepts any resource requested by the building, but never an unrelated resource or more than five units', () => {
     const state = makeState();
     const building = createBuilding('workshop', 'player', 'workshop', '0-0');
     state.buildings.push(building);
 
-    expect(addInputResourceToBuilding(state, building.id, 'steel', 5)).toBe(5);
+    expect(addInputResourceToBuilding(state, building.id, 'steel', 2)).toBe(2);
+    expect(addInputResourceToBuilding(state, building.id, 'planks', 2)).toBe(2);
     expect(addInputResourceToBuilding(state, building.id, 'wood', 1)).toBe(0);
-    expect(addInputResourceToBuilding(state, building.id, 'steel', 1)).toBe(0);
-    expect(getBuildingInputStorage(state, building.id)).toEqual(['steel', 'steel', 'steel', 'steel', 'steel']);
+    expect(addInputResourceToBuilding(state, building.id, 'steel', 2)).toBe(1);
+    expect(getBuildingInputStorage(state, building.id)).toEqual(['steel', 'steel', 'planks', 'planks', 'steel']);
   });
 
   it('does not create restricted input storage for a warehouse', () => {
