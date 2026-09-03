@@ -20,6 +20,7 @@ export function createWarehouseCarrier(id, ownerId, buildingId) { return { id, o
 export function createTransportRequest(id, ownerId, resourceId, amount, sourceFlagId, destinationFlagId) { return { id, ownerId, resourceId, amount: Math.max(0, Math.floor(Number(amount) || 0)), delivered: 0, inTransit: 0, sourceFlagId, destinationFlagId, routeFlagIds: [], routeRoadIds: [], state: 'waiting' }; }
 export function createBuildingTransportRequest(state, id, ownerId, resourceId, amount, sourceBuildingId, destinationBuildingId) { const sourceFlag = (state.flags ?? []).find((flag) => flag.buildingId === sourceBuildingId) ?? null, destinationFlag = (state.flags ?? []).find((flag) => flag.buildingId === destinationBuildingId) ?? null; if (!sourceFlag || !destinationFlag) return null; const request = createTransportRequest(id, ownerId, resourceId, amount, sourceFlag.id, destinationFlag.id); request.sourceBuildingId = sourceBuildingId; request.destinationBuildingId = destinationBuildingId; return request; }
 export function createWarehouseTransportRequest(state, id, ownerId, resourceId, amount, warehouseBuildingId, destinationBuildingId) { const request = createBuildingTransportRequest(state, id, ownerId, resourceId, amount, warehouseBuildingId, destinationBuildingId); if (!request) return null; request.sourceWarehouseId = warehouseBuildingId; return request; }
+export function createProductionToWarehouseTransportRequest(state, id, ownerId, resourceId, amount, sourceBuildingId, warehouseBuildingId) { const request = createBuildingTransportRequest(state, id, ownerId, resourceId, amount, sourceBuildingId, warehouseBuildingId); if (!request) return null; request.destinationWarehouseId = warehouseBuildingId; return request; }
 export function addCarrier(state, carrier) { state.carriers ??= []; if (state.carriers.some((item) => item.id === carrier.id)) throw new Error(`Carrier already exists: ${carrier.id}`); if (carrier.role === CARRIER_ROLES.ROAD && carrier.roadId && !getRoad(state, carrier.roadId)) throw new Error('Carrier road does not exist'); if (carrier.role === CARRIER_ROLES.ROAD && carrier.roadId && carrierCountOnRoad(state, carrier.roadId) >= getRoadCarrierCapacity(state, carrier.roadId)) throw new Error('Road has reached its carrier capacity'); state.carriers.push(carrier); return carrier; }
 export function assignCarrierToRoad(state, carrierId, roadId) { const carrier = getCarrier(state, carrierId), road = getRoad(state, roadId); if (!carrier || carrier.role !== CARRIER_ROLES.ROAD || !road || carrier.cargo) return false; if (carrierCountOnRoad(state, roadId, carrierId) >= getRoadCarrierCapacity(state, roadId)) return false; carrier.roadId = roadId; carrier.state = CARRIER_STATES.WAITING; return true; }
 export function removeCarrierFromRoad(state, carrierId) { const carrier = getCarrier(state, carrierId); if (!carrier || carrier.role !== CARRIER_ROLES.ROAD || carrier.cargo) return false; carrier.roadId = null; carrier.state = CARRIER_STATES.IDLE; return true; }
@@ -75,16 +76,22 @@ export function deliverCarrierToFlag(state, carrierId) {
   const destination = getFlag(state, cargo.toFlagId);
   if (!request || !destination) return false;
 
-  addCargoToFlag(state, destination.id, cargo.resourceId, cargo.amount);
-  request.inTransit = Math.max(0, Number(request.inTransit ?? 0) - cargo.amount);
-  recordRoadCargo(state, cargo.roadId, cargo.amount);
-
-  if (destination.id === request.destinationFlagId) {
-    if (request.destinationBuildingId) {
-      request.state = 'at_destination';
-    } else {
-      request.delivered = Number(request.delivered ?? 0) + cargo.amount;
-      if (request.delivered >= request.amount) request.state = 'delivered';
+  if (destination.id === request.destinationFlagId && request.destinationWarehouseId) {
+    addInventoryToBuilding(state, request.destinationWarehouseId, cargo.resourceId, cargo.amount);
+    request.delivered = Number(request.delivered ?? 0) + cargo.amount;
+    request.inTransit = Math.max(0, Number(request.inTransit ?? 0) - cargo.amount);
+    recordRoadCargo(state, cargo.roadId, cargo.amount);
+    if (request.delivered >= request.amount) request.state = 'delivered';
+  } else {
+    addCargoToFlag(state, destination.id, cargo.resourceId, cargo.amount);
+    request.inTransit = Math.max(0, Number(request.inTransit ?? 0) - cargo.amount);
+    recordRoadCargo(state, cargo.roadId, cargo.amount);
+    if (destination.id === request.destinationFlagId) {
+      if (request.destinationBuildingId) request.state = 'at_destination';
+      else {
+        request.delivered = Number(request.delivered ?? 0) + cargo.amount;
+        if (request.delivered >= request.amount) request.state = 'delivered';
+      }
     }
   }
 
