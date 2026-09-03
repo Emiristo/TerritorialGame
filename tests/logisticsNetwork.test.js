@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
 import { createBuilding, addBuilding } from '../src/game/buildings.js';
 import { syncBuildingFlags, destroyBuilding } from '../src/game/buildingLogistics.js';
-import { getFlagForBuilding } from '../src/game/flags.js';
+import { createFlag, addFlag, getFlagForBuilding } from '../src/game/flags.js';
 import { addRoad, createRoad, removeRoadsForFlag } from '../src/game/roads.js';
 import { areFlagsConnected, findFlagRoute, rebuildLogisticsNetwork } from '../src/game/logisticsNetwork.js';
 
@@ -53,6 +53,69 @@ describe('building logistics flags', () => {
     syncBuildingFlags(state);
     expect(state.flags).toHaveLength(2);
     expect(getFlagForBuilding(state, building.id)).toMatchObject({ x: 30, y: 32 });
+  });
+
+  it('preserves standalone flags when building flags are synchronized', () => {
+    const state = createGameState();
+    const standalone = createFlag('standalone-1', null, 'player', 20, 20);
+    addFlag(state, standalone);
+
+    syncBuildingFlags(state);
+
+    expect(state.flags).toHaveLength(2);
+    expect(state.flags.find((flag) => flag.id === standalone.id)).toBe(standalone);
+    expect(standalone.buildingId).toBeNull();
+  });
+
+  it('allows standalone flags to participate in the logistics network', () => {
+    const state = createGameState();
+    const first = createFlag('standalone-1', null, 'player', 20, 20);
+    const second = createFlag('standalone-2', null, 'player', 20, 25);
+    addFlag(state, first);
+    addFlag(state, second);
+
+    addRoad(state, createRoad('standalone-road-1', first.id, second.id, [
+      '20-20', '20-21', '20-22', '20-23', '20-24', '20-25',
+    ]));
+
+    expect(areFlagsConnected(state, first.id, second.id)).toBe(true);
+    expect(findFlagRoute(state, first.id, second.id)).toEqual({
+      flagIds: [first.id, second.id],
+      roadIds: ['standalone-road-1'],
+    });
+    expect(first.roadIds).toEqual(['standalone-road-1']);
+    expect(second.roadIds).toEqual(['standalone-road-1']);
+  });
+
+  it('destroys only the building flag and its roads, keeping standalone flags and their roads', () => {
+    const state = createGameState();
+    prepareArea(state, 30, 30, 2, 2);
+    const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30');
+    addBuilding(state, building);
+
+    const hqFlag = getFlagForBuilding(state, state.buildings[0].id);
+    const buildingFlag = getFlagForBuilding(state, building.id);
+    const standaloneA = createFlag('standalone-1', null, 'player', 20, 20);
+    const standaloneB = createFlag('standalone-2', null, 'player', 20, 25);
+    addFlag(state, standaloneA);
+    addFlag(state, standaloneB);
+
+    addRoad(state, createRoad('building-road', hqFlag.id, buildingFlag.id, diagonalPath(50, 52, 30, 32)));
+    addRoad(state, createRoad('standalone-road', standaloneA.id, standaloneB.id, [
+      '20-20', '20-21', '20-22', '20-23', '20-24', '20-25',
+    ]));
+    expect(areFlagsConnected(state, standaloneA.id, standaloneB.id)).toBe(true);
+
+    destroyBuilding(state, building.id);
+
+    expect(state.flags.find((flag) => flag.id === buildingFlag.id)).toBeUndefined();
+    expect(state.flags.find((flag) => flag.id === standaloneA.id)).toBe(standaloneA);
+    expect(state.flags.find((flag) => flag.id === standaloneB.id)).toBe(standaloneB);
+    expect(state.roads).toEqual([
+      expect.objectContaining({ id: 'standalone-road', startFlagId: standaloneA.id, endFlagId: standaloneB.id }),
+    ]);
+    expect(areFlagsConnected(state, standaloneA.id, standaloneB.id)).toBe(true);
+    expect(areFlagsConnected(state, hqFlag.id, buildingFlag.id)).toBe(false);
   });
 
   it('destroys the building flag and its roads with the building', () => {
