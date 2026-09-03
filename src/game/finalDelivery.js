@@ -1,4 +1,10 @@
-import { addInventoryToBuilding, getFlagCargo, removeCargoFromFlag } from './carriers.js';
+import {
+  addInputResourceToBuilding,
+  getBuildingInputStorageCount,
+  getBuildingInputStorageCapacity,
+  getFlagCargo,
+  removeCargoFromFlag,
+} from './carriers.js';
 
 function findWorker(state, workerId) { return (state.workers ?? []).find((worker) => worker.id === workerId) ?? null; }
 
@@ -6,6 +12,7 @@ export function assignWorkerFinalDelivery(state, workerId, requestId) {
   const worker = findWorker(state, workerId);
   const request = (state.transportRequests ?? []).find((item) => item.id === requestId) ?? null;
   if (!worker || !request || request.state !== 'at_destination' || request.destinationBuildingId !== worker.buildingId || worker.ownerId !== request.ownerId || worker.cargo || worker.logisticsTask) return false;
+  if (getBuildingInputStorageCount(state, worker.buildingId) >= getBuildingInputStorageCapacity()) return false;
   if (getFlagCargo(state, request.destinationFlagId, request.resourceId) < 1) return false;
   if (removeCargoFromFlag(state, request.destinationFlagId, request.resourceId, 1) !== 1) return false;
   worker.logisticsTask = { type: 'final_delivery', requestId };
@@ -19,7 +26,8 @@ export function completeWorkerFinalDelivery(state, workerId) {
   if (!worker?.cargo || worker.logisticsTask?.type !== 'final_delivery') return false;
   const request = (state.transportRequests ?? []).find((item) => item.id === worker.logisticsTask.requestId) ?? null;
   if (!request || request.destinationBuildingId !== worker.buildingId) return false;
-  addInventoryToBuilding(state, worker.buildingId, worker.cargo.resourceId, worker.cargo.amount);
+  const added = addInputResourceToBuilding(state, worker.buildingId, worker.cargo.resourceId, worker.cargo.amount);
+  if (added !== worker.cargo.amount) return false;
   request.delivered = Number(request.delivered ?? 0) + worker.cargo.amount;
   request.state = request.delivered >= Number(request.amount ?? 0) ? 'delivered' : 'at_destination';
   worker.cargo = null;
