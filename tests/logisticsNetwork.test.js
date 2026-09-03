@@ -42,15 +42,15 @@ describe('building logistics flags', () => {
     expect(areFlagsConnected(state, first.id, second.id)).toBe(true); expect(findFlagRoute(state, first.id, second.id)).toEqual({ flagIds: [first.id, second.id], roadIds: ['standalone-road-1'] }); expect(first.roadIds).toEqual(['standalone-road-1']); expect(second.roadIds).toEqual(['standalone-road-1']);
   });
   it('destroys only the building flag and its roads, keeping standalone flags and their roads', () => {
-    const state = createGameState(); prepareArea(state, 30, 30, 2, 2); const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30'); addBuilding(state, building);
+    const state = createGameState(); prepareArea(state, 31, 31, 2, 2); const building = createBuilding('building-2', 'player', 'stonecutter_hut', '31-31'); addBuilding(state, building);
     const hqFlag = getFlagForBuilding(state, state.buildings[0].id); const buildingFlag = getFlagForBuilding(state, building.id); const standaloneA = createFlag('standalone-1', null, 'player', 20, 20); const standaloneB = createFlag('standalone-2', null, 'player', 20, 25); addFlag(state, standaloneA); addFlag(state, standaloneB);
-    addRoad(state, createRoad('building-road', hqFlag.id, buildingFlag.id, diagonalPath(50.5, 52, 31, 32))); addRoad(state, createRoad('standalone-road', standaloneA.id, standaloneB.id, ['20-20', '20-21', '20-22', '20-23', '20-24', '20-25'])); expect(areFlagsConnected(state, standaloneA.id, standaloneB.id)).toBe(true);
+    addRoad(state, createRoad('building-road', hqFlag.id, buildingFlag.id, diagonalPath(50.5, 52, 32, 33))); addRoad(state, createRoad('standalone-road', standaloneA.id, standaloneB.id, ['20-20', '20-21', '20-22', '20-23', '20-24', '20-25'])); expect(areFlagsConnected(state, standaloneA.id, standaloneB.id)).toBe(true);
     destroyBuilding(state, building.id);
     expect(state.flags.find((flag) => flag.id === buildingFlag.id)).toBeUndefined(); expect(state.flags.find((flag) => flag.id === standaloneA.id)).toBe(standaloneA); expect(state.flags.find((flag) => flag.id === standaloneB.id)).toBe(standaloneB); expect(state.roads).toEqual([expect.objectContaining({ id: 'standalone-road', startFlagId: standaloneA.id, endFlagId: standaloneB.id })]); expect(areFlagsConnected(state, standaloneA.id, standaloneB.id)).toBe(true); expect(areFlagsConnected(state, hqFlag.id, buildingFlag.id)).toBe(false);
   });
   it('destroys the building flag and its roads with the building', () => {
-    const state = createGameState(); prepareArea(state, 30, 30, 2, 2); const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30'); addBuilding(state, building); const buildingFlag = getFlagForBuilding(state, building.id); const headquartersFlag = getFlagForBuilding(state, state.buildings[0].id);
-    addRoad(state, createRoad('road-1', headquartersFlag.id, buildingFlag.id, diagonalPath(50.5, 52, 31, 32))); expect(areFlagsConnected(state, headquartersFlag.id, buildingFlag.id)).toBe(true); destroyBuilding(state, building.id);
+    const state = createGameState(); prepareArea(state, 31, 31, 2, 2); const building = createBuilding('building-2', 'player', 'stonecutter_hut', '31-31'); addBuilding(state, building); const buildingFlag = getFlagForBuilding(state, building.id); const headquartersFlag = getFlagForBuilding(state, state.buildings[0].id);
+    addRoad(state, createRoad('road-1', headquartersFlag.id, buildingFlag.id, diagonalPath(50.5, 52, 32, 33))); expect(areFlagsConnected(state, headquartersFlag.id, buildingFlag.id)).toBe(true); destroyBuilding(state, building.id);
     expect(state.buildings.find((item) => item.id === building.id)).toBeUndefined(); expect(state.flags.find((item) => item.id === buildingFlag.id)).toBeUndefined(); expect(state.roads).toHaveLength(0); expect(areFlagsConnected(state, headquartersFlag.id, buildingFlag.id)).toBe(false);
   });
 });
@@ -61,12 +61,12 @@ describe('logistics road network', () => {
     expect(areFlagsConnected(state, headquartersFlag.id, secondFlag.id)).toBe(false); expect(findFlagRoute(state, headquartersFlag.id, secondFlag.id)).toBeNull();
   });
   it('finds a route through multiple road segments', () => {
-    const state = createGameState(); prepareArea(state, 30, 30, 2, 2); prepareArea(state, 20, 30, 2, 2); const first = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30'); const second = createBuilding('building-3', 'player', 'stonecutter_hut', '20-30'); addBuilding(state, first); addBuilding(state, second);
-    const hqFlag = getFlagForBuilding(state, state.buildings[0].id); const firstFlag = getFlagForBuilding(state, first.id); const secondFlag = getFlagForBuilding(state, second.id); addRoad(state, createRoad('road-1', hqFlag.id, firstFlag.id, diagonalPath(50.5, 52, 31, 32))); addRoad(state, createRoad('road-2', firstFlag.id, secondFlag.id, ['31-32', '30-32', '29-32', '28-32', '27-32', '26-32', '25-32', '24-32', '23-32', '22-32', '21-32']));
+    const state = createGameState(); prepareArea(state, 31, 31, 2, 2); prepareArea(state, 20, 30, 2, 2); const first = createBuilding('building-2', 'player', 'stonecutter_hut', '31-31'); const second = createBuilding('building-3', 'player', 'stonecutter_hut', '20-30'); addBuilding(state, first); addBuilding(state, second);
+    const hqFlag = getFlagForBuilding(state, state.buildings[0].id); const firstFlag = getFlagForBuilding(state, first.id); const secondFlag = getFlagForBuilding(state, second.id); addRoad(state, createRoad('road-1', hqFlag.id, firstFlag.id, diagonalPath(50.5, 52, 32, 33))); addRoad(state, createRoad('road-2', firstFlag.id, secondFlag.id, ['32-33', '31-33', '30-33', '29-33', '28-33', '27-33', '26-33', '25-33', '24-33', '23-33', '22-33', '21-33']));
     const route = findFlagRoute(state, hqFlag.id, secondFlag.id); expect(route.flagIds).toEqual([hqFlag.id, firstFlag.id, secondFlag.id]); expect(route.roadIds).toEqual(['road-1', 'road-2']);
   });
   it('removes every road connected to a flag', () => {
-    const state = createGameState(); prepareArea(state, 30, 30, 2, 2); const building = createBuilding('building-2', 'player', 'stonecutter_hut', '30-30'); addBuilding(state, building); const hqFlag = getFlagForBuilding(state, state.buildings[0].id); const buildingFlag = getFlagForBuilding(state, building.id);
-    addRoad(state, createRoad('road-1', hqFlag.id, buildingFlag.id, diagonalPath(50.5, 52, 31, 32))); removeRoadsForFlag(state, buildingFlag.id); expect(state.roads).toHaveLength(0); expect(hqFlag.roadIds).toEqual([]);
+    const state = createGameState(); prepareArea(state, 31, 31, 2, 2); const building = createBuilding('building-2', 'player', 'stonecutter_hut', '31-31'); addBuilding(state, building); const hqFlag = getFlagForBuilding(state, state.buildings[0].id); const buildingFlag = getFlagForBuilding(state, building.id);
+    addRoad(state, createRoad('road-1', hqFlag.id, buildingFlag.id, diagonalPath(50.5, 52, 32, 33))); removeRoadsForFlag(state, buildingFlag.id); expect(state.roads).toHaveLength(0); expect(hqFlag.roadIds).toEqual([]);
   });
 });
