@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createFlag } from '../src/game/flags.js';
 import { createRoad, addRoad } from '../src/game/roads.js';
-import { CARRIER_STATES, createCarrier, addCarrier, getBuildingInventory, getFlagCargo, advanceCarrier, createWarehouseTransportRequest, addInventoryToBuilding, stageWarehouseCargoForRequest } from '../src/game/carriers.js';
+import { CARRIER_STATES, createCarrier, addCarrier, getBuildingInventory, getBuildingInputStorage, getFlagCargo, advanceCarrier, createWarehouseTransportRequest, addInventoryToBuilding, stageWarehouseCargoForRequest } from '../src/game/carriers.js';
 import { createWorker, extractForWorker } from '../src/game/workers.js';
 import { advanceWorkerFinalDelivery } from '../src/game/finalDelivery.js';
 
@@ -51,7 +51,8 @@ describe('real resource logistics chain', () => {
     expect(worker.state).toBe('carrying');
     expect(getFlagCargo(state, 'workshop-flag', 'stone')).toBe(0);
     expect(advanceWorkerFinalDelivery(state, worker.id, request.id)).toBe(true);
-    expect(getBuildingInventory(state, 'workshop', 'stone')).toBe(1);
+    expect(getBuildingInventory(state, 'workshop', 'stone')).toBe(0);
+    expect(getBuildingInputStorage(state, 'workshop')).toContain('stone');
     expect(request.delivered).toBe(1);
     expect(request.state).toBe('delivered');
     expect(worker.state).toBe('idle');
@@ -90,7 +91,7 @@ describe('real resource logistics chain', () => {
     expect(state.carriers).toHaveLength(1);
   });
 
-  it('still supports the previously defined extraction-to-flag staging', () => {
+  it('stages extraction output at the producing building flag', () => {
     const state = makeState();
     state.flags.push(createFlag('mine-flag', 'mine', 'player', 2, 4));
     const worker = createWorker('miner-1', 'player', 'miner');
