@@ -36,6 +36,18 @@ function allConstructionMaterialsProcessed(building) {
     Number(building.constructionMaterialsUsed?.[resource] ?? 0) >= Number(amount));
 }
 
+function acknowledgeBuilderPickup(state, building, resource) {
+  const flag = getBuildingFlag(state, building);
+  const request = (state.transportRequests ?? []).find((item) => item.destinationFlagId === flag?.id
+    && item.destinationBuildingId === building.id
+    && item.resourceId === resource
+    && item.state === 'at_destination');
+  if (!request) return;
+  const amount = Math.max(1, Number(request.amount ?? 1));
+  request.delivered = Math.min(amount, Number(request.delivered ?? 0) + 1);
+  request.state = request.delivered >= amount ? 'delivered' : 'at_destination';
+}
+
 function takeNextConstructionMaterial(state, building) {
   if (building.currentConstructionMaterial) return true;
   const storage = ensureConstructionStorage(state, building);
@@ -51,6 +63,7 @@ function takeNextConstructionMaterial(state, building) {
 
     storage[resource] = available - 1;
     building.constructionMaterialsUsed[resource] = used + 1;
+    acknowledgeBuilderPickup(state, building, resource);
     building.currentConstructionMaterial = resource;
     building.currentConstructionMaterialRemainingTime = getMaterialDuration(resource);
     building.constructionTimer = building.currentConstructionMaterialRemainingTime;
@@ -75,14 +88,9 @@ export function startConstruction(state, building, now = Date.now()) {
   building.constructionState = CONSTRUCTION_STATES.PLACED;
   building.constructionTimer = 0;
   building.constructionTimerStartedAt = null;
-  building.constructionMaterialsDelivered ??= Object.fromEntries(
-    Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0])
-  );
-  building.constructionMaterialsUsed ??= Object.fromEntries(
-    Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0])
-  );
+  building.constructionMaterialsDelivered ??= Object.fromEntries(Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0]));
+  building.constructionMaterialsUsed ??= Object.fromEntries(Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0]));
   building.constructionMaterialQueue ??= [];
-
   const storage = ensureConstructionStorage(state, building);
   for (const resource of Object.keys(getConstructionMaterials(building))) storage[resource] ??= 0;
   return building;
@@ -90,9 +98,7 @@ export function startConstruction(state, building, now = Date.now()) {
 
 export function beginConstructionWaiting(building) {
   if (!building || building.constructionComplete) return building;
-  if (building.constructionState === CONSTRUCTION_STATES.PLACED) {
-    building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
-  }
+  if (building.constructionState === CONSTRUCTION_STATES.PLACED) building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
   return building;
 }
 
@@ -103,7 +109,6 @@ export function deliverMaterialToConstructionFlag(state, building, resourceId, a
   const requested = Math.max(0, Math.floor(Number(amount) || 0));
   const units = Math.max(0, Math.min(requested, required - delivered));
   if (!units) return 0;
-
   const storage = ensureConstructionStorage(state, building);
   storage[resourceId] = Number(storage[resourceId] ?? 0) + units;
   building.constructionMaterialsDelivered[resourceId] = delivered + units;
@@ -117,19 +122,15 @@ export function advanceConstruction(state, building, elapsedSeconds) {
   if (!building || building.constructionComplete) return building;
   beginConstructionWaiting(building);
   let remaining = Math.max(0, Number(elapsedSeconds) || 0);
-
   if (!building.currentConstructionMaterial) takeNextConstructionMaterial(state, building);
-
   while (remaining > 0 && building.currentConstructionMaterial) {
     const work = Math.min(remaining, building.currentConstructionMaterialRemainingTime);
     building.currentConstructionMaterialRemainingTime -= work;
     building.constructionTimer = building.currentConstructionMaterialRemainingTime;
     remaining -= work;
-
     if (building.currentConstructionMaterialRemainingTime === 0) {
       building.currentConstructionMaterial = null;
       building.constructionTimer = 0;
-
       if (allConstructionMaterialsProcessed(building)) {
         building.constructionComplete = true;
         building.active = true;
@@ -137,23 +138,16 @@ export function advanceConstruction(state, building, elapsedSeconds) {
         syncWorkZones(state);
         break;
       }
-
       if (!takeNextConstructionMaterial(state, building)) break;
     }
   }
-
   return building;
 }
 
 export function completeConstruction(state, buildingOrId, now = Date.now()) {
-  const building = typeof buildingOrId === 'object'
-    ? buildingOrId
-    : (state.buildings ?? []).find((item) => item.id === buildingOrId);
+  const building = typeof buildingOrId === 'object' ? buildingOrId : (state.buildings ?? []).find((item) => item.id === buildingOrId);
   if (!building || !(state.buildings ?? []).includes(building)) throw new Error('Building not found');
-  if (building.currentConstructionMaterial || Number(building.currentConstructionMaterialRemainingTime ?? 0) > 0 || !allConstructionMaterialsProcessed(building)) {
-    throw new Error('Construction materials are not fully processed');
-  }
-
+  if (building.currentConstructionMaterial || Number(building.currentConstructionMaterialRemainingTime ?? 0) > 0 || !allConstructionMaterialsProcessed(building)) throw new Error('Construction materials are not fully processed');
   building.currentConstructionMaterial = null;
   building.currentConstructionMaterialRemainingTime = 0;
   building.constructionComplete = true;
