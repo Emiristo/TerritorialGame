@@ -103,4 +103,77 @@ describe('logistics integration', () => {
     expect(getFlagCargo(state, 'mine-flag', 'stone')).toBe(1);
     expect(createTransportTasks(state)).toBe(0);
   });
+
+  it('keeps logistics bounded with 100+ production buildings and repeated planning passes', () => {
+    const state = makeState();
+    state.buildings = [];
+    state.flags = [];
+    state.roads = [];
+    state.transportRequests = [];
+
+    const sources = 10;
+    const productions = 101;
+    const warehouses = 5;
+    const total = sources + productions + warehouses;
+    const flags = [];
+
+    for (let i = 0; i < total; i += 1) {
+      const x = i % 20;
+      const y = Math.floor(i / 20);
+      let id;
+      let typeId;
+      if (i < sources) {
+        id = `mine-${i}`;
+        typeId = 'mine';
+      } else if (i < sources + productions) {
+        id = `workshop-${i - sources}`;
+        typeId = 'workshop';
+      } else {
+        id = `warehouse-${i - sources - productions}`;
+        typeId = 'warehouse';
+      }
+      state.buildings.push({ id, ownerId: 'player', typeId, tileId: `${x}-${y}`, active: true, inventory: {} });
+      const flag = createFlag(`flag-${id}`, id, 'player', x, y);
+      flag.cargo = {};
+      state.flags.push(flag);
+      flags.push(flag);
+    }
+
+    state.buildingTypes = [
+      { id: 'mine', role: 'extraction', output: { resourceId: 'stone', amount: 1 } },
+      { id: 'workshop', role: 'production', input: { stone: 1 } },
+      { id: 'warehouse', role: 'storage', input: {} },
+    ];
+
+    // Build a long connected logistics chain. The final production building is
+    // intentionally unreachable, proving the planner ignores disconnected demand.
+    for (let i = 0; i < total - 2; i += 1) {
+      state.roads.push({
+        id: `road-${i}`,
+        startFlagId: flags[i].id,
+        endFlagId: flags[i + 1].id,
+        cells: [`${i % 20}-${Math.floor(i / 20)}`],
+        active: true,
+        level: 1,
+      });
+    }
+
+    // Make the nearest production slot unavailable; the planner must continue to
+    // the next reachable production building rather than falling back to a warehouse.
+    state.buildings.find((building) => building.id === 'workshop-0').inputStorageSlots = ['stone', 'stone', 'stone', 'stone', 'stone'];
+    state.buildings.find((building) => building.id === 'workshop-100').inputStorageSlots = ['stone', 'stone', 'stone', 'stone', 'stone'];
+
+    for (let i = 0; i < sources; i += 1) flags[i].cargo.stone = 1;
+
+    expect(createTransportTasks(state)).toBe(sources);
+    expect(state.transportRequests).toHaveLength(sources);
+    expect(state.transportRequests.every((request) => request.destinationBuildingId !== 'workshop-100')).toBe(true);
+    expect(state.transportRequests.every((request) => request.destinationBuildingId !== 'warehouse-0')).toBe(true);
+
+    // Replanning must be idempotent: repeated global passes cannot create duplicate
+    // requests while the original source cargo is still awaiting a road carrier.
+    for (let i = 0; i < 100; i += 1) expect(createTransportTasks(state)).toBe(0);
+    expect(state.transportRequests).toHaveLength(sources);
+    expect(flags.slice(0, sources).every((flag) => getFlagCargo(state, flag.id, 'stone') === 1)).toBe(true);
+  });
 });
