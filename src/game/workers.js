@@ -7,7 +7,7 @@ import {
   removeWorkZoneForBuilding,
 } from './workZones.js';
 import { addCargoToFlag } from './carriers.js';
-import { createTransportTasks } from './logisticsManager.js';
+import { markLogisticsDirty } from './logisticsManager.js';
 
 export const WORKER_TYPES = {
   FORESTER: { id: 'forester', name: 'Лесничий', toolId: 'shovel' },
@@ -18,7 +18,7 @@ export const WORKER_TYPES = {
   MILLER: { id: 'miller', name: 'Мельник', toolId: 'bag' },
   BAKER: { id: 'baker', name: 'Пекарь', toolId: 'rolling_pin' },
   FARMER: { id: 'farmer', name: 'Фермер', toolId: 'scythe' },
-  MINER: { id: 'miner', name: 'Шахтёр', toolId: 'pickaxe' },
+  MINER: { id: 'miner', name: 'Шахтёр', name: 'Шахтёр', toolId: 'pickaxe' },
   STEELWORKER: { id: 'steelworker', name: 'Сталевар', toolId: 'ladle' },
   BLACKSMITH: { id: 'blacksmith', name: 'Кузнец', toolId: 'hammer' },
   MASTER: { id: 'master', name: 'Мастер', toolId: 'tongs' },
@@ -82,7 +82,7 @@ export function extractForWorker(state, workerId) {
   if (addCargoToFlag(state, flag.id, rule.resourceId, 1) !== 1) return false;
   tile.resources[rule.resourceId] = available - 1;
   worker.targetTileId = tile.id;
-  createTransportTasks(state);
+  markLogisticsDirty(state, building.id, rule.resourceId);
   return true;
 }
 
