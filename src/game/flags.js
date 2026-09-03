@@ -44,7 +44,7 @@ export function isNodeWithinOwnerInfluence(state, x, y, ownerId) {
     if (!source.active || source.ownerId !== ownerId) return false;
     const center = (state.tiles ?? []).find((tile) => tile.id === source.tileId);
     if (!center) return false;
-    return isWithinInfluenceRadius(center, { x: x - 0.5, y: y - 0.5 }, source.radius);
+    return isWithinInfluenceRadius(center, { x, y }, source.radius);
   });
 }
 
