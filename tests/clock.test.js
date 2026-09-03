@@ -1,18 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { createGameClock, startGameClock, pauseGameClock, setGameSpeed, tickGameClock } from '../src/game/clock.js';
 
-describe('game clock speed', () => {
-  it('starts at speed x1', () => {
+describe('simulation tick clock', () => {
+  it('starts at zero simulation ticks', () => {
     const clock = createGameClock(1000);
-    expect(clock.speed).toBe(1);
+    expect(clock.simulationTicks).toBe(0);
     expect(clock.elapsedSeconds).toBe(0);
+    expect(clock.realTimeAccumulator).toBe(0);
   });
 
-  it('advances real time at x1', () => {
+  it('produces whole simulation ticks and keeps the fractional remainder', () => {
     const clock = createGameClock(1000);
     startGameClock(clock, 1000);
-    expect(tickGameClock(clock, 3500)).toBe(2.5);
-    expect(clock.elapsedSeconds).toBe(2.5);
+    expect(tickGameClock(clock, 3500)).toBe(2);
+    expect(clock.simulationTicks).toBe(2);
+    expect(clock.elapsedSeconds).toBe(2);
+    expect(clock.realTimeAccumulator).toBe(0.5);
+  });
+
+  it('does not advance the simulation before one full game second', () => {
+    const clock = createGameClock(1000);
+    startGameClock(clock, 1000);
+    expect(tickGameClock(clock, 1500)).toBe(0);
+    expect(clock.simulationTicks).toBe(0);
+    expect(clock.elapsedSeconds).toBe(0);
+    expect(clock.realTimeAccumulator).toBe(0.5);
   });
 
   it('advances game time twice as fast at x2', () => {
@@ -20,6 +32,7 @@ describe('game clock speed', () => {
     startGameClock(clock, 1000);
     setGameSpeed(clock, 2, 1000);
     expect(tickGameClock(clock, 3500)).toBe(5);
+    expect(clock.simulationTicks).toBe(5);
     expect(clock.elapsedSeconds).toBe(5);
   });
 
@@ -28,6 +41,7 @@ describe('game clock speed', () => {
     startGameClock(clock, 1000);
     setGameSpeed(clock, 3, 1000);
     expect(tickGameClock(clock, 3000)).toBe(6);
+    expect(clock.simulationTicks).toBe(6);
     expect(clock.elapsedSeconds).toBe(6);
   });
 
@@ -46,6 +60,7 @@ describe('game clock speed', () => {
     startGameClock(clock, 1000);
     pauseGameClock(clock, 3000);
     expect(clock.elapsedSeconds).toBe(2);
+    expect(clock.simulationTicks).toBe(2);
     expect(tickGameClock(clock, 10000)).toBe(0);
     expect(clock.elapsedSeconds).toBe(2);
   });
