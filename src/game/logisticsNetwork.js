@@ -2,6 +2,15 @@ function getFlag(state, flagId) {
   return (state.flags ?? []).find((flag) => flag.id === flagId) ?? null;
 }
 
+function getRoad(state, roadId) {
+  return (state.roads ?? []).find((road) => road.id === roadId && road.active) ?? null;
+}
+
+function getRoadWeight(state, roadId) {
+  const road = getRoad(state, roadId);
+  return road ? Math.max(1, road.cells?.length ?? 1) : Number.MAX_SAFE_INTEGER;
+}
+
 export function rebuildLogisticsNetwork(state) {
   const flags = state.flags ?? [];
   const roads = state.roads ?? [];
@@ -45,39 +54,66 @@ export function areFlagsConnected(state, startFlagId, endFlagId) {
   return false;
 }
 
-export function findFlagRoute(state, startFlagId, endFlagId) {
-  if (startFlagId === endFlagId) return { flagIds: [startFlagId], roadIds: [] };
-  const network = rebuildLogisticsNetwork(state);
-  if (!network.adjacency[startFlagId] || !network.adjacency[endFlagId]) return null;
+function findShortestRoutes(state, network, startFlagId) {
+  if (!network.adjacency[startFlagId]) return new Map();
 
-  const queue = [startFlagId];
+  const distances = new Map([[startFlagId, 0]]);
   const previous = new Map([[startFlagId, null]]);
   const previousRoad = new Map();
+  const unvisited = new Set(Object.keys(network.adjacency));
 
-  while (queue.length) {
-    const current = queue.shift();
-    if (current === endFlagId) break;
+  while (unvisited.size) {
+    let current = null;
+    let currentDistance = Number.MAX_SAFE_INTEGER;
+    for (const flagId of unvisited) {
+      const distance = distances.get(flagId) ?? Number.MAX_SAFE_INTEGER;
+      if (distance < currentDistance) {
+        current = flagId;
+        currentDistance = distance;
+      }
+    }
+    if (current === null) break;
+
+    unvisited.delete(current);
     for (const edge of network.adjacency[current] ?? []) {
-      if (previous.has(edge.flagId)) continue;
-      previous.set(edge.flagId, current);
-      previousRoad.set(edge.flagId, edge.roadId);
-      queue.push(edge.flagId);
+      if (!unvisited.has(edge.flagId)) continue;
+      const distance = currentDistance + getRoadWeight(state, edge.roadId);
+      const known = distances.get(edge.flagId) ?? Number.MAX_SAFE_INTEGER;
+      if (distance < known) {
+        distances.set(edge.flagId, distance);
+        previous.set(edge.flagId, current);
+        previousRoad.set(edge.flagId, edge.roadId);
+      }
     }
   }
 
-  if (!previous.has(endFlagId)) return null;
-  const flagIds = [];
-  const roadIds = [];
-  let current = endFlagId;
-  while (current !== null) {
-    flagIds.push(current);
-    const roadId = previousRoad.get(current);
-    if (roadId) roadIds.push(roadId);
-    current = previous.get(current);
+  const routes = new Map();
+  for (const [destinationFlagId] of distances) {
+    const flagIds = [];
+    const roadIds = [];
+    let current = destinationFlagId;
+    while (current !== null) {
+      flagIds.push(current);
+      const roadId = previousRoad.get(current);
+      if (roadId) roadIds.push(roadId);
+      current = previous.get(current);
+    }
+    flagIds.reverse();
+    roadIds.reverse();
+    routes.set(destinationFlagId, { flagIds, roadIds, distance: distances.get(destinationFlagId) });
   }
-  flagIds.reverse();
-  roadIds.reverse();
-  return { flagIds, roadIds };
+  return routes;
+}
+
+export function findShortestFlagRoutes(state, startFlagId) {
+  const network = state.logisticsNetwork ?? rebuildLogisticsNetwork(state);
+  return findShortestRoutes(state, network, startFlagId);
+}
+
+export function findFlagRoute(state, startFlagId, endFlagId) {
+  if (startFlagId === endFlagId) return { flagIds: [startFlagId], roadIds: [] };
+  const routes = findShortestFlagRoutes(state, startFlagId);
+  return routes.get(endFlagId) ?? null;
 }
 
 export function getRoadsOnFlagRoute(state, startFlagId, endFlagId) {
