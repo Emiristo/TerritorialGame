@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
 import { createBuilding } from '../src/game/buildings.js';
-import { advanceAllConstructions, deliverMaterialAndStartConstruction } from '../src/game/construction.js';
+import { advanceAllConstructions, deliverMaterialToConstructionFlag, startConstruction } from '../src/game/construction.js';
 import {
   createWorkZone,
   createWorkZoneForBuilding,
@@ -128,13 +128,17 @@ describe('work zones', () => {
     expect(worker).toMatchObject({ zoneId: null, state: 'idle' });
   });
 
-  it('runs the full chain: building completion creates an external zone and the correct worker can be assigned', () => {
+  it('runs the full chain: physical delivery, construction completion, work zone and worker assignment', () => {
     const state = createGameState();
     const building = createBuilding('lumberjack-1', 'player', 'lumberjack_hut', '30-30');
+    building.flagId = `${building.id}-flag`;
     state.buildings.push(building);
+    state.flags.push({ id: building.flagId, buildingId: building.id, ownerId: building.ownerId, x: 30, y: 30, constructionStorage: {} });
+    state.player.resources.planks = 2;
     state.workers.push(createWorker('worker-1', 'player', 'lumberjack'));
 
-    expect(deliverMaterialAndStartConstruction(building, 'planks', 2)).toBe(2);
+    startConstruction(state, building);
+    expect(deliverMaterialToConstructionFlag(state, building, 'planks', 2)).toBe(2);
     advanceAllConstructions(state, 20);
 
     expect(building).toMatchObject({ active: true, constructionComplete: true, constructionState: 'COMPLETED' });
