@@ -6,6 +6,7 @@ import { syncBuildingFlags } from './game/buildingLogistics.js';
 import { deliverConstructionMaterial } from './game/materials.js';
 import { advanceAllConstructions, advanceConstruction, startConstruction } from './game/construction.js';
 import { advanceGameClock, GAME_SPEEDS, pauseGameClock, setGameSpeed, startGameClock } from './game/clock.js';
+import { buildRoadToNearestFlag } from './game/roads.js';
 
 const state = createGameState();
 const elements = {
@@ -24,7 +25,7 @@ let lastRenderedClockSeconds = -1;
 
 function findBuildingType(typeId) { return Object.values(BUILDING_TYPES).find((type) => type.id === typeId) ?? null; }
 function clearBuildSelection() { selectedBuildingTypeId = null; previewTileId = null; }
-function selectMapTile(tileId) { state.selectedTileId = tileId; previewTileId = selectedBuildingTypeId ? tileId : null; }
+function selectMapTile(tileId) { state.selectedTileId = tileId; state.selectedFlagId = null; previewTileId = selectedBuildingTypeId ? tileId : null; }
 function render() {
   syncBuildingFlags(state);
   renderMap(elements.map, state, selectedBuildingTypeId, previewTileId);
@@ -44,6 +45,15 @@ elements.map.addEventListener('pointerover', (event) => {
 });
 
 elements.map.addEventListener('click', (event) => {
+  const flag = event.target.closest('[data-flag-id]');
+  if (flag) {
+    state.selectedFlagId = flag.dataset.flagId;
+    state.selectedTileId = null;
+    clearBuildSelection();
+    elements.status.textContent = `Выбран флаг: ${state.selectedFlagId}.`;
+    render();
+    return;
+  }
   const tile = event.target.closest('[data-tile-id]');
   if (!tile) return;
   selectMapTile(tile.dataset.tileId);
@@ -58,6 +68,7 @@ elements.buildMenu.addEventListener('click', (event) => {
   if (!action) return;
   const type = findBuildingType(action.dataset.typeId);
   if (!type) return;
+  state.selectedFlagId = null;
   selectedBuildingTypeId = type.id;
   previewTileId = state.selectedTileId;
   elements.status.textContent = `Выбрано здание: ${type.name}. Наведите на карту для предпросмотра.`;
@@ -65,6 +76,17 @@ elements.buildMenu.addEventListener('click', (event) => {
 });
 
 elements.tilePanel.addEventListener('click', (event) => {
+  const roadAction = event.target.closest('[data-action="build-road"]');
+  if (roadAction && state.selectedFlagId) {
+    try {
+      const road = buildRoadToNearestFlag(state, state.selectedFlagId, `road-${state.roads.length + 1}`);
+      elements.status.textContent = road ? `Дорога построена до флага ${road.endFlagId}.` : 'Подходящий маршрут для дороги не найден.';
+    } catch (error) {
+      elements.status.textContent = error instanceof Error ? error.message : 'Не удалось построить дорогу.';
+    }
+    render();
+    return;
+  }
   const action = event.target.closest('[data-action="build"]');
   if (!action || !selectedBuildingTypeId) return;
   const tile = getSelectedTile(state);
