@@ -46,7 +46,7 @@ function findNearestDestination(state, candidates, routes) {
 }
 
 function planConstructionDemand(state, building) {
-  if (!building || building.constructionComplete) return false;
+  if (!building || building.constructionComplete || !Object.keys(building.constructionMaterialsRequired ?? {}).length) return false;
   const destinationFlag = getBuildingFlag(state, building.id);
   if (!destinationFlag) return false;
 
@@ -72,8 +72,12 @@ function planConstructionDemand(state, building) {
     const request = createWarehouseTransportRequest(
       state, requestId, building.ownerId, resourceId, 1, warehouse.building.id, building.id,
     );
-    if (!request || !stageWarehouseCargoForRequest(state, requestId)) continue;
+    if (!request) continue;
     state.transportRequests.push(request);
+    if (!stageWarehouseCargoForRequest(state, requestId)) {
+      state.transportRequests = state.transportRequests.filter((item) => item !== request);
+      continue;
+    }
     return true;
   }
   return false;
