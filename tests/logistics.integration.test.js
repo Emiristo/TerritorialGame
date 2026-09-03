@@ -3,6 +3,7 @@ import { createFlag } from '../src/game/flags.js';
 import { createRoad, addRoad } from '../src/game/roads.js';
 import { CARRIER_STATES, createCarrier, addCarrier, getBuildingInventory, getBuildingInputStorage, getFlagCargo, advanceCarrier, createWarehouseTransportRequest, addInventoryToBuilding, stageWarehouseCargoForRequest } from '../src/game/carriers.js';
 import { createWorker, extractForWorker } from '../src/game/workers.js';
+import { createTransportTasks } from '../src/game/logisticsManager.js';
 import { advanceWorkerFinalDelivery } from '../src/game/finalDelivery.js';
 
 function makeState() {
@@ -99,5 +100,42 @@ describe('real resource logistics chain', () => {
     expect(extractForWorker(state, 'miner-1')).toBe(true);
     expect(getBuildingInventory(state, 'mine', 'stone')).toBe(0);
     expect(getFlagCargo(state, 'mine-flag', 'stone')).toBe(1);
+  });
+
+  it('prioritizes the nearest production building that needs the resource over a nearer warehouse', () => {
+    const state = makeState();
+    state.flags.push(createFlag('mine-flag', 'mine', 'player', 2, 4));
+    state.flags.push(createFlag('warehouse-flag', 'warehouse', 'player', 4, 4));
+    state.flags.push(createFlag('workshop-flag', 'workshop', 'player', 8, 4));
+    addRoad(state, createRoad('road-mine-warehouse', 'mine-flag', 'warehouse-flag', ['2-3', '3-3', '4-3']));
+    addRoad(state, createRoad('road-mine-workshop', 'mine-flag', 'workshop-flag', ['2-5', '3-5', '4-5', '5-5', '6-5', '7-5', '8-5']));
+
+    const worker = createWorker('miner-1', 'player', 'miner');
+    worker.buildingId = 'mine'; worker.zoneId = 'zone-mine'; state.workers.push(worker);
+    expect(extractForWorker(state, 'miner-1')).toBe(true);
+    expect(createTransportTasks(state)).toBe(1);
+    expect(state.transportRequests[0].destinationBuildingId).toBe('workshop');
+    expect(state.transportRequests[0].destinationWarehouseId).toBeUndefined();
+    expect(getFlagCargo(state, 'mine-flag', 'stone')).toBe(0);
+  });
+
+  it('sends the resource to the nearest warehouse when no production building needs it', () => {
+    const state = makeState();
+    state.buildingTypes.find((type) => type.id === 'workshop').input = { wood: 1 };
+    state.flags.push(createFlag('mine-flag', 'mine', 'player', 2, 4));
+    state.flags.push(createFlag('warehouse-flag', 'warehouse', 'player', 4, 4));
+    state.flags.push(createFlag('warehouse-far-flag', 'warehouse-far', 'player', 9, 4));
+    state.buildings.push({ id: 'warehouse-far', ownerId: 'player', typeId: 'warehouse', tileId: '9-2', active: true, inventory: {} });
+    addRoad(state, createRoad('road-mine-warehouse', 'mine-flag', 'warehouse-flag', ['2-3', '3-3', '4-3']));
+    addRoad(state, createRoad('road-mine-warehouse-far', 'mine-flag', 'warehouse-far-flag', ['2-6', '3-6', '4-6', '5-6', '6-6', '7-6', '8-6', '9-6']));
+
+    const worker = createWorker('miner-1', 'player', 'miner');
+    worker.buildingId = 'mine'; worker.zoneId = 'zone-mine'; state.workers.push(worker);
+    expect(extractForWorker(state, 'miner-1')).toBe(true);
+    expect(createTransportTasks(state)).toBe(1);
+    const request = state.transportRequests[0];
+    expect(request.destinationWarehouseId).toBe('warehouse');
+    expect(request.destinationBuildingId).toBe('warehouse');
+    expect(getFlagCargo(state, 'mine-flag', 'stone')).toBe(0);
   });
 });
