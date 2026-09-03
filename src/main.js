@@ -4,8 +4,7 @@ import { renderBuildMenu, renderPlayerPanel, renderTilePanel, renderClockInfo } 
 import { BUILDING_TYPES, addBuilding, canBuildOnTile, createBuilding } from './game/buildings.js';
 import { syncBuildingFlags } from './game/buildingLogistics.js';
 import { addStandaloneFlag } from './game/flags.js';
-import { deliverConstructionMaterial } from './game/materials.js';
-import { advanceAllConstructions, advanceConstruction, startConstruction } from './game/construction.js';
+import { advanceAllConstructions } from './game/construction.js';
 import { advanceGameClock, GAME_SPEEDS, pauseGameClock, setGameSpeed, startGameClock } from './game/clock.js';
 import { buildRoadToNearestFlag } from './game/roads.js';
 import { processLogisticsTasks } from './game/logisticsManager.js';
@@ -28,16 +27,15 @@ elements.tilePanel.addEventListener('click', (event) => {
   if (flagAction) { const tile = getSelectedTile(state); if (!tile) return; const x = tile.x + 0.5, y = tile.y + 1; try { const flag = addStandaloneFlag(state, `flag-${state.flags.length + 1}`, state.player.id, x, y); state.selectedFlagId = flag.id; state.selectedTileId = null; elements.status.textContent = 'Самостоятельный флаг установлен. Теперь его можно соединить дорогой.'; } catch (error) { elements.status.textContent = error instanceof Error ? error.message : 'Не удалось поставить флаг.'; } render(); return; }
   const roadAction = event.target.closest('[data-action="build-road"]');
   if (roadAction && state.selectedFlagId) { try { const road = buildRoadToNearestFlag(state, state.selectedFlagId, `road-${state.roads.length + 1}`); elements.status.textContent = road ? `Дорога построена до флага ${road.endFlagId}.` : 'Подходящий маршрут для дороги не найден.'; } catch (error) { elements.status.textContent = error instanceof Error ? error.message : 'Не удалось построить дорогу.'; } render(); return; }
-  const action = event.target.closest('[data-action="build"]'); if (!action || !selectedBuildingTypeId) return; const tile = getSelectedTile(state), type = findBuildingType(selectedBuildingTypeId); if (!tile || !type) return; if (!canBuildOnTile(state, type.id, tile.id)) { elements.status.textContent = 'Здесь нельзя построить это здание.'; return; } const building = createBuilding(`building-${state.buildings.length + 1}`, state.player.id, type.id, tile.id); addBuilding(state, building); syncBuildingFlags(state); startConstruction(state, building); elements.status.textContent = `Место строительства подготовлено: ${type.name}. Ожидание строительных материалов.`; clearBuildSelection(); render(); });
+  const action = event.target.closest('[data-action="build"]'); if (!action || !selectedBuildingTypeId) return; const tile = getSelectedTile(state), type = findBuildingType(selectedBuildingTypeId); if (!tile || !type) return; if (!canBuildOnTile(state, type.id, tile.id)) { elements.status.textContent = 'Здесь нельзя построить это здание.'; return; } const building = createBuilding(`building-${state.buildings.length + 1}`, state.player.id, type.id, tile.id); addBuilding(state, building); syncBuildingFlags(state); startConstruction(building); elements.status.textContent = `Место строительства подготовлено: ${type.name}. Ожидание строительных материалов.`; clearBuildSelection(); render(); });
 elements.clockInfo.addEventListener('click', (event) => { const speedButton = event.target.closest('[data-speed]'); if (speedButton) { const speed = Number(speedButton.dataset.speed); if (!GAME_SPEEDS.includes(speed)) return; setGameSpeed(state.clock, speed); if (!state.clock.running) startGameClock(state.clock); elements.status.textContent = `Скорость игры: ×${speed}.`; render(); return; } const pauseButton = event.target.closest('[data-action="pause-game"]'); if (!pauseButton) return; if (state.clock.running) { pauseGameClock(state.clock); elements.status.textContent = 'Игра поставлена на паузу.'; } else { startGameClock(state.clock); elements.status.textContent = `Игра продолжена: ×${state.clock.speed}.`; } render(); });
 startGameClock(state.clock);
 setInterval(() => {
   const simulationTicks = advanceGameClock(state.clock);
   for (let tick = 0; tick < simulationTicks; tick += 1) {
-    advanceAllConstructions(state, 1);
     processLogisticsTasks(state);
+    advanceAllConstructions(state, 1);
   }
   if (simulationTicks > 0 || Math.floor(state.clock.elapsedSeconds) !== Math.floor(lastRenderedClockSeconds)) render();
 }, 100);
-window.deliverConstructionMaterial = (buildingId, resourceId, amount = 1) => { const delivered = deliverConstructionMaterial(state, buildingId, resourceId, amount); if (delivered) { const building = state.buildings.find((item) => item.id === buildingId); advanceConstruction(state, building, 0); render(); } return delivered; };
 render();
