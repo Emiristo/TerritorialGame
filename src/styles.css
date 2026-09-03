@@ -25,9 +25,15 @@ button { font: inherit; }
 .tile.preview-valid { background: rgba(70, 150, 90, .72); }
 .tile.preview-invalid { background: rgba(170, 65, 65, .72); }
 .tile.preview-reserved { box-shadow: inset 0 0 0 1px rgba(232,237,242,.55); opacity: .6; }
+.map-flag-node { z-index: 5; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: rgba(16,20,25,.9); color: #f2d36b; cursor: pointer; display: grid; place-items: center; font-size: 17px; line-height: 1; box-shadow: 0 1px 4px rgba(0,0,0,.55); }
+.map-flag-node:hover, .map-flag-node.is-selected { outline: 2px solid #e8edf2; outline-offset: 2px; }
+.selection-title { margin-bottom: 8px; font-size: 15px; font-weight: 700; }
+.action-hint { margin-top: 10px; padding: 8px; border-radius: 6px; background: #20272f; color: #aeb8c2; font-size: 12px; line-height: 1.35; }
+.flag-placement { margin-top: 14px; padding-top: 10px; border-top: 1px solid #29313a; }
 .stat { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid #29313a; font-size: 13px; }
 .stat span { color: #8e9aa7; }
 .panel-action { width: 100%; margin-top: 14px; border: 0; border-radius: 6px; padding: 9px 10px; background: #e8edf2; color: #101419; cursor: pointer; font-weight: 700; }
+.panel-action:hover { filter: brightness(1.08); }
 .build-menu { margin-bottom: 18px; }
 .build-menu-title { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
 .build-item { width: 100%; display: flex; align-items: center; gap: 10px; margin-bottom: 6px; padding: 8px; border: 1px solid #29313a; border-radius: 7px; background: #20272f; color: #e8edf2; text-align: left; cursor: pointer; }
