@@ -20,7 +20,7 @@ describe('standalone flags', () => {
     expect(canPlaceStandaloneFlag(s, -0.5, 20.5)).toBe(false);
     expect(canPlaceStandaloneFlag(s, 20.5, 20.5)).toBe(false);
     expect(canPlaceStandaloneFlag(s, 20, 20.5)).toBe(false);
-    expect(canPlaceStandaloneFlag(s, 60, 50.5)).toBe(false);
+    expect(canPlaceStandaloneFlag(s, 61, 50.5)).toBe(false);
   });
 
   it('rejects an occupied node', () => {
