@@ -86,6 +86,54 @@ describe('carrier logistics', () => {
     expect(getFlagCargo(state, 'a', 'stone')).toBe(1);
   });
 
+  it('reserves one cargo unit for one carrier so another carrier cannot take the same task', () => {
+    const state = makeState();
+    addTestFlag(state, 'a', 1, 1);
+    addTestFlag(state, 'b', 4, 1);
+    addTestRoad(state, 'road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']);
+    const road = state.roads[0];
+    road.transportedCargo = 200;
+    addCarrier(state, createCarrier('carrier-1', 'player', road.id));
+    addCarrier(state, createCarrier('carrier-2', 'player', road.id));
+
+    const request = createTransportRequest('request-1', 'player', 'stone', 1, 'a', 'b');
+    state.transportRequests.push(request);
+    addCargoToFlag(state, 'a', 'stone', 2);
+
+    expect(advanceCarrier(state, 'carrier-1', 'request-1')).toBe(true);
+    expect(request.inTransit).toBe(1);
+    expect(getFlagCargo(state, 'a', 'stone')).toBe(1);
+    expect(advanceCarrier(state, 'carrier-2', 'request-1')).toBe(false);
+    expect(getFlagCargo(state, 'a', 'stone')).toBe(1);
+
+    expect(advanceCarrier(state, 'carrier-1', 'request-1')).toBe(true);
+    expect(request.delivered).toBe(1);
+    expect(request.inTransit).toBe(0);
+    expect(getFlagCargo(state, 'b', 'stone')).toBe(1);
+  });
+
+  it('allows two independent carriers to take two distinct cargo tasks from the same source', () => {
+    const state = makeState();
+    addTestFlag(state, 'a', 1, 1);
+    addTestFlag(state, 'b', 4, 1);
+    addTestRoad(state, 'road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']);
+    const road = state.roads[0];
+    road.transportedCargo = 200;
+    addCarrier(state, createCarrier('carrier-1', 'player', road.id));
+    addCarrier(state, createCarrier('carrier-2', 'player', road.id));
+
+    const request1 = createTransportRequest('request-1', 'player', 'stone', 1, 'a', 'b');
+    const request2 = createTransportRequest('request-2', 'player', 'stone', 1, 'a', 'b');
+    state.transportRequests.push(request1, request2);
+    addCargoToFlag(state, 'a', 'stone', 2);
+
+    expect(advanceCarrier(state, 'carrier-1', 'request-1')).toBe(true);
+    expect(advanceCarrier(state, 'carrier-2', 'request-2')).toBe(true);
+    expect(request1.inTransit).toBe(1);
+    expect(request2.inTransit).toBe(1);
+    expect(getFlagCargo(state, 'a', 'stone')).toBe(0);
+  });
+
   it('upgrades a road every 200 successfully transported cargo units up to level 3', () => {
     const state = makeState();
     addTestFlag(state, 'a', 1, 1);
