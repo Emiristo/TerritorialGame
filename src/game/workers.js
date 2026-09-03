@@ -7,6 +7,7 @@ import {
   removeWorkZoneForBuilding,
 } from './workZones.js';
 import { addInventoryToBuilding } from './carriers.js';
+import { createTransportTasks } from './logisticsManager.js';
 
 export const WORKER_TYPES = {
   FORESTER: { id: 'forester', name: 'Лесничий', toolId: 'shovel' },
@@ -79,6 +80,7 @@ export function extractForWorker(state, workerId) {
   tile.resources[rule.resourceId] = available - 1;
   addInventoryToBuilding(state, building.id, rule.resourceId, 1);
   worker.targetTileId = tile.id;
+  createTransportTasks(state);
   return true;
 }
 
