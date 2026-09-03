@@ -20,133 +20,21 @@ export const BUILDING_TYPES = {
   WORKSHOP: { id: 'workshop', name: 'Цех', width: 3, height: 3, constructionMaterials: { planks: 2, stone: 2 }, terrainIds: ['plains'], workerTypeId: 'master', toolId: 'tongs', workZone: { mode: 'footprint' }, input: { steel: 1, planks: 1 }, output: { resourceId: 'tool', amount: 1 }, productionTime: 15, role: 'production' },
   MINT: { id: 'mint', name: 'Монетный двор', width: 2, height: 2, constructionMaterials: { planks: 2, stone: 2 }, terrainIds: ['plains'], workerTypeId: 'steelworker', toolId: 'ladle', workZone: { mode: 'footprint' }, input: { gold: 1, coal: 1 }, output: { resourceId: 'coin', amount: 1 }, productionTime: 15, role: 'production' },
   OUTPOST: { id: 'outpost', name: 'Форпост', width: 2, height: 2, constructionMaterials: { planks: 3 }, terrainIds: ['plains'], workerTypeId: 'soldier', toolId: null, workZone: { mode: 'footprint' }, input: {}, output: null, productionTime: null, influenceMultiplier: 0.75, requiredSoldiers: 1, role: 'military' },
-  BARRACKS: { id: 'barracks', name: 'Казарма', width: 3, height: 3, constructionMaterials: { planks: 3, stone: 1 }, terrainIds: ['plains'], workerTypeId: 'soldier', toolId: null, workZone: { mode: 'footprint' }, input: {}, output: null, productionTime: null, influenceMultiplier: 1, requiredSoldiers: 3, role: 'military' },
-  WATCHTOWER: { id: 'watchtower', name: 'Сторожевая башня', width: 2, height: 2, constructionMaterials: { planks: 5, stone: 5 }, terrainIds: ['plains'], workerTypeId: 'soldier', toolId: null, workZone: { mode: 'footprint' }, input: {}, output: null, productionTime: null, influenceMultiplier: 1.25, requiredSoldiers: 6, role: 'military' },
-  FORTRESS: { id: 'fortress', name: 'Крепость', width: 5, height: 5, constructionMaterials: { planks: 10, stone: 10 }, terrainIds: ['plains'], workerTypeId: 'soldier', toolId: null, workZone: { mode: 'footprint' }, input: {}, output: null, productionTime: null, influenceMultiplier: 1.5, requiredSoldiers: 9, blockChanceBonus: 0.05, role: 'military' },
+  BARRACKS: { id: 'barracks', name: 'Казарма', width: 3, height: 3, constructionMaterials: { planks: 3, stone: 1 }, terrainIds: ['plains'], workerTypeId: 'soldier', toolId: null, workZone: { mode: 'footprint' }, input: {}, output: null, influenceMultiplier: 1, requiredSoldiers: 3, role: 'military' },
+  WATCHTOWER: { id: 'watchtower', name: 'Сторожевая башня', width: 2, height: 2, constructionMaterials: { planks: 5, stone: 5 }, terrainIds: ['plains'], workerTypeId: 'soldier', toolId: null, workZone: { mode: 'footprint' }, input: {}, output: null, influenceMultiplier: 1.25, requiredSoldiers: 6, role: 'military' },
+  FORTRESS: { id: 'fortress', name: 'Крепость', width: 5, height: 5, constructionMaterials: { planks: 10, stone: 10 }, terrainIds: ['plains'], workerTypeId: 'soldier', toolId: null, workZone: { mode: 'footprint' }, input: {}, output: null, influenceMultiplier: 1.5, requiredSoldiers: 9, blockChanceBonus: 0.05, role: 'military' },
 };
-
-const MAP_WIDTH = 100;
-const MAP_HEIGHT = 100;
-
-function findType(typeId) {
-  return Object.values(BUILDING_TYPES).find((item) => item.id === typeId) ?? null;
-}
-
-function getTileAt(state, x, y) {
-  if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return null;
-  return state.tiles[y * MAP_WIDTH + x] ?? null;
-}
-
-function getTileById(state, tileId) {
-  if (typeof tileId !== 'string') return null;
-  const separator = tileId.indexOf('-');
-  if (separator <= 0) return null;
-  const x = Number(tileId.slice(0, separator));
-  const y = Number(tileId.slice(separator + 1));
-  if (!Number.isInteger(x) || !Number.isInteger(y)) return null;
-  return getTileAt(state, x, y);
-}
-
-export function getConstructionMaterials(building) {
-  return { ...(findType(building.typeId)?.constructionMaterials ?? {}) };
-}
-
-export function getBuildingFlagPosition(state, building) {
-  const type = findType(building.typeId);
-  const origin = getTileById(state, building.tileId);
-  if (!type || !origin) return null;
-  const x = origin.x + Math.floor((type.width - 1) / 2);
-  const y = origin.y + type.height;
-  return getTileAt(state, x, y) ? { x, y } : null;
-}
-
-export function createBuilding(id, ownerId, typeId, tileId) {
-  const type = findType(typeId);
-  if (!type) throw new Error(`Unknown building type: ${typeId}`);
-  const required = getConstructionMaterials({ typeId });
-  const complete = Object.keys(required).length === 0;
-  return {
-    id,
-    ownerId,
-    typeId,
-    tileId,
-    active: complete,
-    constructionComplete: complete,
-    constructionMaterialsRequired: required,
-    constructionMaterialsDelivered: Object.fromEntries(Object.keys(required).map((resource) => [resource, 0])),
-    constructionQueue: [],
-    currentConstructionMaterial: null,
-    currentConstructionMaterialRemainingTime: 0,
-    workerIds: [],
-    soldierIds: [],
-    constructionTimer: 0,
-  };
-}
-
-export function getBuildingType(building) {
-  return findType(building.typeId);
-}
-
-export function getFootprintTiles(state, typeId, originTileId) {
-  const type = findType(typeId);
-  const origin = getTileById(state, originTileId);
-  if (!type || !origin) return [];
-
-  const footprint = [];
-  for (let dy = 0; dy < type.height; dy += 1) {
-    for (let dx = 0; dx < type.width; dx += 1) {
-      const tile = getTileAt(state, origin.x + dx, origin.y + dy);
-      if (!tile) return [];
-      footprint.push(tile);
-    }
-  }
-  return footprint;
-}
-
-export function getReservedTiles(state, typeId, originTileId) {
-  const footprint = getFootprintTiles(state, typeId, originTileId);
-  if (!footprint.length) return [];
-
-  const footprintIds = new Set(footprint.map((tile) => tile.id));
-  return state.tiles.filter((tile) => (
-    !footprintIds.has(tile.id)
-    && footprint.some((cell) => Math.max(Math.abs(tile.x - cell.x), Math.abs(tile.y - cell.y)) === 1)
-  ));
-}
-
-export function getBuildingAtTile(state, tileId) {
-  return (state.buildings ?? []).find((building) => (
-    getFootprintTiles(state, building.typeId, building.tileId).some((tile) => tile.id === tileId)
-  )) ?? null;
-}
-
-export function isReservedForBuilding(state, tileId) {
-  return (state.buildings ?? []).some((building) => (
-    getReservedTiles(state, building.typeId, building.tileId).some((tile) => tile.id === tileId)
-  ));
-}
-
-export function canBuildOnTile(state, typeId, tileId, ownerId = state.player.id) {
-  const type = findType(typeId);
-  const footprint = getFootprintTiles(state, typeId, tileId);
-  if (!type || footprint.length !== type.width * type.height) return false;
-  if (footprint.some((tile) => tile.ownerId !== ownerId)) return false;
-  if (type.terrainIds && footprint.some((tile) => !type.terrainIds.includes(tile.terrain))) return false;
-  if (footprint.some((tile) => getBuildingAtTile(state, tile.id) || isReservedForBuilding(state, tile.id))) return false;
-  if (!getBuildingFlagPosition(state, { typeId, tileId })) return false;
-  return true;
-}
-
-export function addBuilding(state, building) {
-  if (!canBuildOnTile(state, building.typeId, building.tileId, building.ownerId)) {
-    throw new Error('Building cannot be placed on this footprint');
-  }
-  state.buildings ??= [];
-  state.flags ??= [];
-  const flagPosition = getBuildingFlagPosition(state, building);
-  building.flagId = `${building.id}-flag`;
-  building.flagPosition = flagPosition;
-  state.buildings.push(building);
-  state.flags.push(createFlag(building.flagId, building.id, building.ownerId, flagPosition.x, flagPosition.y));
-  return building;
-}
+const MAP_WIDTH=100, MAP_HEIGHT=100;
+function findType(id){return Object.values(BUILDING_TYPES).find(x=>x.id===id)??null;}
+function getTileAt(state,x,y){if(x<0||y<0||x>=MAP_WIDTH||y>=MAP_HEIGHT)return null;return state.tiles[y*MAP_WIDTH+x]??null;}
+function getTileById(state,id){if(typeof id!=='string')return null;const s=id.indexOf('-');if(s<=0)return null;const x=Number(id.slice(0,s)),y=Number(id.slice(s+1));return Number.isInteger(x)&&Number.isInteger(y)?getTileAt(state,x,y):null;}
+export function getConstructionMaterials(building){return {...(findType(building.typeId)?.constructionMaterials??{})};}
+export function getBuildingFlagPosition(state,building){const type=findType(building.typeId),origin=getTileById(state,building.tileId);if(!type||!origin)return null;const x=origin.x+type.width/2,y=origin.y+type.height;return x>=0&&x<=100&&y>=0&&y<=100?{x,y}:null;}
+export function createBuilding(id,ownerId,typeId,tileId){const type=findType(typeId);if(!type)throw new Error(`Unknown building type: ${typeId}`);const required=getConstructionMaterials({typeId}),complete=Object.keys(required).length===0;return{id,ownerId,typeId,tileId,active:complete,constructionComplete:complete,constructionMaterialsRequired:required,constructionMaterialsDelivered:Object.fromEntries(Object.keys(required).map(r=>[r,0])),constructionQueue:[],currentConstructionMaterial:null,currentConstructionMaterialRemainingTime:0,workerIds:[],soldierIds:[],constructionTimer:0};}
+export function getBuildingType(building){return findType(building.typeId);}
+export function getFootprintTiles(state,typeId,originTileId){const type=findType(typeId),origin=getTileById(state,originTileId);if(!type||!origin)return[];const out=[];for(let dy=0;dy<type.height;dy++)for(let dx=0;dx<type.width;dx++){const t=getTileAt(state,origin.x+dx,origin.y+dy);if(!t)return[];out.push(t);}return out;}
+export function getReservedTiles(state,typeId,originTileId){const footprint=getFootprintTiles(state,typeId,originTileId);if(!footprint.length)return[];const ids=new Set(footprint.map(t=>t.id));return state.tiles.filter(t=>!ids.has(t.id)&&footprint.some(c=>Math.max(Math.abs(t.x-c.x),Math.abs(t.y-c.y))===1));}
+export function getBuildingAtTile(state,tileId){return(state.buildings??[]).find(b=>getFootprintTiles(state,b.typeId,b.tileId).some(t=>t.id===tileId))??null;}
+export function isReservedForBuilding(state,tileId){return(state.buildings??[]).some(b=>getReservedTiles(state,b.typeId,b.tileId).some(t=>t.id===tileId));}
+export function canBuildOnTile(state,typeId,tileId,ownerId=state.player.id){const type=findType(typeId),footprint=getFootprintTiles(state,typeId,tileId);if(!type||footprint.length!==type.width*type.height)return false;if(footprint.some(t=>t.ownerId!==ownerId))return false;if(type.terrainIds&&footprint.some(t=>!type.terrainIds.includes(t.terrain)))return false;if(footprint.some(t=>getBuildingAtTile(state,t.id)||isReservedForBuilding(state,t.id)))return false;return Boolean(getBuildingFlagPosition(state,{typeId,tileId}));}
+export function addBuilding(state,building){if(!canBuildOnTile(state,building.typeId,building.tileId,building.ownerId))throw new Error('Building cannot be placed on this footprint');state.buildings??=[];state.flags??=[];const p=getBuildingFlagPosition(state,building);building.flagId=`${building.id}-flag`;building.flagPosition=p;state.buildings.push(building);state.flags.push(createFlag(building.flagId,building.id,building.ownerId,p.x,p.y));return building;}
