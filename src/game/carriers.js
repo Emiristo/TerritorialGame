@@ -1,14 +1,22 @@
-import { areFlagsConnected, findFlagRoute } from './logisticsNetwork.js';
+import { findFlagRoute } from './logisticsNetwork.js';
 
 export const CARRIER_STATES = Object.freeze({ IDLE: 'idle', WAITING: 'waiting', CARRYING: 'carrying' });
 
 function getFlag(state, flagId) { return (state.flags ?? []).find((flag) => flag.id === flagId) ?? null; }
 function getRoad(state, roadId) { return (state.roads ?? []).find((road) => road.id === roadId && road.active) ?? null; }
 function getCarrier(state, carrierId) { return (state.carriers ?? []).find((carrier) => carrier.id === carrierId) ?? null; }
+function getBuilding(state, buildingId) { return (state.buildings ?? []).find((building) => building.id === buildingId) ?? null; }
 function ensureFlagCargo(flag) { flag.cargo ??= {}; return flag.cargo; }
+function ensureBuildingInventory(building) { building.inventory ??= {}; return building.inventory; }
 
 export function createCarrier(id, ownerId, roadId = null) { return { id, ownerId, typeId: 'carrier', state: roadId ? CARRIER_STATES.WAITING : CARRIER_STATES.IDLE, roadId, cargo: null }; }
 export function createTransportRequest(id, ownerId, resourceId, amount, sourceFlagId, destinationFlagId) { return { id, ownerId, resourceId, amount: Math.max(0, Math.floor(Number(amount) || 0)), delivered: 0, sourceFlagId, destinationFlagId, routeFlagIds: [], routeRoadIds: [], state: 'waiting' }; }
+export function createBuildingTransportRequest(state, id, ownerId, resourceId, amount, sourceBuildingId, destinationBuildingId) {
+  const sourceFlag = (state.flags ?? []).find((flag) => flag.buildingId === sourceBuildingId) ?? null;
+  const destinationFlag = (state.flags ?? []).find((flag) => flag.buildingId === destinationBuildingId) ?? null;
+  if (!sourceFlag || !destinationFlag) return null;
+  return createTransportRequest(id, ownerId, resourceId, amount, sourceFlag.id, destinationFlag.id);
+}
 
 export function addCarrier(state, carrier) {
   state.carriers ??= [];
@@ -37,6 +45,37 @@ export function removeCargoFromFlag(state, flagId, resourceId, amount = 1) {
   const units = Math.max(0, Math.min(Math.floor(Number(amount) || 0), available));
   if (!flag || units <= 0) return 0;
   flag.cargo[resourceId] = available - units; return units;
+}
+
+export function addInventoryToBuilding(state, buildingId, resourceId, amount = 1) {
+  const building = getBuilding(state, buildingId), units = Math.max(0, Math.floor(Number(amount) || 0));
+  if (!building || !resourceId || units <= 0) return 0;
+  const inventory = ensureBuildingInventory(building); inventory[resourceId] = Number(inventory[resourceId] ?? 0) + units; return units;
+}
+export function getBuildingInventory(state, buildingId, resourceId) { return Number(getBuilding(state, buildingId)?.inventory?.[resourceId] ?? 0); }
+export function removeInventoryFromBuilding(state, buildingId, resourceId, amount = 1) {
+  const building = getBuilding(state, buildingId), available = getBuildingInventory(state, buildingId, resourceId);
+  const units = Math.max(0, Math.min(Math.floor(Number(amount) || 0), available));
+  if (!building || units <= 0) return 0;
+  building.inventory[resourceId] = available - units; return units;
+}
+
+export function stageBuildingOutputAtFlag(state, buildingId, resourceId, amount = 1) {
+  const flag = (state.flags ?? []).find((item) => item.buildingId === buildingId) ?? null;
+  const units = removeInventoryFromBuilding(state, buildingId, resourceId, amount);
+  if (!flag || units <= 0) {
+    if (units > 0) addInventoryToBuilding(state, buildingId, resourceId, units);
+    return 0;
+  }
+  return addCargoToFlag(state, flag.id, resourceId, units);
+}
+
+export function deliverFlagCargoToBuilding(state, flagId, resourceId, amount = 1) {
+  const flag = getFlag(state, flagId);
+  if (!flag?.buildingId) return 0;
+  const units = removeCargoFromFlag(state, flagId, resourceId, amount);
+  if (units <= 0) return 0;
+  return addInventoryToBuilding(state, flag.buildingId, resourceId, units);
 }
 
 export function prepareTransportRequest(state, request) {
@@ -70,7 +109,11 @@ export function deliverCarrierToFlag(state, carrierId) {
   const cargo = carrier.cargo, request = (state.transportRequests ?? []).find((item) => item.id === cargo.requestId) ?? null, destination = getFlag(state, cargo.toFlagId);
   if (!request || !destination) return false;
   addCargoToFlag(state, destination.id, cargo.resourceId, cargo.amount);
-  if (destination.id === request.destinationFlagId) { request.delivered += cargo.amount; if (request.delivered >= request.amount) request.state = 'delivered'; }
+  if (destination.id === request.destinationFlagId) {
+    deliverFlagCargoToBuilding(state, destination.id, cargo.resourceId, cargo.amount);
+    request.delivered += cargo.amount;
+    if (request.delivered >= request.amount) request.state = 'delivered';
+  }
   carrier.cargo = null; carrier.state = CARRIER_STATES.WAITING; return true;
 }
 
