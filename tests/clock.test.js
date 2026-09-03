@@ -1,0 +1,57 @@
+import { describe, expect, it } from 'vitest';
+import { createGameClock, startGameClock, pauseGameClock, setGameSpeed, tickGameClock } from '../src/game/clock.js';
+
+describe('game clock speed', () => {
+  it('starts at speed x1', () => {
+    const clock = createGameClock(1000);
+    expect(clock.speed).toBe(1);
+    expect(clock.elapsedSeconds).toBe(0);
+  });
+
+  it('advances real time at x1', () => {
+    const clock = createGameClock(1000);
+    startGameClock(clock, 1000);
+    expect(tickGameClock(clock, 3500)).toBe(2.5);
+    expect(clock.elapsedSeconds).toBe(2.5);
+  });
+
+  it('advances game time twice as fast at x2', () => {
+    const clock = createGameClock(1000);
+    startGameClock(clock, 1000);
+    setGameSpeed(clock, 2, 1000);
+    expect(tickGameClock(clock, 3500)).toBe(5);
+    expect(clock.elapsedSeconds).toBe(5);
+  });
+
+  it('advances game time three times as fast at x3', () => {
+    const clock = createGameClock(1000);
+    startGameClock(clock, 1000);
+    setGameSpeed(clock, 3, 1000);
+    expect(tickGameClock(clock, 3000)).toBe(6);
+    expect(clock.elapsedSeconds).toBe(6);
+  });
+
+  it('changes speed without creating a time jump', () => {
+    const clock = createGameClock(1000);
+    startGameClock(clock, 1000);
+    expect(tickGameClock(clock, 3000)).toBe(2);
+    setGameSpeed(clock, 3, 3000);
+    expect(clock.elapsedSeconds).toBe(2);
+    expect(tickGameClock(clock, 4000)).toBe(3);
+    expect(clock.elapsedSeconds).toBe(5);
+  });
+
+  it('stops advancing while paused', () => {
+    const clock = createGameClock(1000);
+    startGameClock(clock, 1000);
+    pauseGameClock(clock, 3000);
+    expect(clock.elapsedSeconds).toBe(2);
+    expect(tickGameClock(clock, 10000)).toBe(0);
+    expect(clock.elapsedSeconds).toBe(2);
+  });
+
+  it('rejects unsupported speeds', () => {
+    const clock = createGameClock();
+    expect(() => setGameSpeed(clock, 4)).toThrow();
+  });
+});
