@@ -1,3 +1,4 @@
+import { BUILDING_TYPES } from './buildings.js';
 import { findShortestFlagRoutes, rebuildLogisticsNetwork } from './logisticsNetwork.js';
 import {
   createBuildingTransportRequest,
@@ -13,7 +14,7 @@ import {
 } from './carriers.js';
 
 function getBuildingType(state, building) {
-  return (state.buildingTypes ?? []).find((type) => type.id === building?.typeId) ?? null;
+  return Object.values(BUILDING_TYPES).find((type) => type.id === building?.typeId) ?? null;
 }
 
 function getBuildingFlag(state, buildingId) {
