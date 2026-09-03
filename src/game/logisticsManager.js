@@ -138,7 +138,6 @@ function consumeDirtySources(state) {
 export function processLogisticsTasks(state) {
   state.transportRequests ??= [];
   const dirty = consumeDirtySources(state);
-  if (!dirty.size) return 0;
   rebuildLogisticsNetwork(state);
   let created = 0;
   for (const key of dirty) {
