@@ -20,7 +20,13 @@ export function ensureBuildingFlag(state, building) {
 export function syncBuildingFlags(state) {
   state.flags ??= [];
   const buildingIds = new Set((state.buildings ?? []).map((building) => building.id));
-  state.flags = state.flags.filter((flag) => buildingIds.has(flag.buildingId));
+
+  // Building-bound flags are lifecycle-managed by their building.
+  // Standalone flags (buildingId === null/undefined) are independent nodes
+  // and must survive synchronization.
+  state.flags = state.flags.filter(
+    (flag) => flag.buildingId == null || buildingIds.has(flag.buildingId),
+  );
 
   for (const building of state.buildings ?? []) {
     const flag = ensureBuildingFlag(state, building);
