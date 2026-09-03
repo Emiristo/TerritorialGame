@@ -145,8 +145,10 @@ export function advanceConstruction(state, building, elapsedSeconds) {
 }
 
 export function completeConstruction(state, buildingOrId, now = Date.now()) {
-  const building = typeof buildingOrId === 'object' ? buildingOrId : (state.buildings ?? []).find((item) => item.id === buildingOrId);
-  if (!building || !(state.buildings ?? []).includes(building)) throw new Error('Building not found');
+  const building = typeof buildingOrId === 'object'
+    ? (state.buildings ?? []).find((item) => item === buildingOrId || item.id === buildingOrId.id)
+    : (state.buildings ?? []).find((item) => item.id === buildingOrId);
+  if (!building) throw new Error('Building not found');
   if (building.currentConstructionMaterial || Number(building.currentConstructionMaterialRemainingTime ?? 0) > 0 || !allConstructionMaterialsProcessed(building)) throw new Error('Construction materials are not fully processed');
   building.currentConstructionMaterial = null;
   building.currentConstructionMaterialRemainingTime = 0;
