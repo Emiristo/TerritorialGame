@@ -39,19 +39,23 @@ function allConstructionMaterialsProcessed(building) {
 function takeNextConstructionMaterial(state, building) {
   if (building.currentConstructionMaterial) return true;
   const storage = ensureConstructionStorage(state, building);
+  const queue = building.constructionMaterialQueue ?? (building.constructionMaterialQueue = []);
 
-  for (const [resource, requiredAmount] of Object.entries(getConstructionMaterials(building))) {
+  while (queue.length > 0) {
+    const resource = queue.shift();
     const used = Number(building.constructionMaterialsUsed?.[resource] ?? 0);
+    const required = Number(building.constructionMaterialsRequired?.[resource] ?? 0);
     const available = Number(storage[resource] ?? 0);
-    if (used < Number(requiredAmount) && available > 0) {
-      storage[resource] = available - 1;
-      building.constructionMaterialsUsed[resource] = used + 1;
-      building.currentConstructionMaterial = resource;
-      building.currentConstructionMaterialRemainingTime = getMaterialDuration(resource);
-      building.constructionTimer = building.currentConstructionMaterialRemainingTime;
-      building.constructionState = CONSTRUCTION_STATES.BUILDING;
-      return true;
-    }
+
+    if (used >= required || available <= 0) continue;
+
+    storage[resource] = available - 1;
+    building.constructionMaterialsUsed[resource] = used + 1;
+    building.currentConstructionMaterial = resource;
+    building.currentConstructionMaterialRemainingTime = getMaterialDuration(resource);
+    building.constructionTimer = building.currentConstructionMaterialRemainingTime;
+    building.constructionState = CONSTRUCTION_STATES.BUILDING;
+    return true;
   }
 
   building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
@@ -77,6 +81,7 @@ export function startConstruction(state, building, now = Date.now()) {
   building.constructionMaterialsUsed ??= Object.fromEntries(
     Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0])
   );
+  building.constructionMaterialQueue ??= [];
 
   const storage = ensureConstructionStorage(state, building);
   for (const resource of Object.keys(getConstructionMaterials(building))) storage[resource] ??= 0;
@@ -102,6 +107,8 @@ export function deliverMaterialToConstructionFlag(state, building, resourceId, a
   const storage = ensureConstructionStorage(state, building);
   storage[resourceId] = Number(storage[resourceId] ?? 0) + units;
   building.constructionMaterialsDelivered[resourceId] = delivered + units;
+  building.constructionMaterialQueue ??= [];
+  for (let index = 0; index < units; index += 1) building.constructionMaterialQueue.push(resourceId);
   beginConstructionWaiting(building);
   return units;
 }
