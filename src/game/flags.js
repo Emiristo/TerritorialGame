@@ -1,4 +1,4 @@
-export function createFlag(id, buildingId, ownerId, x, y) {
+export function createFlag(id, buildingId = null, ownerId, x, y) {
   return {
     id,
     buildingId,
