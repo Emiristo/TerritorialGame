@@ -7,7 +7,7 @@ import {
   getBuildingInventory,
   getFlagCargo,
   stageBuildingOutputAtFlag,
-  stageFlagCargoForRequest,
+  prepareTransportRequest,
 } from './carriers.js';
 
 function getBuildingType(state, building) {
@@ -88,7 +88,9 @@ export function createTransportTasks(state) {
       // Keep support for legacy producer inventory by staging it first.
       if (getFlagCargo(state, sourceFlag.id, resourceId) < 1
         && stageBuildingOutputAtFlag(state, source.id, resourceId, 1) !== 1) break;
-      if (!stageFlagCargoForRequest(state, request.id)) break;
+      // Validate and cache the route, but leave cargo on the source flag until a road carrier loads it.
+      // This preserves the logistics chain: producer flag -> road carrier -> destination flag.
+      if (!prepareTransportRequest(state, request)) break;
 
       state.transportRequests.push(request);
       created += 1;
