@@ -1,4 +1,5 @@
 import { findFlagRoute } from './logisticsNetwork.js';
+import { getRoadCarrierCapacity, recordRoadCargo } from './roads.js';
 
 export const CARRIER_STATES = Object.freeze({ IDLE: 'idle', WAITING: 'waiting', CARRYING: 'carrying' });
 
@@ -8,6 +9,7 @@ function getCarrier(state, carrierId) { return (state.carriers ?? []).find((carr
 function getBuilding(state, buildingId) { return (state.buildings ?? []).find((building) => building.id === buildingId) ?? null; }
 function ensureFlagCargo(flag) { flag.cargo ??= {}; return flag.cargo; }
 function ensureBuildingInventory(building) { building.inventory ??= {}; return building.inventory; }
+function carrierCountOnRoad(state, roadId, excludeCarrierId = null) { return (state.carriers ?? []).filter((item) => item.roadId === roadId && item.id !== excludeCarrierId).length; }
 
 export function createCarrier(id, ownerId, roadId = null) { return { id, ownerId, typeId: 'carrier', state: roadId ? CARRIER_STATES.WAITING : CARRIER_STATES.IDLE, roadId, cargo: null }; }
 export function createTransportRequest(id, ownerId, resourceId, amount, sourceFlagId, destinationFlagId) { return { id, ownerId, resourceId, amount: Math.max(0, Math.floor(Number(amount) || 0)), delivered: 0, sourceFlagId, destinationFlagId, routeFlagIds: [], routeRoadIds: [], state: 'waiting' }; }
@@ -21,14 +23,14 @@ export function createBuildingTransportRequest(state, id, ownerId, resourceId, a
 export function addCarrier(state, carrier) {
   state.carriers ??= [];
   if (state.carriers.some((item) => item.id === carrier.id)) throw new Error(`Carrier already exists: ${carrier.id}`);
-  if (carrier.roadId && state.carriers.some((item) => item.roadId === carrier.roadId)) throw new Error('Road segment already has a carrier');
   if (carrier.roadId && !getRoad(state, carrier.roadId)) throw new Error('Carrier road does not exist');
+  if (carrier.roadId && carrierCountOnRoad(state, carrier.roadId) >= getRoadCarrierCapacity(state, carrier.roadId)) throw new Error('Road has reached its carrier capacity');
   state.carriers.push(carrier); return carrier;
 }
 export function assignCarrierToRoad(state, carrierId, roadId) {
   const carrier = getCarrier(state, carrierId), road = getRoad(state, roadId);
   if (!carrier || !road || carrier.cargo) return false;
-  if ((state.carriers ?? []).some((item) => item.id !== carrierId && item.roadId === roadId)) return false;
+  if (carrierCountOnRoad(state, roadId, carrierId) >= getRoadCarrierCapacity(state, roadId)) return false;
   carrier.roadId = roadId; carrier.state = CARRIER_STATES.WAITING; return true;
 }
 export function removeCarrierFromRoad(state, carrierId) { const carrier = getCarrier(state, carrierId); if (!carrier || carrier.cargo) return false; carrier.roadId = null; carrier.state = CARRIER_STATES.IDLE; return true; }
@@ -99,7 +101,7 @@ export function loadCarrierFromFlag(state, carrierId, requestId) {
   const segment = getSegmentForRoad(request, road);
   if (!segment || segment.index >= request.routeRoadIds.length) return false;
   if (!removeCargoFromFlag(state, segment.fromFlagId, request.resourceId, 1)) return false;
-  carrier.cargo = { requestId: request.id, resourceId: request.resourceId, amount: 1, fromFlagId: segment.fromFlagId, toFlagId: segment.toFlagId };
+  carrier.cargo = { requestId: request.id, resourceId: request.resourceId, amount: 1, fromFlagId: segment.fromFlagId, toFlagId: segment.toFlagId, roadId: road.id };
   carrier.state = CARRIER_STATES.CARRYING; return true;
 }
 
@@ -109,6 +111,7 @@ export function deliverCarrierToFlag(state, carrierId) {
   const cargo = carrier.cargo, request = (state.transportRequests ?? []).find((item) => item.id === cargo.requestId) ?? null, destination = getFlag(state, cargo.toFlagId);
   if (!request || !destination) return false;
   addCargoToFlag(state, destination.id, cargo.resourceId, cargo.amount);
+  recordRoadCargo(state, cargo.roadId, cargo.amount);
   if (destination.id === request.destinationFlagId) {
     deliverFlagCargoToBuilding(state, destination.id, cargo.resourceId, cargo.amount);
     request.delivered += cargo.amount;
