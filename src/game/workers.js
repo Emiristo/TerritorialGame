@@ -18,7 +18,7 @@ export const WORKER_TYPES = {
   MILLER: { id: 'miller', name: 'Мельник', toolId: 'bag' },
   BAKER: { id: 'baker', name: 'Пекарь', toolId: 'rolling_pin' },
   FARMER: { id: 'farmer', name: 'Фермер', toolId: 'scythe' },
-  MINER: { id: 'miner', name: 'Шахтёр', name: 'Шахтёр', toolId: 'pickaxe' },
+  MINER: { id: 'miner', name: 'Шахтёр', toolId: 'pickaxe' },
   STEELWORKER: { id: 'steelworker', name: 'Сталевар', toolId: 'ladle' },
   BLACKSMITH: { id: 'blacksmith', name: 'Кузнец', toolId: 'hammer' },
   MASTER: { id: 'master', name: 'Мастер', toolId: 'tongs' },
