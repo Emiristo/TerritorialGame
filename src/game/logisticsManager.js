@@ -32,6 +32,13 @@ function hasOutstandingRequest(state, buildingId, resourceId) {
     && Number(request.delivered ?? 0) + Number(request.inTransit ?? 0) < Number(request.amount ?? 0));
 }
 
+function hasOutstandingSourceRequest(state, sourceBuildingId, resourceId) {
+  return (state.transportRequests ?? []).some((request) => request.sourceBuildingId === sourceBuildingId
+    && request.resourceId === resourceId
+    && request.state !== 'delivered'
+    && Number(request.delivered ?? 0) + Number(request.inTransit ?? 0) < Number(request.amount ?? 0));
+}
+
 function findNearestDestination(state, sourceFlag, candidates) {
   return candidates
     .map((candidate) => {
@@ -77,27 +84,28 @@ export function createTransportTasks(state) {
     const destination = productionDestination ?? findNearestDestination(state, sourceFlag, warehouseCandidates);
     if (!destination) continue;
 
-    while (getFlagCargo(state, sourceFlag.id, resourceId) + getBuildingInventory(state, source.id, resourceId) > 0) {
-      const requestId = `transport-${source.id}-${destination.building.id}-${resourceId}-${state.transportRequests.length + 1}`;
-      const request = productionDestination
-        ? createBuildingTransportRequest(state, requestId, source.ownerId, resourceId, 1, source.id, destination.building.id)
-        : createProductionToWarehouseTransportRequest(state, requestId, source.ownerId, resourceId, 1, source.id, destination.building.id);
-      if (!request) break;
+    // One request reserves one unit. The source cargo stays on its flag until a road carrier loads it.
+    // Therefore this pass must create at most one request; otherwise the loop would repeatedly see
+    // the same unreserved flag cargo and create duplicate requests indefinitely.
+    if (hasOutstandingSourceRequest(state, source.id, resourceId)) continue;
 
-      // Production/extraction output is normally already on the source flag.
-      // Keep support for legacy producer inventory by staging it first.
-      if (getFlagCargo(state, sourceFlag.id, resourceId) < 1
-        && stageBuildingOutputAtFlag(state, source.id, resourceId, 1) !== 1) break;
-      // Validate and cache the route, but leave cargo on the source flag until a road carrier loads it.
-      // This preserves the logistics chain: producer flag -> road carrier -> destination flag.
-      if (!prepareTransportRequest(state, request)) break;
+    const requestId = `transport-${source.id}-${destination.building.id}-${resourceId}-${state.transportRequests.length + 1}`;
+    const request = productionDestination
+      ? createBuildingTransportRequest(state, requestId, source.ownerId, resourceId, 1, source.id, destination.building.id)
+      : createProductionToWarehouseTransportRequest(state, requestId, source.ownerId, resourceId, 1, source.id, destination.building.id);
+    if (!request) continue;
 
-      state.transportRequests.push(request);
-      created += 1;
+    // Production/extraction output is normally already on the source flag.
+    // Keep support for legacy producer inventory by staging it first.
+    if (getFlagCargo(state, sourceFlag.id, resourceId) < 1
+      && stageBuildingOutputAtFlag(state, source.id, resourceId, 1) !== 1) continue;
 
-      // Only one production destination is selected for this pass; the next call can reevaluate demand.
-      if (productionDestination) break;
-    }
+    // Validate and cache the route, but leave cargo on the source flag until a road carrier loads it.
+    // This preserves the logistics chain: producer flag -> road carrier -> destination flag.
+    if (!prepareTransportRequest(state, request)) continue;
+
+    state.transportRequests.push(request);
+    created += 1;
   }
 
   return created;
