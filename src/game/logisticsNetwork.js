@@ -112,8 +112,11 @@ export function findShortestFlagRoutes(state, startFlagId) {
 
 export function findFlagRoute(state, startFlagId, endFlagId) {
   if (startFlagId === endFlagId) return { flagIds: [startFlagId], roadIds: [] };
-  const routes = findShortestFlagRoutes(state, startFlagId);
-  return routes.get(endFlagId) ?? null;
+  const route = findShortestFlagRoutes(state, startFlagId).get(endFlagId) ?? null;
+  if (!route) return null;
+  // Keep the public route API backwards-compatible. The optimized all-routes
+  // helper carries distance internally for the logistics planner.
+  return { flagIds: route.flagIds, roadIds: route.roadIds };
 }
 
 export function getRoadsOnFlagRoute(state, startFlagId, endFlagId) {
