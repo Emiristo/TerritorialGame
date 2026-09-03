@@ -23,11 +23,10 @@ function ensureWarehouse(state, resourceId, amount) {
     warehouse = createBuilding(`test-warehouse-${state.buildings.length}`, state.player.id, BUILDING_TYPES.WAREHOUSE.id, '5-5');
     warehouse.active = true;
     warehouse.constructionComplete = true;
-    warehouse.storage = {};
     state.buildings.push(warehouse);
   }
-  warehouse.storage ??= {};
-  warehouse.storage[resourceId] = Number(warehouse.storage[resourceId] ?? 0) + amount;
+  warehouse.inventory ??= {};
+  warehouse.inventory[resourceId] = Number(warehouse.inventory[resourceId] ?? 0) + amount;
   let flag = state.flags.find((item) => item.buildingId === warehouse.id);
   if (!flag) {
     flag = createFlag(`${warehouse.id}-flag`, warehouse.id, warehouse.ownerId, 5, 8);
@@ -66,15 +65,14 @@ export function deliverConstructionMaterialViaLogistics(state, building, resourc
   let delivered = 0;
   const destinationFlag = ensureConstructionFlag(state, building);
   for (let unit = 0; unit < requested; unit += 1) {
-    const { warehouse, flag: warehouseFlag } = ensureWarehouse(state, resourceId, 1);
+    const { flag: warehouseFlag } = ensureWarehouse(state, resourceId, 1);
     const road = ensureRoad(state, warehouseFlag, destinationFlag, building.id);
     const before = state.transportRequests.length;
     createTransportTasks(state);
     const request = state.transportRequests.slice(before).find((item) => item.destinationBuildingId === building.id && item.resourceId === resourceId)
       ?? state.transportRequests.find((item) => item.destinationBuildingId === building.id && item.resourceId === resourceId && item.state !== 'delivered');
     if (!request) break;
-    const carrierId = `test-road-carrier-${building.id}-${resourceId}-${unit}-${state.carriers.length}`;
-    const carrier = createCarrier(carrierId, state.player.id, road.id);
+    const carrier = createCarrier(`test-road-carrier-${building.id}-${resourceId}-${unit}-${state.carriers.length}`, state.player.id, road.id);
     addCarrier(state, carrier);
     if (!loadCarrierFromFlag(state, carrier.id, request.id)) break;
     if (!deliverCarrierToFlag(state, carrier.id)) break;
