@@ -13,15 +13,6 @@ function getBuildingFlag(state, buildingId) {
   return (state.flags ?? []).find((flag) => flag.buildingId === buildingId) ?? null;
 }
 
-function hasOpenRequest(state, sourceFlagId, destinationFlagId, resourceId) {
-  return (state.transportRequests ?? []).some((request) =>
-    request.sourceFlagId === sourceFlagId &&
-    request.destinationFlagId === destinationFlagId &&
-    request.resourceId === resourceId &&
-    request.state !== 'delivered'
-  );
-}
-
 export function createTransportTasks(state) {
   state.transportRequests ??= [];
   const buildings = state.buildings ?? [];
@@ -42,26 +33,31 @@ export function createTransportTasks(state) {
       const destinationFlag = getBuildingFlag(state, candidate.id);
       if (!type?.input?.[resourceId] || !destinationFlag) return false;
       if (candidate.ownerId !== source.ownerId) return false;
-      if (hasOpenRequest(state, sourceFlag.id, destinationFlag.id, resourceId)) return false;
       return Boolean(findFlagRoute(state, sourceFlag.id, destinationFlag.id));
     });
 
     if (!destination) continue;
     const destinationFlag = getBuildingFlag(state, destination.id);
-    const requestId = `transport-${source.id}-${destination.id}-${resourceId}-${state.transportRequests.length + 1}`;
-    if (stageBuildingOutputAtFlag(state, source.id, resourceId, 1) !== 1) continue;
-    state.transportRequests.push(createBuildingTransportRequest(
-      state,
-      requestId,
-      source.ownerId,
-      resourceId,
-      1,
-      source.id,
-      destination.id
-    ));
-    const request = state.transportRequests[state.transportRequests.length - 1];
-    if (!request || !destinationFlag) continue;
-    created += 1;
+    if (!destinationFlag) continue;
+
+    // Every transport task reserves exactly one unit by staging that unit at the source flag.
+    // This allows several independent carriers to receive distinct tasks after a road upgrade.
+    while (getBuildingInventory(state, source.id, resourceId) > 0) {
+      const requestId = `transport-${source.id}-${destination.id}-${resourceId}-${state.transportRequests.length + 1}`;
+      if (stageBuildingOutputAtFlag(state, source.id, resourceId, 1) !== 1) break;
+      const request = createBuildingTransportRequest(
+        state,
+        requestId,
+        source.ownerId,
+        resourceId,
+        1,
+        source.id,
+        destination.id
+      );
+      if (!request) break;
+      state.transportRequests.push(request);
+      created += 1;
+    }
   }
 
   return created;
