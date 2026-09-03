@@ -1,4 +1,4 @@
-import { deliverMaterialAndStartConstruction } from './construction.js';
+import { deliverMaterialToConstructionFlag } from './construction.js';
 
 export function getConstructionStorage(state) {
   return [
@@ -18,7 +18,7 @@ export function deliverConstructionMaterial(state, buildingId, resourceId, amoun
   const deliverable = Math.min(requested, available);
   if (!deliverable) return 0;
 
-  const delivered = deliverMaterialAndStartConstruction(building, resourceId, deliverable);
+  const delivered = deliverMaterialToConstructionFlag(state, building, resourceId, deliverable);
   if (delivered > 0) state.player.resources[resourceId] = available - delivered;
   return delivered;
 }
