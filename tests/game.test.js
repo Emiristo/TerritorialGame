@@ -8,7 +8,7 @@ import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence
 import { WORKER_TYPES, createWorker, createWorkZone, assignWorkerToBuilding, workWorker } from '../src/game/workers.js';
 import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
 
-describe('game clock', () => { it('starts at zero and advances by elapsed seconds', () => { const clock = createGameClock(); expect(clock.elapsedSeconds).toBe(0); startGameClock(clock, 1000); tickGameClock(clock, 3500); expect(clock.elapsedSeconds).toBe(2.5); }); });
+describe('game clock', () => { it('starts at zero and advances by whole simulation ticks', () => { const clock = createGameClock(); expect(clock.elapsedSeconds).toBe(0); expect(clock.simulationTicks).toBe(0); startGameClock(clock, 1000); expect(tickGameClock(clock, 3500)).toBe(2); expect(clock.elapsedSeconds).toBe(2); expect(clock.simulationTicks).toBe(2); expect(clock.realTimeAccumulator).toBe(0.5); }); });
 
 describe('construction time and material delivery', () => {
   it('keeps the material work rates at 10 seconds per plank and 15 seconds per stone', () => { expect(BUILD_TIME_PER_PLANK).toBe(10); expect(BUILD_TIME_PER_STONE).toBe(15); });
