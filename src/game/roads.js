@@ -1,6 +1,6 @@
 import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 
-const DIRECTIONS = [[1,0],[1,1],[0,1],[-1,1],[-1,-1],[-1,0],[0,-1],[1,-1]];
+const DIRECTIONS = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
 const MAX_ROADS_PER_FLAG = 4;
 const MIN_ROAD_CELLS = 2;
 function tileId(x,y){return `${x}-${y}`;}
