@@ -6,6 +6,8 @@ export function createGameClock(now = Date.now()) {
     startedAt: null,
     lastUpdateAt: now,
     elapsedSeconds: 0,
+    simulationTicks: 0,
+    realTimeAccumulator: 0,
     speed: 1,
   };
 }
@@ -38,10 +40,16 @@ export function setGameSpeed(clock, speed, now = Date.now()) {
 export function advanceGameClock(clock, now = Date.now()) {
   if (!clock.running) return 0;
   const realElapsed = Math.max(0, (now - clock.lastUpdateAt) / 1000);
-  const elapsed = realElapsed * clock.speed;
-  clock.elapsedSeconds += elapsed;
+  clock.realTimeAccumulator += realElapsed * clock.speed;
   clock.lastUpdateAt = now;
-  return elapsed;
+
+  const ticks = Math.floor(clock.realTimeAccumulator);
+  if (ticks <= 0) return 0;
+
+  clock.realTimeAccumulator -= ticks;
+  clock.simulationTicks += ticks;
+  clock.elapsedSeconds = clock.simulationTicks;
+  return ticks;
 }
 
 export function tickGameClock(clock, now = Date.now()) {
