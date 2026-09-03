@@ -73,10 +73,19 @@ describe('physical construction mechanics', () => {
     startConstruction(state, building, 1000);
     expect(deliverConstructionMaterial(state, building.id, 'planks', 1)).toBe(1);
     expect(state.flags[0].constructionStorage.planks).toBe(1);
+    expect(state.buildings[0].storage.planks).toBe(9);
     expect(building.constructionMaterialsDelivered.planks).toBe(1);
     expect(building.constructionMaterialsUsed.planks).toBe(0);
     expect(building.currentConstructionMaterial).toBe(null);
     expect(building.constructionState).toBe(CONSTRUCTION_STATES.WAITING_FOR_MATERIAL);
+  });
+  it('does not deliver when warehouse stock is unavailable', () => {
+    const building = constructionBuilding('stonecutter_hut');
+    const state = constructionState(building);
+    state.buildings[0].storage = {};
+    startConstruction(state, building);
+    expect(deliverConstructionMaterial(state, building.id, 'planks', 1)).toBe(0);
+    expect(state.flags[0].constructionStorage).toEqual({});
   });
   it('takes one material from the flag and then processes it', () => {
     const building = constructionBuilding('stonecutter_hut');
@@ -128,7 +137,7 @@ describe('physical construction mechanics', () => {
     expect(building.active).toBe(true);
     expect(building.constructionState).toBe(CONSTRUCTION_STATES.COMPLETED);
   });
-  it('advances multiple constructions independently', () => {
+  it('advances multiple constructions independently from warehouse stock', () => {
     const state = createGameState();
     prepareArea(state, 30, 30, 2, 2);
     prepareArea(state, 40, 40, 2, 2);
@@ -136,12 +145,17 @@ describe('physical construction mechanics', () => {
     const b = createBuilding('b', 'player', 'stonecutter_hut', '40-40');
     addBuilding(state, a); addBuilding(state, b);
     startConstruction(state, a); startConstruction(state, b);
-    state.player.resources.planks = 4;
+    const warehouse = createBuilding('material-warehouse', 'player', 'warehouse', '10-10');
+    warehouse.active = true;
+    warehouse.constructionComplete = true;
+    warehouse.storage = { planks: 4 };
+    state.buildings.unshift(warehouse);
     const deliver = (building) => deliverConstructionMaterial(state, building.id, 'planks', 2);
     deliver(a); deliver(b);
     advanceAllConstructions(state, 20);
     expect(a.constructionComplete).toBe(true);
     expect(b.constructionComplete).toBe(true);
+    expect(warehouse.storage.planks).toBe(0);
   });
   it('rejects completion while the current material is still processing', () => {
     const building = constructionBuilding('stonecutter_hut');
@@ -149,7 +163,7 @@ describe('physical construction mechanics', () => {
     startConstruction(state, building);
     deliverConstructionMaterial(state, building.id, 'planks', 1);
     advanceConstruction(state, building, 0);
-    expect(() => completeConstruction(state, building)).toThrow('Construction is still processing');
+    expect(() => completeConstruction(state, building)).toThrow('Construction materials are not fully processed');
   });
   it('completes only fully processed construction', () => {
     const building = constructionBuilding('stonecutter_hut');
