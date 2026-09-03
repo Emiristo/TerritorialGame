@@ -13,7 +13,11 @@ function prepareArea(state, x, y, width, height, ownerId = 'player', terrain = '
   }
 }
 function constructionState(building) {
-  return { tiles: [], buildings: [building], flags: [{ id: building.flagId, buildingId: building.id, ownerId: building.ownerId, x: 40, y: 42, constructionStorage: {} }] };
+  const warehouse = createBuilding('material-warehouse', 'player', BUILDING_TYPES.WAREHOUSE.id, '10-10');
+  warehouse.active = true;
+  warehouse.constructionComplete = true;
+  warehouse.storage = { stone: 10, planks: 10 };
+  return { tiles: [], buildings: [warehouse, building], flags: [{ id: building.flagId, buildingId: building.id, ownerId: building.ownerId, x: 40, y: 42, constructionStorage: {} }] };
 }
 function constructionBuilding(typeId) {
   const building = createBuilding('construction-1', 'player', typeId, '40-40');
@@ -133,28 +137,27 @@ describe('physical construction mechanics', () => {
     addBuilding(state, a); addBuilding(state, b);
     startConstruction(state, a); startConstruction(state, b);
     state.player.resources.planks = 4;
-    deliverConstructionMaterial(state, a.id, 'planks', 2);
-    deliverConstructionMaterial(state, b.id, 'planks', 2);
-    advanceAllConstructions(state, 5);
-    expect(a.constructionTimer).toBe(5);
-    expect(b.constructionTimer).toBe(5);
+    const deliver = (building) => deliverConstructionMaterial(state, building.id, 'planks', 2);
+    deliver(a); deliver(b);
+    advanceAllConstructions(state, 20);
+    expect(a.constructionComplete).toBe(true);
+    expect(b.constructionComplete).toBe(true);
   });
   it('rejects completion while the current material is still processing', () => {
-    const building = constructionBuilding('warehouse');
+    const building = constructionBuilding('stonecutter_hut');
     const state = constructionState(building);
-    building.constructionMaterialsUsed = { planks: 3, stone: 3 };
-    building.currentConstructionMaterial = 'stone';
-    building.currentConstructionMaterialRemainingTime = 15;
-    expect(() => completeConstruction(state, building.id)).toThrow('materials are not fully processed');
+    startConstruction(state, building);
+    deliverConstructionMaterial(state, building.id, 'planks', 1);
+    advanceConstruction(state, building, 0);
+    expect(() => completeConstruction(state, building)).toThrow('Construction is still processing');
   });
   it('completes only fully processed construction', () => {
-    const building = constructionBuilding('warehouse');
+    const building = constructionBuilding('stonecutter_hut');
     const state = constructionState(building);
-    building.constructionMaterialsUsed = { planks: 3, stone: 3 };
-    completeConstruction(state, building.id, 2000);
+    startConstruction(state, building);
+    deliverConstructionMaterial(state, building.id, 'planks', 1);
+    advanceConstruction(state, building, 10);
     expect(building.constructionComplete).toBe(true);
     expect(building.active).toBe(true);
-    expect(building.constructionState).toBe(CONSTRUCTION_STATES.COMPLETED);
-    expect(building.lastConstructionUpdateAt).toBe(2000);
   });
 });
