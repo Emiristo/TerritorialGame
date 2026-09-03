@@ -6,7 +6,7 @@ import {
   getWorkZoneForBuilding,
   removeWorkZoneForBuilding,
 } from './workZones.js';
-import { stageBuildingOutputAtFlag } from './carriers.js';
+import { addCargoToFlag } from './carriers.js';
 import { createTransportTasks } from './logisticsManager.js';
 
 export const WORKER_TYPES = {
@@ -74,14 +74,13 @@ export function extractForWorker(state, workerId) {
     : findAvailableResourceTile(state, worker);
   const rule = worker ? getExtractionRule(state, worker) : null;
   const building = worker?.buildingId ? findBuilding(state, worker.buildingId) : null;
-  if (!worker || !tile || !rule || !building) return false;
+  const flag = building ? (state.flags ?? []).find((item) => item.buildingId === building.id) ?? null : null;
+  if (!worker || !tile || !rule || !building || !flag) return false;
   const available = Number(tile.resources?.[rule.resourceId] ?? 0);
   if (available <= 0) return false;
+
+  if (addCargoToFlag(state, flag.id, rule.resourceId, 1) !== 1) return false;
   tile.resources[rule.resourceId] = available - 1;
-  if (stageBuildingOutputAtFlag(state, building.id, rule.resourceId, 1) !== 1) {
-    tile.resources[rule.resourceId] = available;
-    return false;
-  }
   worker.targetTileId = tile.id;
   createTransportTasks(state);
   return true;
