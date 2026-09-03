@@ -1,79 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
-import {
-  addStandaloneFlag,
-  canPlaceStandaloneFlag,
-  createStandaloneFlag,
-  getFlagAtTile,
-} from '../src/game/flags.js';
+import { addStandaloneFlag, canPlaceStandaloneFlag, createStandaloneFlag, getFlagAtNode } from '../src/game/flags.js';
+import { addRoad, createRoad } from '../src/game/roads.js';
 
-function setOwner(state, x, y, ownerId = 'player') {
-  const tile = state.tiles.find((item) => item.x === x && item.y === y);
-  tile.ownerId = ownerId;
-  return tile;
-}
+function ownAround(state,x,y){for(const t of state.tiles){if(Math.abs(t.x+0.5-x)<=0.5&&Math.abs(t.y+0.5-y)<=0.5)t.ownerId='player';}}
 
-describe('standalone flags', () => {
-  it('creates a standalone flag with no building binding', () => {
-    const flag = createStandaloneFlag('standalone-1', 'player', 20, 20);
-
-    expect(flag).toMatchObject({
-      id: 'standalone-1',
-      buildingId: null,
-      ownerId: 'player',
-      x: 20,
-      y: 20,
-    });
-    expect(flag.roadIds).toEqual([]);
-    expect(flag.connected).toBe(false);
-  });
-
-  it('allows placement on a free tile owned by the player', () => {
-    const state = createGameState();
-    setOwner(state, 20, 20);
-
-    expect(canPlaceStandaloneFlag(state, 20, 20)).toBe(true);
-    const flag = addStandaloneFlag(state, 'standalone-1', 'player', 20, 20);
-
-    expect(flag.buildingId).toBeNull();
-    expect(getFlagAtTile(state, '20-20')).toBe(flag);
-  });
-
-  it('rejects placement outside the map', () => {
-    const state = createGameState();
-
-    expect(canPlaceStandaloneFlag(state, -1, 20)).toBe(false);
-    expect(canPlaceStandaloneFlag(state, 100, 20)).toBe(false);
-    expect(canPlaceStandaloneFlag(state, 20, 100)).toBe(false);
-  });
-
-  it('rejects placement on a tile not owned by the player', () => {
-    const state = createGameState();
-
-    expect(canPlaceStandaloneFlag(state, 20, 20)).toBe(false);
-    expect(() => addStandaloneFlag(state, 'standalone-1', 'player', 20, 20)).toThrow(
-      'Standalone flag cannot be placed on this tile',
-    );
-  });
-
-  it('rejects placement on an existing flag tile', () => {
-    const state = createGameState();
-    setOwner(state, 20, 20);
-    addStandaloneFlag(state, 'standalone-1', 'player', 20, 20);
-
-    expect(canPlaceStandaloneFlag(state, 20, 20)).toBe(false);
-    expect(() => addStandaloneFlag(state, 'standalone-2', 'player', 20, 20)).toThrow(
-      'Standalone flag cannot be placed on this tile',
-    );
-  });
-
-  it('rejects placement inside a building footprint', () => {
-    const state = createGameState();
-    setOwner(state, 49, 49);
-
-    expect(canPlaceStandaloneFlag(state, 50, 50)).toBe(false);
-    expect(() => addStandaloneFlag(state, 'standalone-1', 'player', 50, 50)).toThrow(
-      'Standalone flag cannot be placed on this tile',
-    );
-  });
+describe('standalone flags',()=>{
+ it('creates a flag as an inter-cell node',()=>{const f=createStandaloneFlag('f','player',20.5,20.5);expect(f).toMatchObject({id:'f',buildingId:null,ownerId:'player',x:20.5,y:20.5});});
+ it('allows placement at a free inter-cell node',()=>{const s=createGameState();ownAround(s,20.5,20.5);const f=addStandaloneFlag(s,'f','player',20.5,20.5);expect(getFlagAtNode(s,20.5,20.5)).toBe(f);});
+ it('rejects invalid or unowned nodes',()=>{const s=createGameState();expect(canPlaceStandaloneFlag(s,-0.5,20.5)).toBe(false);expect(canPlaceStandaloneFlag(s,20.5,20.5)).toBe(false);});
+ it('rejects an occupied node',()=>{const s=createGameState();ownAround(s,20.5,20.5);addStandaloneFlag(s,'a','player',20.5,20.5);expect(canPlaceStandaloneFlag(s,20.5,20.5)).toBe(false);});
+ it('splits an existing road when a flag is placed between two road cells',()=>{const s=createGameState();ownAround(s,20.5,20.5);ownAround(s,25.5,20.5);addStandaloneFlag(s,'a','player',20.5,20.5);addStandaloneFlag(s,'b','player',25.5,20.5);addRoad(s,createRoad('road','a','b',['20-20','21-20','22-20','23-20','24-20','25-20']));ownAround(s,23,20);const f=addStandaloneFlag(s,'mid','player',23,20);expect(f.buildingId).toBeNull();expect(s.roads).toHaveLength(2);expect(s.roads.some(r=>r.startFlagId==='a'&&r.endFlagId==='mid'&&r.cells.join('|')==='20-20|21-20|22-20')).toBe(true);expect(s.roads.some(r=>r.startFlagId==='mid'&&r.endFlagId==='b'&&r.cells.join('|')==='23-20|24-20|25-20')).toBe(true);});
+ it('keeps the original road unchanged when a split would violate the minimum length',()=>{const s=createGameState();ownAround(s,20.5,20.5);ownAround(s,22.5,20.5);addStandaloneFlag(s,'a','player',20.5,20.5);addStandaloneFlag(s,'b','player',22.5,20.5);addRoad(s,createRoad('road','a','b',['20-20','21-20','22-20']));const before=s.roads.map(r=>({...r,cells:[...r.cells]}));expect(canPlaceStandaloneFlag(s,21.5,20.5)).toBe(false);expect(s.roads).toEqual(before);});
 });
