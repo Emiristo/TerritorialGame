@@ -1,3 +1,5 @@
+import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
+
 const DIRECTIONS = [
   [1, 0], [1, 1], [0, 1], [-1, 1],
   [-1, 0], [-1, -1], [0, -1], [1, -1],
@@ -25,21 +27,6 @@ function directionChange(a, b) {
 
 function getFlag(state, flagId) {
   return (state.flags ?? []).find((flag) => flag.id === flagId) ?? null;
-}
-
-function rebuildNetworkFromRoads(state) {
-  const flags = state.flags ?? [];
-  const roads = state.roads ?? [];
-  const adjacency = Object.fromEntries(flags.map((flag) => [flag.id, []]));
-
-  for (const road of roads) {
-    if (!road.active || !adjacency[road.startFlagId] || !adjacency[road.endFlagId]) continue;
-    adjacency[road.startFlagId].push({ flagId: road.endFlagId, roadId: road.id });
-    adjacency[road.endFlagId].push({ flagId: road.startFlagId, roadId: road.id });
-  }
-
-  state.logisticsNetwork = { adjacency };
-  for (const flag of flags) flag.connected = adjacency[flag.id].length > 0;
 }
 
 function countRoadsForFlag(state, flagId) {
@@ -163,11 +150,7 @@ export function addRoad(state, road) {
   if (countRoadsForFlag(state, road.endFlagId) >= MAX_ROADS_PER_FLAG) throw new Error('End flag has reached the road limit');
 
   state.roads.push(road);
-  for (const flagId of [road.startFlagId, road.endFlagId]) {
-    const flag = getFlag(state, flagId);
-    if (flag && !flag.roadIds.includes(road.id)) flag.roadIds.push(road.id);
-  }
-  rebuildNetworkFromRoads(state);
+  rebuildLogisticsNetwork(state);
   return road;
 }
 
@@ -175,8 +158,7 @@ export function removeRoad(state, roadId) {
   const index = (state.roads ?? []).findIndex((road) => road.id === roadId);
   if (index < 0) return null;
   const [removed] = state.roads.splice(index, 1);
-  for (const flag of state.flags ?? []) flag.roadIds = flag.roadIds.filter((id) => id !== roadId);
-  rebuildNetworkFromRoads(state);
+  rebuildLogisticsNetwork(state);
   return removed;
 }
 
@@ -193,10 +175,11 @@ export function getRoadAtTile(state, tileIdValue) {
 }
 
 export function getRoadNeighbors(state, tileIdValue) {
-  const tile = state.tiles.find((item) => item.id === tileIdValue);
+  const tile = getTile(state, tileIdValue);
   if (!tile) return [];
   return DIRECTIONS
-    .map(([dx, dy]) => state.tiles.find((item) => item.x === tile.x + dx && item.y === tile.y + dy))
+    .map(([dx, dy]) => tileId(tile.x + dx, tile.y + dy))
+    .map((neighborId) => getTile(state, neighborId))
     .filter(Boolean)
     .filter((candidate) => getRoadAtTile(state, candidate.id).some((road) => road.cells.includes(tileIdValue)));
 }
