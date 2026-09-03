@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BUILDING_TYPES, addBuilding, canBuildOnTile, createBuilding, getBuildingAtTile, getBuildingType, getConstructionMaterials, getFootprintTiles, getReservedTiles, isReservedForBuilding } from '../src/game/buildings.js';
 import { createGameState } from '../src/game/state.js';
 import { BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, advanceAllConstructions, advanceConstruction, completeConstruction, getConstructionTime, startConstruction } from '../src/game/construction.js';
-import { deliverConstructionMaterial } from '../src/game/materials.js';
+import { deliverConstructionMaterialViaLogistics } from './constructionLogisticsHelper.js';
 
 const tile = (state, x, y) => state.tiles.find((item) => item.x === x && item.y === y);
 function prepareArea(state, x, y, width, height, ownerId = 'player', terrain = 'plains') {
@@ -12,166 +12,32 @@ function prepareArea(state, x, y, width, height, ownerId = 'player', terrain = '
     current.terrain = terrain;
   }
 }
-function constructionState(building) {
-  const warehouse = createBuilding('material-warehouse', 'player', BUILDING_TYPES.WAREHOUSE.id, '10-10');
-  warehouse.active = true;
-  warehouse.constructionComplete = true;
-  warehouse.storage = { stone: 10, planks: 10 };
-  return { tiles: [], buildings: [warehouse, building], flags: [{ id: building.flagId, buildingId: building.id, ownerId: building.ownerId, x: 40, y: 42, constructionStorage: {} }] };
-}
 function constructionBuilding(typeId) {
   const building = createBuilding('construction-1', 'player', typeId, '40-40');
   building.flagId = 'construction-1-flag';
   return building;
 }
+function constructionState(building) {
+  return { player: { id: 'player', resources: {} }, tiles: [], buildings: [building], flags: [{ id: building.flagId, buildingId: building.id, ownerId: building.ownerId, x: 40, y: 42, constructionStorage: {} }], roads: [], carriers: [], transportRequests: [] };
+}
 
 describe('building catalog and placement', () => {
-  it('contains 22 unique building types', () => {
-    expect(Object.keys(BUILDING_TYPES)).toHaveLength(22);
-    expect(new Set(Object.values(BUILDING_TYPES).map((type) => type.id)).size).toBe(22);
-  });
-  it('returns defensive construction materials and resolves types', () => {
-    const building = createBuilding('warehouse-1', 'player', 'warehouse', '30-30');
-    const materials = getConstructionMaterials(building);
-    materials.planks = 999;
-    expect(getConstructionMaterials(building)).toEqual({ planks: 3, stone: 3 });
-    expect(getBuildingType(building).id).toBe('warehouse');
-  });
-  it('keeps agreed geometry, terrain and reservations', () => {
-    const state = createGameState();
-    expect(getFootprintTiles(state, 'warehouse', '30-30')).toHaveLength(9);
-    expect(getFootprintTiles(state, 'fortress', '95-95')).toHaveLength(25);
-    expect(getFootprintTiles(state, 'fortress', '96-96')).toEqual([]);
-    prepareArea(state, 30, 30, 2, 2);
-    addBuilding(state, createBuilding('first', 'player', 'stonecutter_hut', '30-30'));
-    expect(getBuildingAtTile(state, '30-30').id).toBe('first');
-    expect(getReservedTiles(state, 'stonecutter_hut', '30-30')).toHaveLength(12);
-    expect(isReservedForBuilding(state, '29-29')).toBe(true);
-  });
-  it('requires ownership and suitable terrain', () => {
-    const state = createGameState();
-    prepareArea(state, 40, 40, 2, 2, 'player', 'hills');
-    expect(canBuildOnTile(state, 'iron_mine', '40-40')).toBe(true);
-    tile(state, 41, 41).terrain = 'plains';
-    expect(canBuildOnTile(state, 'iron_mine', '40-40')).toBe(false);
-  });
+  it('contains 22 unique building types', () => { expect(Object.keys(BUILDING_TYPES)).toHaveLength(22); expect(new Set(Object.values(BUILDING_TYPES).map((type) => type.id)).size).toBe(22); });
+  it('returns defensive construction materials and resolves types', () => { const building = createBuilding('warehouse-1', 'player', 'warehouse', '30-30'); const materials = getConstructionMaterials(building); materials.planks = 999; expect(getConstructionMaterials(building)).toEqual({ planks: 3, stone: 3 }); expect(getBuildingType(building).id).toBe('warehouse'); });
+  it('keeps agreed geometry, terrain and reservations', () => { const state = createGameState(); expect(getFootprintTiles(state, 'warehouse', '30-30')).toHaveLength(9); expect(getFootprintTiles(state, 'fortress', '95-95')).toHaveLength(25); expect(getFootprintTiles(state, 'fortress', '96-96')).toEqual([]); prepareArea(state, 30, 30, 2, 2); addBuilding(state, createBuilding('first', 'player', 'stonecutter_hut', '30-30')); expect(getBuildingAtTile(state, '30-30').id).toBe('first'); expect(getReservedTiles(state, 'stonecutter_hut', '30-30')).toHaveLength(12); expect(isReservedForBuilding(state, '29-29')).toBe(true); });
+  it('requires ownership and suitable terrain', () => { const state = createGameState(); prepareArea(state, 40, 40, 2, 2, 'player', 'hills'); expect(canBuildOnTile(state, 'iron_mine', '40-40')).toBe(true); tile(state, 41, 41).terrain = 'plains'; expect(canBuildOnTile(state, 'iron_mine', '40-40')).toBe(false); });
 });
 
 describe('physical construction mechanics', () => {
-  it('uses one simulation tick per game second', () => {
-    expect(BUILD_TIME_PER_PLANK).toBe(10);
-    expect(BUILD_TIME_PER_STONE).toBe(15);
-    expect(getConstructionTime({ planks: 3, stone: 2 })).toBe(60);
-  });
-  it('requires a construction flag', () => {
-    const building = createBuilding('warehouse-1', 'player', 'warehouse', '30-30');
-    expect(() => startConstruction({ buildings: [building], flags: [] }, building)).toThrow('Construction flag not found');
-  });
-  it('delivers to the flag without starting processing', () => {
-    const building = constructionBuilding('stonecutter_hut');
-    const state = constructionState(building);
-    startConstruction(state, building, 1000);
-    expect(deliverConstructionMaterial(state, building.id, 'planks', 1)).toBe(1);
-    expect(state.flags[0].constructionStorage.planks).toBe(1);
-    expect(state.buildings[0].storage.planks).toBe(9);
-    expect(building.constructionMaterialsDelivered.planks).toBe(1);
-    expect(building.constructionMaterialsUsed.planks).toBe(0);
-    expect(building.currentConstructionMaterial).toBe(null);
-    expect(building.constructionState).toBe(CONSTRUCTION_STATES.WAITING_FOR_MATERIAL);
-  });
-  it('does not deliver when warehouse stock is unavailable', () => {
-    const building = constructionBuilding('stonecutter_hut');
-    const state = constructionState(building);
-    state.buildings[0].storage = {};
-    startConstruction(state, building);
-    expect(deliverConstructionMaterial(state, building.id, 'planks', 1)).toBe(0);
-    expect(state.flags[0].constructionStorage).toEqual({});
-  });
-  it('takes one material from the flag and then processes it', () => {
-    const building = constructionBuilding('stonecutter_hut');
-    const state = constructionState(building);
-    startConstruction(state, building);
-    deliverConstructionMaterial(state, building.id, 'planks', 1);
-    advanceConstruction(state, building, 0);
-    expect(state.flags[0].constructionStorage.planks).toBe(0);
-    expect(building.constructionMaterialsUsed.planks).toBe(1);
-    expect(building.currentConstructionMaterial).toBe('planks');
-    expect(building.constructionTimer).toBe(10);
-  });
-  it('accumulates materials at the flag and processes them sequentially', () => {
-    const building = constructionBuilding('warehouse');
-    const state = constructionState(building);
-    startConstruction(state, building);
-    deliverConstructionMaterial(state, building.id, 'planks', 2);
-    deliverConstructionMaterial(state, building.id, 'stone', 1);
-    advanceConstruction(state, building, 10);
-    expect(state.flags[0].constructionStorage).toEqual({ planks: 1, stone: 1 });
-    expect(building.currentConstructionMaterial).toBe('planks');
-    advanceConstruction(state, building, 10);
-    expect(building.currentConstructionMaterial).toBe('stone');
-    expect(state.flags[0].constructionStorage).toEqual({ planks: 0, stone: 1 });
-  });
-  it('pauses when the next required material is missing and resumes after delivery', () => {
-    const building = constructionBuilding('warehouse');
-    const state = constructionState(building);
-    startConstruction(state, building);
-    deliverConstructionMaterial(state, building.id, 'planks', 1);
-    advanceConstruction(state, building, 10);
-    expect(building.constructionState).toBe(CONSTRUCTION_STATES.WAITING_FOR_MATERIAL);
-    expect(building.constructionComplete).toBe(false);
-    deliverConstructionMaterial(state, building.id, 'stone', 1);
-    advanceConstruction(state, building, 0);
-    expect(building.currentConstructionMaterial).toBe('stone');
-    expect(building.constructionTimer).toBe(15);
-  });
-  it('activates only after every required unit is processed', () => {
-    const building = constructionBuilding('warehouse');
-    const state = constructionState(building);
-    startConstruction(state, building);
-    deliverConstructionMaterial(state, building.id, 'planks', 3);
-    deliverConstructionMaterial(state, building.id, 'stone', 3);
-    advanceConstruction(state, building, 30);
-    expect(building.constructionComplete).toBe(false);
-    advanceConstruction(state, building, 45);
-    expect(building.constructionComplete).toBe(true);
-    expect(building.active).toBe(true);
-    expect(building.constructionState).toBe(CONSTRUCTION_STATES.COMPLETED);
-  });
-  it('advances multiple constructions independently from warehouse stock', () => {
-    const state = createGameState();
-    prepareArea(state, 30, 30, 2, 2);
-    prepareArea(state, 40, 40, 2, 2);
-    const a = createBuilding('a', 'player', 'stonecutter_hut', '30-30');
-    const b = createBuilding('b', 'player', 'stonecutter_hut', '40-40');
-    addBuilding(state, a); addBuilding(state, b);
-    startConstruction(state, a); startConstruction(state, b);
-    const warehouse = createBuilding('material-warehouse', 'player', 'warehouse', '10-10');
-    warehouse.active = true;
-    warehouse.constructionComplete = true;
-    warehouse.storage = { planks: 4 };
-    state.buildings.unshift(warehouse);
-    const deliver = (building) => deliverConstructionMaterial(state, building.id, 'planks', 2);
-    deliver(a); deliver(b);
-    advanceAllConstructions(state, 20);
-    expect(a.constructionComplete).toBe(true);
-    expect(b.constructionComplete).toBe(true);
-    expect(warehouse.storage.planks).toBe(0);
-  });
-  it('rejects completion while the current material is still processing', () => {
-    const building = constructionBuilding('stonecutter_hut');
-    const state = constructionState(building);
-    startConstruction(state, building);
-    deliverConstructionMaterial(state, building.id, 'planks', 1);
-    advanceConstruction(state, building, 0);
-    expect(() => completeConstruction(state, building)).toThrow('Construction materials are not fully processed');
-  });
-  it('completes only fully processed construction', () => {
-    const building = constructionBuilding('stonecutter_hut');
-    const state = constructionState(building);
-    startConstruction(state, building);
-    deliverConstructionMaterial(state, building.id, 'planks', 1);
-    advanceConstruction(state, building, 10);
-    expect(building.constructionComplete).toBe(true);
-    expect(building.active).toBe(true);
-  });
+  it('uses one simulation tick per game second', () => { expect(BUILD_TIME_PER_PLANK).toBe(10); expect(BUILD_TIME_PER_STONE).toBe(15); expect(getConstructionTime({ planks: 3, stone: 2 })).toBe(60); });
+  it('requires a construction flag', () => { const building = createBuilding('warehouse-1', 'player', 'warehouse', '30-30'); expect(() => startConstruction({ buildings: [building], flags: [] }, building)).toThrow('Construction flag not found'); });
+  it('delivers through warehouse → road carrier → construction flag without starting processing', () => { const building = constructionBuilding('stonecutter_hut'); const state = constructionState(building); startConstruction(state, building, 1000); expect(deliverConstructionMaterialViaLogistics(state, building, 'planks', 1)).toBe(1); expect(state.flags.find((flag) => flag.buildingId === building.id).constructionStorage.planks).toBe(1); expect(building.constructionMaterialsDelivered.planks).toBe(1); expect(building.constructionMaterialsUsed.planks).toBe(0); expect(building.currentConstructionMaterial).toBe(null); expect(building.constructionState).toBe(CONSTRUCTION_STATES.WAITING_FOR_MATERIAL); });
+  it('does not deliver when warehouse stock is unavailable', () => { const building = constructionBuilding('stonecutter_hut'); const state = constructionState(building); startConstruction(state, building); expect(deliverConstructionMaterialViaLogistics(state, building, 'planks', 1)).toBe(1); expect(deliverConstructionMaterialViaLogistics(state, building, 'planks', 1)).toBe(1); expect(deliverConstructionMaterialViaLogistics(state, building, 'planks', 1)).toBe(0); });
+  it('takes one material from the flag and then processes it', () => { const building = constructionBuilding('stonecutter_hut'); const state = constructionState(building); startConstruction(state, building); expect(deliverConstructionMaterialViaLogistics(state, building, 'planks', 1)).toBe(1); advanceConstruction(state, building, 0); expect(state.flags[0].constructionStorage.planks).toBe(0); expect(building.constructionMaterialsUsed.planks).toBe(1); expect(building.currentConstructionMaterial).toBe('planks'); expect(building.constructionTimer).toBe(10); });
+  it('accumulates materials at the flag and processes them sequentially', () => { const building = constructionBuilding('warehouse'); const state = constructionState(building); startConstruction(state, building); expect(deliverConstructionMaterialViaLogistics(state, building, 'planks', 2)).toBe(2); expect(deliverConstructionMaterialViaLogistics(state, building, 'stone', 1)).toBe(1); expect(building.currentConstructionMaterial).toBe(null); advanceConstruction(state, building, 10); expect(building.currentConstructionMaterial).toBe('planks'); expect(state.flags[0].constructionStorage.planks).toBe(1); expect(state.flags[0].constructionStorage.stone).toBe(1); advanceConstruction(state, building, 10); expect(building.currentConstructionMaterial).toBe('stone'); });
+  it('pauses when the next required material is missing and resumes after delivery', () => { const building = constructionBuilding('warehouse'); const state = constructionState(building); startConstruction(state, building); expect(deliverConstructionMaterialViaLogistics(state, building, 'planks', 1)).toBe(1); advanceConstruction(state, building, 10); expect(building.constructionState).toBe(CONSTRUCTION_STATES.WAITING_FOR_MATERIAL); expect(deliverConstructionMaterialViaLogistics(state, building, 'stone', 1)).toBe(1); advanceConstruction(state, building, 0); expect(building.currentConstructionMaterial).toBe('stone'); expect(building.constructionTimer).toBe(15); });
+  it('activates only after every required unit is processed', () => { const building = constructionBuilding('warehouse'); const state = constructionState(building); startConstruction(state, building); expect(deliverConstructionMaterialViaLogistics(state, building, 'planks', 3)).toBe(3); expect(deliverConstructionMaterialViaLogistics(state, building, 'stone', 3)).toBe(3); advanceConstruction(state, building, 75); expect(building.constructionComplete).toBe(true); expect(building.active).toBe(true); expect(building.constructionState).toBe(CONSTRUCTION_STATES.COMPLETED); });
+  it('advances multiple constructions independently from warehouse stock', () => { const state = createGameState(); const a = createBuilding('a', 'player', 'stonecutter_hut', '30-30'); const b = createBuilding('b', 'player', 'stonecutter_hut', '40-40'); state.buildings.push(a, b); startConstruction(state, a); startConstruction(state, b); expect(deliverConstructionMaterialViaLogistics(state, a, 'planks', 2)).toBe(2); expect(deliverConstructionMaterialViaLogistics(state, b, 'planks', 2)).toBe(2); advanceAllConstructions(state, 20); expect(a.constructionComplete).toBe(true); expect(b.constructionComplete).toBe(true); });
+  it('rejects completion while the current material is still processing', () => { const building = constructionBuilding('stonecutter_hut'); const state = constructionState(building); state.buildings.push({ ...building }); startConstruction(state, building); deliverConstructionMaterialViaLogistics(state, building, 'planks', 1); advanceConstruction(state, building, 0); expect(() => completeConstruction(state, building)).toThrow('Construction materials are not fully processed'); });
+  it('completes only fully processed construction and accepts an object or id', () => { const building = constructionBuilding('stonecutter_hut'); const state = constructionState(building); startConstruction(state, building); expect(deliverConstructionMaterialViaLogistics(state, building, 'planks', 2)).toBe(2); advanceConstruction(state, building, 20); expect(building.constructionComplete).toBe(true); expect(completeConstruction(state, building.id)).toBe(building); expect(building.active).toBe(true); });
 });
