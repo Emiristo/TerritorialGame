@@ -118,7 +118,9 @@ describe('real resource logistics chain', () => {
     expect(createTransportTasks(state)).toBe(1);
     expect(state.transportRequests[0].destinationBuildingId).toBe('workshop');
     expect(state.transportRequests[0].destinationWarehouseId).toBeUndefined();
-    expect(getFlagCargo(state, 'mine-flag', 'stone')).toBe(0);
+    // Creating a task does not teleport or reserve cargo away from the source flag.
+    // A road carrier removes it when it actually loads the cargo.
+    expect(getFlagCargo(state, 'mine-flag', 'stone')).toBe(1);
   });
 
   it('sends the resource to the nearest warehouse when no production building needs it', () => {
@@ -138,6 +140,6 @@ describe('real resource logistics chain', () => {
     const request = state.transportRequests[0];
     expect(request.destinationWarehouseId).toBe('warehouse');
     expect(request.destinationBuildingId).toBe('warehouse');
-    expect(getFlagCargo(state, 'mine-flag', 'stone')).toBe(0);
+    expect(getFlagCargo(state, 'mine-flag', 'stone')).toBe(1);
   });
 });
