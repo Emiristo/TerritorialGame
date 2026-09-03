@@ -2,11 +2,13 @@ import { findShortestFlagRoutes, rebuildLogisticsNetwork } from './logisticsNetw
 import {
   createBuildingTransportRequest,
   createProductionToWarehouseTransportRequest,
+  createWarehouseTransportRequest,
   getBuildingInputStorageCount,
   getBuildingInputStorage,
   getBuildingInventory,
   getFlagCargo,
   stageBuildingOutputAtFlag,
+  stageWarehouseCargoForRequest,
   prepareTransportRequest,
 } from './carriers.js';
 
@@ -41,6 +43,40 @@ function findNearestDestination(state, candidates, routes) {
     })
     .filter(Boolean)
     .sort((a, b) => a.distance - b.distance || String(a.building.id).localeCompare(String(b.building.id)))[0] ?? null;
+}
+
+function planConstructionDemand(state, building) {
+  if (!building || building.constructionComplete) return false;
+  const destinationFlag = getBuildingFlag(state, building.id);
+  if (!destinationFlag) return false;
+
+  for (const [resourceId, requiredValue] of Object.entries(building.constructionMaterialsRequired ?? {})) {
+    const required = Number(requiredValue ?? 0);
+    const delivered = Number(building.constructionMaterialsDelivered?.[resourceId] ?? 0);
+    const outstanding = (state.transportRequests ?? []).filter((request) => request.destinationBuildingId === building.id
+      && request.resourceId === resourceId
+      && request.state !== 'delivered').reduce((sum, request) => sum + Math.max(0,
+      Number(request.amount ?? 0) - Number(request.delivered ?? 0) - Number(request.inTransit ?? 0)), 0);
+    const missing = required - delivered - outstanding;
+    if (missing <= 0) continue;
+
+    const warehouses = (state.buildings ?? []).filter((candidate) => candidate.active
+      && candidate.ownerId === building.ownerId
+      && candidate.id !== building.id
+      && getBuildingType(state, candidate)?.role === 'storage'
+      && getBuildingInventory(state, candidate.id, resourceId) > 0);
+    const warehouse = findNearestDestination(state, warehouses, findShortestFlagRoutes(state, destinationFlag.id));
+    if (!warehouse) continue;
+
+    const requestId = `construction-${building.id}-${resourceId}-${state.transportRequests.length + 1}`;
+    const request = createWarehouseTransportRequest(
+      state, requestId, building.ownerId, resourceId, 1, warehouse.building.id, building.id,
+    );
+    if (!request || !stageWarehouseCargoForRequest(state, requestId)) continue;
+    state.transportRequests.push(request);
+    return true;
+  }
+  return false;
 }
 
 function planSource(state, source) {
@@ -86,8 +122,7 @@ function planSource(state, source) {
 
 export function markLogisticsDirty(state, sourceBuildingId, resourceId = null) {
   state.logisticsDirtySources ??= new Set();
-  const key = `${sourceBuildingId}:${resourceId ?? '*'}`;
-  state.logisticsDirtySources.add(key);
+  state.logisticsDirtySources.add(`${sourceBuildingId}:${resourceId ?? '*'}`);
 }
 
 function consumeDirtySources(state) {
@@ -100,14 +135,15 @@ export function processLogisticsTasks(state) {
   state.transportRequests ??= [];
   const dirty = consumeDirtySources(state);
   if (!dirty.size) return 0;
-
   rebuildLogisticsNetwork(state);
   let created = 0;
-  const sources = state.buildings ?? [];
   for (const key of dirty) {
     const sourceBuildingId = key.slice(0, key.lastIndexOf(':'));
-    const source = sources.find((building) => building.id === sourceBuildingId);
+    const source = (state.buildings ?? []).find((building) => building.id === sourceBuildingId);
     if (planSource(state, source)) created += 1;
+  }
+  for (const building of state.buildings ?? []) {
+    if (planConstructionDemand(state, building)) created += 1;
   }
   return created;
 }
@@ -116,6 +152,9 @@ export function createTransportTasks(state) {
   state.transportRequests ??= [];
   rebuildLogisticsNetwork(state);
   let created = 0;
+  for (const building of state.buildings ?? []) {
+    if (planConstructionDemand(state, building)) created += 1;
+  }
   for (const source of state.buildings ?? []) {
     if (planSource(state, source)) created += 1;
   }
