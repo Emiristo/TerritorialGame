@@ -32,7 +32,7 @@ function hasOutstandingSourceRequest(state, sourceBuildingId, resourceId) {
     && Number(request.delivered ?? 0) + Number(request.inTransit ?? 0) < Number(request.amount ?? 0));
 }
 
-function findNearestDestination(state, sourceFlag, candidates, routes) {
+function findNearestDestination(state, candidates, routes) {
   return candidates
     .map((candidate) => {
       const flag = getBuildingFlag(state, candidate.id);
@@ -43,70 +43,82 @@ function findNearestDestination(state, sourceFlag, candidates, routes) {
     .sort((a, b) => a.distance - b.distance || String(a.building.id).localeCompare(String(b.building.id)))[0] ?? null;
 }
 
+function planSource(state, source) {
+  if (!source?.active) return false;
+  const sourceType = getBuildingType(state, source);
+  const sourceFlag = getBuildingFlag(state, source.id);
+  if (!sourceType?.output?.resourceId || !sourceFlag) return false;
+
+  const resourceId = sourceType.output.resourceId;
+  const available = getFlagCargo(state, sourceFlag.id, resourceId) + getBuildingInventory(state, source.id, resourceId);
+  if (available <= 0 || hasOutstandingSourceRequest(state, source.id, resourceId)) return false;
+
+  const routes = findShortestFlagRoutes(state, sourceFlag.id);
+  const productionCandidates = (state.buildings ?? []).filter((candidate) => {
+    if (!candidate.active || candidate.id === source.id || candidate.ownerId !== source.ownerId) return false;
+    const type = getBuildingType(state, candidate);
+    if (type?.role !== 'production' || !type.input?.[resourceId]) return false;
+    if (getBuildingInputStorageCount(state, candidate.id) >= getBuildingInputStorage(state, candidate.id).length) return false;
+    return !hasOutstandingRequest(state, candidate.id, resourceId);
+  });
+  const productionDestination = findNearestDestination(state, productionCandidates, routes);
+
+  const warehouseCandidates = (state.buildings ?? []).filter((candidate) => {
+    if (!candidate.active || candidate.id === source.id || candidate.ownerId !== source.ownerId) return false;
+    return getBuildingType(state, candidate)?.role === 'storage';
+  });
+  const destination = productionDestination ?? findNearestDestination(state, warehouseCandidates, routes);
+  if (!destination) return false;
+
+  const requestId = `transport-${source.id}-${destination.building.id}-${resourceId}-${state.transportRequests.length + 1}`;
+  const request = productionDestination
+    ? createBuildingTransportRequest(state, requestId, source.ownerId, resourceId, 1, source.id, destination.building.id)
+    : createProductionToWarehouseTransportRequest(state, requestId, source.ownerId, resourceId, 1, source.id, destination.building.id);
+  if (!request) return false;
+
+  if (getFlagCargo(state, sourceFlag.id, resourceId) < 1
+    && stageBuildingOutputAtFlag(state, source.id, resourceId, 1) !== 1) return false;
+  if (!prepareTransportRequest(state, request)) return false;
+
+  state.transportRequests.push(request);
+  return true;
+}
+
+export function markLogisticsDirty(state, sourceBuildingId, resourceId = null) {
+  state.logisticsDirtySources ??= new Set();
+  const key = `${sourceBuildingId}:${resourceId ?? '*'}`;
+  state.logisticsDirtySources.add(key);
+}
+
+function consumeDirtySources(state) {
+  const dirty = state.logisticsDirtySources ?? new Set();
+  state.logisticsDirtySources = new Set();
+  return dirty;
+}
+
+export function processLogisticsTasks(state) {
+  state.transportRequests ??= [];
+  const dirty = consumeDirtySources(state);
+  if (!dirty.size) return 0;
+
+  rebuildLogisticsNetwork(state);
+  let created = 0;
+  const sources = state.buildings ?? [];
+  for (const key of dirty) {
+    const sourceBuildingId = key.slice(0, key.lastIndexOf(':'));
+    const source = sources.find((building) => building.id === sourceBuildingId);
+    if (planSource(state, source)) created += 1;
+  }
+  return created;
+}
+
 export function createTransportTasks(state) {
   state.transportRequests ??= [];
-  const buildings = state.buildings ?? [];
-  let created = 0;
-
-  // Rebuild the road graph once for this planning pass. Route distances are then
-  // calculated once per source flag instead of rebuilding/searching the graph for
-  // every source/candidate pair.
   rebuildLogisticsNetwork(state);
-
-  for (const source of buildings) {
-    if (!source.active) continue;
-    const sourceType = getBuildingType(state, source);
-    const sourceFlag = getBuildingFlag(state, source.id);
-    if (!sourceType?.output?.resourceId || !sourceFlag) continue;
-
-    const resourceId = sourceType.output.resourceId;
-    const available = getFlagCargo(state, sourceFlag.id, resourceId) + getBuildingInventory(state, source.id, resourceId);
-    if (available <= 0) continue;
-
-    const routes = findShortestFlagRoutes(state, sourceFlag.id);
-
-    // Priority 1: nearest reachable production building that accepts this resource
-    // and still has an input slot. Demand is represented by the building type.
-    const productionCandidates = buildings.filter((candidate) => {
-      if (!candidate.active || candidate.id === source.id || candidate.ownerId !== source.ownerId) return false;
-      const type = getBuildingType(state, candidate);
-      if (type?.role !== 'production' || !type.input?.[resourceId]) return false;
-      if (getBuildingInputStorageCount(state, candidate.id) >= getBuildingInputStorage(state, candidate.id).length) return false;
-      return !hasOutstandingRequest(state, candidate.id, resourceId);
-    });
-    const productionDestination = findNearestDestination(state, sourceFlag, productionCandidates, routes);
-
-    // Priority 2: if no reachable production consumer needs it, use the nearest
-    // reachable warehouse on the same road network.
-    const warehouseCandidates = buildings.filter((candidate) => {
-      if (!candidate.active || candidate.id === source.id || candidate.ownerId !== source.ownerId) return false;
-      return getBuildingType(state, candidate)?.role === 'storage';
-    });
-    const destination = productionDestination ?? findNearestDestination(state, sourceFlag, warehouseCandidates, routes);
-    if (!destination) continue;
-
-    // One source can have many units of cargo, but a request represents one unit.
-    // Until a road carrier actually loads the source flag, another planning pass
-    // must not reserve the same unit again.
-    if (hasOutstandingSourceRequest(state, source.id, resourceId)) continue;
-
-    const requestId = `transport-${source.id}-${destination.building.id}-${resourceId}-${state.transportRequests.length + 1}`;
-    const request = productionDestination
-      ? createBuildingTransportRequest(state, requestId, source.ownerId, resourceId, 1, source.id, destination.building.id)
-      : createProductionToWarehouseTransportRequest(state, requestId, source.ownerId, resourceId, 1, source.id, destination.building.id);
-    if (!request) continue;
-
-    // Producer output normally already sits on the producer flag. Legacy producer
-    // inventory is staged here only when needed.
-    if (getFlagCargo(state, sourceFlag.id, resourceId) < 1
-      && stageBuildingOutputAtFlag(state, source.id, resourceId, 1) !== 1) continue;
-
-    if (!prepareTransportRequest(state, request)) continue;
-
-    state.transportRequests.push(request);
-    created += 1;
+  let created = 0;
+  for (const source of state.buildings ?? []) {
+    if (planSource(state, source)) created += 1;
   }
-
   return created;
 }
 
