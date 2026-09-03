@@ -43,7 +43,8 @@ export function createGameState(now = Date.now()) {
     selectedTileId: null, clock: createGameClock(now),
     player: { id: 'player', name: 'Игрок', resources: createPlayerResources() },
     rules: { influenceRadius: INFLUENCE_RADIUS, headquartersInfluenceRadius: HEADQUARTERS_INFLUENCE_RADIUS, workZoneRadius: 5, resourceUnitPerExtraction: 1 },
-    buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} }, workZones: [], workers: [], workerRequests: [], tiles,
+    buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} },
+    workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], tiles,
   };
   const headquarters = createBuilding('headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   state.buildings.push(headquarters);
