@@ -110,7 +110,7 @@ describe('real resource logistics chain', () => {
     // The warehouse is one road segment away; the production building is farther
     // through the warehouse node. Production demand must still win by priority.
     addRoad(state, createRoad('road-mine-warehouse', 'mine-flag', 'warehouse-flag', ['2-3', '3-3', '4-3']));
-    addRoad(state, createRoad('road-warehouse-workshop', 'warehouse-flag', 'workshop-flag', ['4-5', '5-5', '6-5', '7-5', '8-5']));
+    addRoad(state, createRoad('road-warehouse-workshop', 'warehouse-flag', 'workshop-flag', ['4-4', '5-5', '6-5', '7-5', '8-4']));
 
     const worker = createWorker('miner-1', 'player', 'miner');
     worker.buildingId = 'mine'; worker.zoneId = 'zone-mine'; state.workers.push(worker);
@@ -129,7 +129,7 @@ describe('real resource logistics chain', () => {
     state.flags.push(createFlag('warehouse-far-flag', 'warehouse-far', 'player', 9, 4));
     state.buildings.push({ id: 'warehouse-far', ownerId: 'player', typeId: 'warehouse', tileId: '9-2', active: true, inventory: {} });
     addRoad(state, createRoad('road-mine-warehouse', 'mine-flag', 'warehouse-flag', ['2-3', '3-3', '4-3']));
-    addRoad(state, createRoad('road-warehouse-warehouse-far', 'warehouse-flag', 'warehouse-far-flag', ['4-5', '5-5', '6-5', '7-5', '8-5', '9-5']));
+    addRoad(state, createRoad('road-warehouse-warehouse-far', 'warehouse-flag', 'warehouse-far-flag', ['4-4', '5-5', '6-5', '7-5', '8-5', '9-4']));
 
     const worker = createWorker('miner-1', 'player', 'miner');
     worker.buildingId = 'mine'; worker.zoneId = 'zone-mine'; state.workers.push(worker);
