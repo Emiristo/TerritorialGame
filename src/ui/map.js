@@ -2,41 +2,8 @@ import { MAP_WIDTH } from '../game/state.js';
 import { TERRAIN_BY_ID } from '../game/terrain.js';
 import { getTerritorySourceAtTile } from '../game/territory.js';
 import { getBuildingAtTile, getFootprintTiles, getReservedTiles, canBuildOnTile } from '../game/buildings.js';
-
-const TERRAIN_SYMBOLS = { plains: '·', forest: '♣', mountains: '▲', hills: '◆', water: '~' };
-const BUILDING_SYMBOLS = { headquarters: '🏛️', warehouse: '📦', forester_hut: '🌲', stonecutter_hut: '🪨', sawmill: '🪚', well: '💧', farm: '🌾', mill: '⚙️', bakery: '🥖', coal_mine: '⛏️', iron_mine: '⛏️', gold_mine: '🟡', marble_mine: '🪨', foundry: '🔥', forge: '⚒️', workshop: '🛠️', mint: '🪙', outpost: '🏕️', barracks: '🏰', watchtower: '🗼', fortress: '🏯' };
-
-export function getBuildingPreview(state, typeId, originTileId) {
-  if (!typeId || !originTileId) return { footprint: [], reserved: [], valid: false };
-  const footprint = getFootprintTiles(state, typeId, originTileId);
-  const reserved = getReservedTiles(state, typeId, originTileId);
-  return { footprint, reserved, valid: canBuildOnTile(state, typeId, originTileId) };
-}
-
-export function renderMap(container, state, selectedBuildingTypeId = null, previewTileId = null) {
-  container.replaceChildren();
-  container.style.setProperty('--map-columns', String(MAP_WIDTH));
-  const preview = getBuildingPreview(state, selectedBuildingTypeId, previewTileId);
-  const footprintIds = new Set(preview.footprint.map((tile) => tile.id));
-  const reservedIds = new Set(preview.reserved.map((tile) => tile.id));
-
-  for (const tile of state.tiles) {
-    const terrain = TERRAIN_BY_ID[tile.terrain];
-    const source = getTerritorySourceAtTile(state, tile.id);
-    const building = getBuildingAtTile(state, tile.id);
-    const ownerClass = tile.ownerId ? `owner-${tile.ownerId}` : 'owner-neutral';
-    let previewClass = '';
-    if (footprintIds.has(tile.id)) previewClass = `preview-footprint preview-${preview.valid ? 'valid' : 'invalid'}`;
-    else if (reservedIds.has(tile.id)) previewClass = 'preview-reserved';
-
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = ['tile', `terrain-${tile.terrain}`, ownerClass, tile.id === state.selectedTileId ? 'is-selected' : '', source ? 'is-territory-source' : '', building ? 'is-building' : '', previewClass].filter(Boolean).join(' ');
-    button.dataset.tileId = tile.id;
-    button.setAttribute('role', 'gridcell');
-    button.setAttribute('aria-label', `${terrain?.name ?? tile.terrain}, клетка ${tile.id}, владелец: ${tile.ownerId ?? 'нет'}`);
-    button.title = building ? `${BUILDING_SYMBOLS[building.typeId] ?? '⌂'} ${building.typeId} · ${tile.x}, ${tile.y}` : `${terrain?.name ?? tile.terrain} · ${tile.x}, ${tile.y} · влияние игрока: ${tile.influence?.player ?? 0}`;
-    button.textContent = building ? (BUILDING_SYMBOLS[building.typeId] ?? '⌂') : (source ? `◆${TERRAIN_SYMBOLS[tile.terrain] ?? ''}` : (TERRAIN_SYMBOLS[tile.terrain] ?? ''));
-    container.append(button);
-  }
-}
+import { getRoadAtTile } from '../game/roads.js';
+const TERRAIN_SYMBOLS={plains:'·',forest:'♣',mountains:'▲',hills:'◆',water:'~'};
+const BUILDING_SYMBOLS={headquarters:'🏛️',warehouse:'📦',forester_hut:'🌲',stonecutter_hut:'🪨',sawmill:'🪚',well:'💧',farm:'🌾',mill:'⚙️',bakery:'🥖',coal_mine:'⛏️',iron_mine:'⛏️',gold_mine:'🟡',marble_mine:'🪨',foundry:'🔥',forge:'⚒️',workshop:'🛠️',mint:'🪙',outpost:'🏕️',barracks:'🏰',watchtower:'🗼',fortress:'🏯'};
+export function getBuildingPreview(state,typeId,originTileId){if(!typeId||!originTileId)return{footprint:[],reserved:[],valid:false};const footprint=getFootprintTiles(state,typeId,originTileId),reserved=getReservedTiles(state,typeId,originTileId);return{footprint,reserved,valid:canBuildOnTile(state,typeId,originTileId)};}
+export function renderMap(container,state,selectedBuildingTypeId=null,previewTileId=null){container.replaceChildren();container.style.setProperty('--map-columns',String(MAP_WIDTH));container.style.position='relative';const preview=getBuildingPreview(state,selectedBuildingTypeId,previewTileId),footprintIds=new Set(preview.footprint.map(t=>t.id)),reservedIds=new Set(preview.reserved.map(t=>t.id));for(const tile of state.tiles){const terrain=TERRAIN_BY_ID[tile.terrain],source=getTerritorySourceAtTile(state,tile.id),building=getBuildingAtTile(state,tile.id),roads=getRoadAtTile(state,tile.id),ownerClass=tile.ownerId?`owner-${tile.ownerId}`:'owner-neutral';let previewClass='';if(footprintIds.has(tile.id))previewClass=`preview-footprint preview-${preview.valid?'valid':'invalid'}`;else if(reservedIds.has(tile.id))previewClass='preview-reserved';const button=document.createElement('button');button.type='button';button.className=['tile',`terrain-${tile.terrain}`,ownerClass,tile.id===state.selectedTileId?'is-selected':'',source?'is-territory-source':'',building?'is-building':'',roads.length?'is-road':'',previewClass].filter(Boolean).join(' ');button.dataset.tileId=tile.id;button.setAttribute('role','gridcell');button.setAttribute('aria-label',`${terrain?.name??tile.terrain}, клетка ${tile.id}, владелец: ${tile.ownerId??'нет'}`);button.title=building?`${BUILDING_SYMBOLS[building.typeId]??'⌂'} ${building.typeId} · ${tile.x}, ${tile.y}`:`${terrain?.name??tile.terrain} · ${tile.x}, ${tile.y}`;button.textContent=building?(BUILDING_SYMBOLS[building.typeId]??'⌂'):(roads.length?'━':(source?`◆${TERRAIN_SYMBOLS[tile.terrain]??''}`:(TERRAIN_SYMBOLS[tile.terrain]??'')));container.append(button);}for(const flag of state.flags??[]){const node=document.createElement('span');node.className='map-flag-node';node.textContent='⚑';node.title=flag.buildingId?`Флаг здания: ${flag.buildingId}`:'Самостоятельный флаг';node.setAttribute('aria-label',node.title);node.style.position='absolute';node.style.left=`${flag.x}%`;node.style.top=`${flag.y}%`;node.style.transform='translate(-50%,-50%)';container.append(node);}}
