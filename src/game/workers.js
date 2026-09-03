@@ -6,7 +6,7 @@ import {
   getWorkZoneForBuilding,
   removeWorkZoneForBuilding,
 } from './workZones.js';
-import { addInventoryToBuilding } from './carriers.js';
+import { stageBuildingOutputAtFlag } from './carriers.js';
 import { createTransportTasks } from './logisticsManager.js';
 
 export const WORKER_TYPES = {
@@ -15,9 +15,9 @@ export const WORKER_TYPES = {
   LUMBERJACK: { id: 'lumberjack', name: 'Лесоруб', toolId: 'axe' },
   CARPENTER: { id: 'carpenter', name: 'Столяр', toolId: 'saw' },
   RESIDENT: { id: 'resident', name: 'Житель', toolId: null },
-  FARMER: { id: 'farmer', name: 'Фермер', toolId: 'scythe' },
   MILLER: { id: 'miller', name: 'Мельник', toolId: 'bag' },
   BAKER: { id: 'baker', name: 'Пекарь', toolId: 'rolling_pin' },
+  FARMER: { id: 'farmer', name: 'Фермер', toolId: 'scythe' },
   MINER: { id: 'miner', name: 'Шахтёр', toolId: 'pickaxe' },
   STEELWORKER: { id: 'steelworker', name: 'Сталевар', toolId: 'ladle' },
   BLACKSMITH: { id: 'blacksmith', name: 'Кузнец', toolId: 'hammer' },
@@ -78,7 +78,10 @@ export function extractForWorker(state, workerId) {
   const available = Number(tile.resources?.[rule.resourceId] ?? 0);
   if (available <= 0) return false;
   tile.resources[rule.resourceId] = available - 1;
-  addInventoryToBuilding(state, building.id, rule.resourceId, 1);
+  if (stageBuildingOutputAtFlag(state, building.id, rule.resourceId, 1) !== 1) {
+    tile.resources[rule.resourceId] = available;
+    return false;
+  }
   worker.targetTileId = tile.id;
   createTransportTasks(state);
   return true;
