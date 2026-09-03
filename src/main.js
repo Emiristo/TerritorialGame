@@ -31,6 +31,13 @@ elements.tilePanel.addEventListener('click', (event) => {
   const action = event.target.closest('[data-action="build"]'); if (!action || !selectedBuildingTypeId) return; const tile = getSelectedTile(state), type = findBuildingType(selectedBuildingTypeId); if (!tile || !type) return; if (!canBuildOnTile(state, type.id, tile.id)) { elements.status.textContent = 'Здесь нельзя построить это здание.'; return; } const building = createBuilding(`building-${state.buildings.length + 1}`, state.player.id, type.id, tile.id); addBuilding(state, building); syncBuildingFlags(state); startConstruction(state, building); elements.status.textContent = `Место строительства подготовлено: ${type.name}. Ожидание строительных материалов.`; clearBuildSelection(); render(); });
 elements.clockInfo.addEventListener('click', (event) => { const speedButton = event.target.closest('[data-speed]'); if (speedButton) { const speed = Number(speedButton.dataset.speed); if (!GAME_SPEEDS.includes(speed)) return; setGameSpeed(state.clock, speed); if (!state.clock.running) startGameClock(state.clock); elements.status.textContent = `Скорость игры: ×${speed}.`; render(); return; } const pauseButton = event.target.closest('[data-action="pause-game"]'); if (!pauseButton) return; if (state.clock.running) { pauseGameClock(state.clock); elements.status.textContent = 'Игра поставлена на паузу.'; } else { startGameClock(state.clock); elements.status.textContent = `Игра продолжена: ×${state.clock.speed}.`; } render(); });
 startGameClock(state.clock);
-setInterval(() => { const elapsedSeconds = advanceGameClock(state.clock); if (elapsedSeconds > 0) { advanceAllConstructions(state, elapsedSeconds); processLogisticsTasks(state); } if (elapsedSeconds > 0 || Math.floor(state.clock.elapsedSeconds) !== Math.floor(lastRenderedClockSeconds)) render(); }, 100);
+setInterval(() => {
+  const simulationTicks = advanceGameClock(state.clock);
+  for (let tick = 0; tick < simulationTicks; tick += 1) {
+    advanceAllConstructions(state, 1);
+    processLogisticsTasks(state);
+  }
+  if (simulationTicks > 0 || Math.floor(state.clock.elapsedSeconds) !== Math.floor(lastRenderedClockSeconds)) render();
+}, 100);
 window.deliverConstructionMaterial = (buildingId, resourceId, amount = 1) => { const delivered = deliverConstructionMaterial(state, buildingId, resourceId, amount); if (delivered) { const building = state.buildings.find((item) => item.id === buildingId); advanceConstruction(state, building, 0); render(); } return delivered; };
 render();
