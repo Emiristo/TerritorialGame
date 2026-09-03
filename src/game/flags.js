@@ -1,3 +1,4 @@
+import { isWithinInfluenceRadius } from './influence.js';
 import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 import { getRoadAtNode, splitRoadAtNode } from './roads.js';
 
@@ -7,6 +8,7 @@ function isValidNodeCoordinate(x, y) {
     && Number.isInteger(x * 2) && Number.isInteger(y * 2)
     && (Number.isInteger(x) || Number.isInteger(y));
 }
+
 export function createFlag(id, buildingId = null, ownerId, x, y) {
   if (!isValidNodeCoordinate(x, y)) throw new Error('Flag coordinates must be a valid inter-cell node');
   return { id, buildingId, ownerId, x, y, roadIds: [], connected: false };
@@ -19,6 +21,7 @@ export function getFlagAtTile(state, tileId) {
   return getFlagAtNode(state, Number(String(tileId).slice(0, s)), Number(String(tileId).slice(s + 1)));
 }
 export function getFlagForBuilding(state, buildingId) { return (state.flags ?? []).find((f) => f.buildingId === buildingId) ?? null; }
+
 function nodeInsideBuilding(state, x, y) {
   return (state.buildings ?? []).some((b) => {
     const t = (state.buildingTypes ?? []).find((i) => i.id === b.typeId), s = String(b.tileId ?? '').indexOf('-');
@@ -27,14 +30,31 @@ function nodeInsideBuilding(state, x, y) {
     return x > ox && x < ox + t.width && y > oy && y < oy + t.height;
   });
 }
-function ownedAdjacent(state, x, y, ownerId) {
-  return (state.tiles ?? []).some((t) => Math.abs((t.x + 0.5) - x) <= 0.5 && Math.abs((t.y + 0.5) - y) <= 0.5 && t.ownerId === ownerId);
+
+function getAdjacentTiles(state, x, y) {
+  return (state.tiles ?? []).filter((t) => Math.abs((t.x + 0.5) - x) <= 0.5 && Math.abs((t.y + 0.5) - y) <= 0.5);
 }
+
+function ownedAdjacent(state, x, y, ownerId) {
+  return getAdjacentTiles(state, x, y).some((t) => t.ownerId === ownerId);
+}
+
+export function isNodeWithinOwnerInfluence(state, x, y, ownerId) {
+  return (state.territorySources ?? []).some((source) => {
+    if (!source.active || source.ownerId !== ownerId) return false;
+    const center = (state.tiles ?? []).find((tile) => tile.id === source.tileId);
+    if (!center) return false;
+    return isWithinInfluenceRadius(center, { x: x - 0.5, y: y - 0.5 }, source.radius);
+  });
+}
+
 export function canPlaceStandaloneFlag(state, x, y, ownerId = state.player.id) {
-  if (!isValidNodeCoordinate(x, y) || getFlagAtNode(state, x, y) || nodeInsideBuilding(state, x, y) || !ownedAdjacent(state, x, y, ownerId)) return false;
+  if (!isValidNodeCoordinate(x, y) || getFlagAtNode(state, x, y) || nodeInsideBuilding(state, x, y)) return false;
+  if (!ownedAdjacent(state, x, y, ownerId) || !isNodeWithinOwnerInfluence(state, x, y, ownerId)) return false;
   const road = getRoadAtNode(state, x, y);
   return !road || Boolean(splitRoadAtNode(state, road.id, x, y, { validateOnly: true }));
 }
+
 export function addFlag(state, flag) {
   state.flags ??= [];
   if (state.flags.some((i) => i.id === flag.id)) throw new Error(`Flag already exists: ${flag.id}`);
