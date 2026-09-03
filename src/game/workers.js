@@ -20,6 +20,7 @@ export const WORKER_TYPES = {
   STEELWORKER: { id: 'steelworker', name: 'Сталевар', toolId: 'ladle' },
   BLACKSMITH: { id: 'blacksmith', name: 'Кузнец', toolId: 'hammer' },
   MASTER: { id: 'master', name: 'Мастер', toolId: 'tongs' },
+  CARRIER: { id: 'carrier', name: 'Носильщик', toolId: null },
   SOLDIER: { id: 'soldier', name: 'Солдат', toolId: null },
 };
 
