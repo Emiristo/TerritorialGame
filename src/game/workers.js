@@ -6,6 +6,7 @@ import {
   getWorkZoneForBuilding,
   removeWorkZoneForBuilding,
 } from './workZones.js';
+import { addInventoryToBuilding } from './carriers.js';
 
 export const WORKER_TYPES = {
   FORESTER: { id: 'forester', name: 'Лесничий', toolId: 'shovel' },
@@ -71,11 +72,12 @@ export function extractForWorker(state, workerId) {
     ? (state.tiles ?? []).find((item) => item.id === worker.targetTileId)
     : findAvailableResourceTile(state, worker);
   const rule = worker ? getExtractionRule(state, worker) : null;
-  if (!worker || !tile || !rule) return false;
+  const building = worker?.buildingId ? findBuilding(state, worker.buildingId) : null;
+  if (!worker || !tile || !rule || !building) return false;
   const available = Number(tile.resources?.[rule.resourceId] ?? 0);
   if (available <= 0) return false;
   tile.resources[rule.resourceId] = available - 1;
-  state.player.resources[rule.resourceId] = (state.player.resources[rule.resourceId] ?? 0) + 1;
+  addInventoryToBuilding(state, building.id, rule.resourceId, 1);
   worker.targetTileId = tile.id;
   return true;
 }
