@@ -12,7 +12,21 @@ function ensureBuildingInventory(building) { building.inventory ??= {}; return b
 function carrierCountOnRoad(state, roadId, excludeCarrierId = null) { return (state.carriers ?? []).filter((item) => item.roadId === roadId && item.id !== excludeCarrierId).length; }
 
 export function createCarrier(id, ownerId, roadId = null) { return { id, ownerId, typeId: 'carrier', state: roadId ? CARRIER_STATES.WAITING : CARRIER_STATES.IDLE, roadId, cargo: null }; }
-export function createTransportRequest(id, ownerId, resourceId, amount, sourceFlagId, destinationFlagId) { return { id, ownerId, resourceId, amount: Math.max(0, Math.floor(Number(amount) || 0)), delivered: 0, sourceFlagId, destinationFlagId, routeFlagIds: [], routeRoadIds: [], state: 'waiting' }; }
+export function createTransportRequest(id, ownerId, resourceId, amount, sourceFlagId, destinationFlagId) {
+  return {
+    id,
+    ownerId,
+    resourceId,
+    amount: Math.max(0, Math.floor(Number(amount) || 0)),
+    delivered: 0,
+    inTransit: 0,
+    sourceFlagId,
+    destinationFlagId,
+    routeFlagIds: [],
+    routeRoadIds: [],
+    state: 'waiting',
+  };
+}
 export function createBuildingTransportRequest(state, id, ownerId, resourceId, amount, sourceBuildingId, destinationBuildingId) {
   const sourceFlag = (state.flags ?? []).find((flag) => flag.buildingId === sourceBuildingId) ?? null;
   const destinationFlag = (state.flags ?? []).find((flag) => flag.buildingId === destinationBuildingId) ?? null;
@@ -81,7 +95,10 @@ export function deliverFlagCargoToBuilding(state, flagId, resourceId, amount = 1
 }
 
 export function prepareTransportRequest(state, request) {
-  if (!request || request.amount <= request.delivered || request.ownerId !== state.player?.id) return false;
+  const delivered = Number(request?.delivered ?? 0);
+  const inTransit = Number(request?.inTransit ?? 0);
+  const amount = Number(request?.amount ?? 0);
+  if (!request || delivered + inTransit >= amount || request.ownerId !== state.player?.id) return false;
   if (!getFlag(state, request.sourceFlagId) || !getFlag(state, request.destinationFlagId)) return false;
   const route = findFlagRoute(state, request.sourceFlagId, request.destinationFlagId);
   if (!route || route.flagIds.length < 2) return false;
@@ -101,6 +118,7 @@ export function loadCarrierFromFlag(state, carrierId, requestId) {
   const segment = getSegmentForRoad(request, road);
   if (!segment || segment.index >= request.routeRoadIds.length) return false;
   if (!removeCargoFromFlag(state, segment.fromFlagId, request.resourceId, 1)) return false;
+  request.inTransit = Number(request.inTransit ?? 0) + 1;
   carrier.cargo = { requestId: request.id, resourceId: request.resourceId, amount: 1, fromFlagId: segment.fromFlagId, toFlagId: segment.toFlagId, roadId: road.id };
   carrier.state = CARRIER_STATES.CARRYING; return true;
 }
@@ -111,6 +129,7 @@ export function deliverCarrierToFlag(state, carrierId) {
   const cargo = carrier.cargo, request = (state.transportRequests ?? []).find((item) => item.id === cargo.requestId) ?? null, destination = getFlag(state, cargo.toFlagId);
   if (!request || !destination) return false;
   addCargoToFlag(state, destination.id, cargo.resourceId, cargo.amount);
+  request.inTransit = Math.max(0, Number(request.inTransit ?? 0) - cargo.amount);
   recordRoadCargo(state, cargo.roadId, cargo.amount);
   if (destination.id === request.destinationFlagId) {
     deliverFlagCargoToBuilding(state, destination.id, cargo.resourceId, cargo.amount);
