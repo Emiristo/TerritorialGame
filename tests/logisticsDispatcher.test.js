@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDING_TYPES, addBuilding } from '../src/game/buildings.js';
 import { createGameState } from '../src/game/state.js';
-import { addRoad } from '../src/game/roads.js';
+import { addRoad, createRoad, findShortestRoadPaths } from '../src/game/roads.js';
 import { createWarehouseTransportRequest, addCargoToFlag } from '../src/game/carriers.js';
 import { dispatchTransportRequests, advanceDispatchedCarriers } from '../src/game/logisticsManager.js';
 
@@ -17,6 +17,12 @@ function addDestinationBuilding(state, id = 'dispatcher-destination') {
   return addBuilding(state, id, state.player.id, type.id, `${x}-${y}`);
 }
 
+function connectFlags(state, id, startFlagId, endFlagId) {
+  const path = findShortestRoadPaths(state, startFlagId, endFlagId)[0];
+  if (!path) throw new Error(`Test road path not found: ${startFlagId} -> ${endFlagId}`);
+  return addRoad(state, createRoad(id, startFlagId, endFlagId, path));
+}
+
 describe('logistics dispatcher', () => {
   it('assigns a ready request to an existing road carrier', () => {
     const state = createGameState();
@@ -24,7 +30,7 @@ describe('logistics dispatcher', () => {
     const destination = addDestinationBuilding(state);
     const warehouseFlag = state.flags.find((flag) => flag.buildingId === warehouse.id);
     const destinationFlag = state.flags.find((flag) => flag.buildingId === destination.id);
-    addRoad(state, 'road-warehouse-destination', state.player.id, warehouseFlag.id, destinationFlag.id);
+    connectFlags(state, 'road-warehouse-destination', warehouseFlag.id, destinationFlag.id);
 
     const roadCarriersBefore = state.carriers.filter((carrier) => carrier.role === 'road').length;
     const request = createWarehouseTransportRequest(state, 'request-1', state.player.id, 'stone', 1, warehouse.id, destination.id);
@@ -47,8 +53,8 @@ describe('logistics dispatcher', () => {
     const middleFlag = { id: 'middle-flag', ownerId: state.player.id, buildingId: null, cargo: {} };
     state.flags.push(middleFlag);
 
-    addRoad(state, 'road-1', state.player.id, warehouseFlag.id, middleFlag.id);
-    addRoad(state, 'road-2', state.player.id, middleFlag.id, destinationFlag.id);
+    connectFlags(state, 'road-1', warehouseFlag.id, middleFlag.id);
+    connectFlags(state, 'road-2', middleFlag.id, destinationFlag.id);
     const request = createWarehouseTransportRequest(state, 'request-2', state.player.id, 'stone', 1, warehouse.id, destination.id);
     state.transportRequests.push(request);
     addCargoToFlag(state, warehouseFlag.id, 'stone', 1);
