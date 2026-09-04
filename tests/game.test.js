@@ -3,7 +3,7 @@ import { createGameState, MAP_WIDTH, MAP_HEIGHT, HEADQUARTERS_INFLUENCE_RADIUS, 
 import { BUILDING_TYPES, addBuilding, canBuildOnTile, getFootprintTiles, getReservedTiles, isReservedForBuilding } from '../src/game/buildings.js';
 import { createGameClock, startGameClock, tickGameClock } from '../src/game/clock.js';
 import { BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, startConstruction, advanceConstruction } from '../src/game/construction.js';
-import { INFLUENCE_RADIUS, isWithinInfluenceRadius } from '../src/game/influence.js';
+import { isWithinInfluenceRadius } from '../src/game/influence.js';
 import { WORKER_TYPES, createWorker, createWorkZone, assignWorkerToBuilding, workWorker } from '../src/game/workers.js';
 import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
 import { deliverConstructionMaterialViaLogistics } from './constructionLogisticsHelper.js';
@@ -24,7 +24,7 @@ function deliverUnits(state, building, resourceId, amount) {
   return delivered;
 }
 
-describe('game clock', () => { it('starts at zero and advances by whole simulation ticks', () => { const clock = createGameClock(); expect(clock.elapsedSeconds).toBe(0); expect(clock.simulationTicks).toBe(0); startGameClock(clock, 1000); expect(tickGameClock(clock, 3500)).toBe(2); expect(clock.elapsedSeconds).toBe(2); expect(clock.simulationTicks).toBe(2); expect(clock.realTimeAccumulator).toBe(0.5); }); });
+describe('game clock', () => { it('starts at zero and advances by whole simulation ticks', () => { const clock = createGameClock(); expect(clock.elapsedSeconds).toBe(0); expect(clock.simulationTicks).toBe(0); startGameClock(clock, 1000); expect(tickGameClock(clock, 3500)).toBe(2); expect(clock.elapsedSeconds).toBe(2); expect(clock.realTimeAccumulator).toBe(0.5); }); });
 
 describe('construction time and material delivery', () => {
   it('keeps the material work rates at 10 seconds per plank and 15 seconds per stone', () => { expect(BUILD_TIME_PER_PLANK).toBe(10); expect(BUILD_TIME_PER_STONE).toBe(15); });
@@ -40,4 +40,21 @@ describe('construction time and material delivery', () => {
   it('starts construction with a timestamp without coupling the timer to the game clock', () => { const state = createGameState(); const building = place(state, 'stonecutter-1', 'stonecutter_hut'); startConstruction(state, building, 5000); expect(building.constructionStartedAt).toBe(5000); expect(building.constructionState).toBe(CONSTRUCTION_STATES.PLACED); });
 });
 
-void MAP_WIDTH; void MAP_HEIGHT; void HEADQUARTERS_INFLUENCE_RADIUS; void STARTER_FOREST_AREA; void STARTER_STONE_AREA; void STARTER_HILLS_AREA; void STARTER_MOUNTAINS_AREA; void INFLUENCE_RADIUS; void isWithinInfluenceRadius; void WORKER_TYPES; void createWorker; void createWorkZone; void assignWorkerToBuilding; void workWorker; void createTerritorySource; void addTerritorySource; void getOwnedTiles; void getReservedTiles; void isReservedForBuilding; void canBuildOnTile;
+describe('territorial influence radii', () => {
+  it('stores fixed integer influence radii on headquarters and military buildings', () => {
+    expect(BUILDING_TYPES.HEADQUARTERS.influenceRadius).toBe(10);
+    expect(BUILDING_TYPES.OUTPOST.influenceRadius).toBe(18);
+    expect(BUILDING_TYPES.BARRACKS.influenceRadius).toBe(20);
+    expect(BUILDING_TYPES.WATCHTOWER.influenceRadius).toBe(23);
+    expect(BUILDING_TYPES.FORTRESS.influenceRadius).toBe(25);
+    for (const type of [BUILDING_TYPES.HEADQUARTERS, BUILDING_TYPES.OUTPOST, BUILDING_TYPES.BARRACKS, BUILDING_TYPES.WATCHTOWER, BUILDING_TYPES.FORTRESS]) expect(Number.isInteger(type.influenceRadius)).toBe(true);
+  });
+  it('uses the radius stored by the territory source instead of a global influence constant', () => {
+    const source = createTerritorySource('test-source', 'player', '50-50', 1, BUILDING_TYPES.FORTRESS.influenceRadius);
+    expect(source.radius).toBe(25);
+    expect(isWithinInfluenceRadius({ x: 50, y: 50 }, { x: 75, y: 50 }, source.radius)).toBe(true);
+    expect(isWithinInfluenceRadius({ x: 50, y: 50 }, { x: 76, y: 50 }, source.radius)).toBe(false);
+  });
+});
+
+void MAP_WIDTH; void MAP_HEIGHT; void HEADQUARTERS_INFLUENCE_RADIUS; void STARTER_FOREST_AREA; void STARTER_STONE_AREA; void STARTER_HILLS_AREA; void STARTER_MOUNTAINS_AREA; void isWithinInfluenceRadius; void WORKER_TYPES; void createWorker; void createWorkZone; void assignWorkerToBuilding; void workWorker; void createTerritorySource; void addTerritorySource; void getOwnedTiles; void getReservedTiles; void isReservedForBuilding; void canBuildOnTile;
