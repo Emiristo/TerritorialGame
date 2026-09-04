@@ -1,6 +1,7 @@
 import { addInfluence, getInfluenceWinner, isWithinInfluenceRadius } from './influence.js';
 
-export function createTerritorySource(id, ownerId, tileId, influence = 1, radius = 5) {
+export function createTerritorySource(id, ownerId, tileId, influence = 1, radius) {
+  if (!Number.isInteger(radius) || radius < 0) throw new Error('Territory source radius is required');
   return { id, ownerId, tileId, influence, radius, active: true };
 }
 
