@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest';
+import { createGameState } from '../src/game/state.js';
+import { addRoad } from '../src/game/roads.js';
+import { createWarehouseTransportRequest, addCargoToFlag } from '../src/game/carriers.js';
+import { dispatchTransportRequests, advanceDispatchedCarriers } from '../src/game/logisticsManager.js';
+
+describe('logistics dispatcher', () => {
+  it('assigns a ready request to an existing road carrier', () => {
+    const state = createGameState();
+    const warehouse = state.buildings.find((building) => building.typeId === 'warehouse');
+    const destination = state.buildings.find((building) => building.id !== warehouse?.id);
+    const warehouseFlag = state.flags.find((flag) => flag.buildingId === warehouse.id);
+    const destinationFlag = state.flags.find((flag) => flag.buildingId === destination.id);
+    addRoad(state, 'road-warehouse-destination', state.player.id, warehouseFlag.id, destinationFlag.id);
+
+    const roadCarriersBefore = state.carriers.filter((carrier) => carrier.role === 'road').length;
+    const request = createWarehouseTransportRequest(state, 'request-1', state.player.id, 'stone', 1, warehouse.id, destination.id);
+    state.transportRequests.push(request);
+    addCargoToFlag(state, warehouseFlag.id, 'stone', 1);
+    request.state = 'ready';
+
+    expect(dispatchTransportRequests(state)).toBe(1);
+    expect(state.carriers.filter((carrier) => carrier.role === 'road')).toHaveLength(roadCarriersBefore);
+    expect(state.carriers.find((carrier) => carrier.role === 'road')?.cargo?.requestId).toBe('request-1');
+    expect(request.state).toBe('ready');
+  });
+
+  it('keeps one request alive while two road carriers execute two route stages', () => {
+    const state = createGameState();
+    const warehouse = state.buildings.find((building) => building.typeId === 'warehouse');
+    const destination = state.buildings.find((building) => building.id !== warehouse?.id);
+    const warehouseFlag = state.flags.find((flag) => flag.buildingId === warehouse.id);
+    const destinationFlag = state.flags.find((flag) => flag.buildingId === destination.id);
+    const middleFlag = { id: 'middle-flag', ownerId: state.player.id, buildingId: null, cargo: {} };
+    state.flags.push(middleFlag);
+
+    addRoad(state, 'road-1', state.player.id, warehouseFlag.id, middleFlag.id);
+    addRoad(state, 'road-2', state.player.id, middleFlag.id, destinationFlag.id);
+    const request = createWarehouseTransportRequest(state, 'request-2', state.player.id, 'stone', 1, warehouse.id, destination.id);
+    state.transportRequests.push(request);
+    addCargoToFlag(state, warehouseFlag.id, 'stone', 1);
+    request.state = 'ready';
+
+    expect(dispatchTransportRequests(state)).toBe(1);
+    expect(request.state).toBe('ready');
+    expect(advanceDispatchedCarriers(state)).toBe(1);
+    expect(request.state).toBe('ready');
+    expect(dispatchTransportRequests(state)).toBe(1);
+    expect(advanceDispatchedCarriers(state)).toBe(1);
+    expect(request.state).toBe('at_destination');
+    expect(state.flags.find((flag) => flag.id === destinationFlag.id)?.cargo?.stone).toBe(1);
+  });
+});
