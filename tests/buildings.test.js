@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUILDING_TYPES, addBuilding, canBuildOnTile, createBuilding, getBuildingAtTile, getBuildingType, getConstructionMaterials, getFootprintTiles, getReservedTiles, isReservedForBuilding } from '../src/game/buildings.js';
+import { BUILDING_TYPES, addBuilding, canBuildOnTile, createBuilding, getBuildingAtTile, getBuildingType, getConstructionMaterials, getFootprintTiles, getReservedTiles, isReservedForBuilding, getBuildingFlagPosition } from '../src/game/buildings.js';
 import { createGameState } from '../src/game/state.js';
 import { BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, advanceAllConstructions, advanceConstruction, completeConstruction, getConstructionTime, startConstruction } from '../src/game/construction.js';
 import { deliverConstructionMaterialViaLogistics } from './constructionLogisticsHelper.js';
@@ -26,6 +26,7 @@ describe('building catalog and placement', () => {
   it('returns defensive construction materials and resolves types', () => { const building = createBuilding('warehouse-1', 'player', 'warehouse', '30-30'); const materials = getConstructionMaterials(building); materials.planks = 999; expect(getConstructionMaterials(building)).toEqual({ planks: 3, stone: 3 }); expect(getBuildingType(building).id).toBe('warehouse'); });
   it('keeps agreed geometry, terrain and reservations', () => { const state = createGameState(); expect(getFootprintTiles(state, 'warehouse', '30-30')).toHaveLength(9); expect(getFootprintTiles(state, 'fortress', '95-95')).toHaveLength(25); expect(getFootprintTiles(state, 'fortress', '96-96')).toEqual([]); prepareArea(state, 30, 30, 2, 2); addBuilding(state, createBuilding('first', 'player', 'stonecutter_hut', '30-30')); expect(getBuildingAtTile(state, '30-30').id).toBe('first'); expect(getReservedTiles(state, 'stonecutter_hut', '30-30')).toHaveLength(12); expect(isReservedForBuilding(state, '29-29')).toBe(true); });
   it('requires ownership and suitable terrain', () => { const state = createGameState(); prepareArea(state, 40, 40, 2, 2, 'player', 'hills'); expect(canBuildOnTile(state, 'iron_mine', '40-40')).toBe(true); tile(state, 41, 41).terrain = 'plains'; expect(canBuildOnTile(state, 'iron_mine', '40-40')).toBe(false); });
+  it('places every building flag at the fixed southern inter-cell node', () => { const state = createGameState(); for (const [typeId, width, height] of [['stonecutter_hut', 2, 2], ['workshop', 3, 3], ['farm', 4, 4], ['fortress', 5, 5]]) { const position = getBuildingFlagPosition(state, { typeId, tileId: '40-40' }); expect(position).toEqual({ x: 41, y: 40 + height }); expect(position.x).toBe(40 + 1); expect(position.y).toBe(40 + height); } });
 });
 
 describe('physical construction mechanics', () => {
