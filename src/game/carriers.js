@@ -63,7 +63,23 @@ export function removeInputResourceFromBuilding(state, buildingId, resourceId, a
 export function stageBuildingOutputAtFlag(state, buildingId, resourceId, amount = 1) { const flag = (state.flags ?? []).find((item) => item.buildingId === buildingId) ?? null; const units = removeInventoryFromBuilding(state, buildingId, resourceId, amount); if (!flag || units <= 0) { if (units > 0) addInventoryToBuilding(state, buildingId, resourceId, units); return 0; } return addCargoToFlag(state, flag.id, resourceId, units); }
 export function deliverFlagCargoToBuilding(state, flagId, resourceId, amount = 1) { const units = removeCargoFromFlag(state, flagId, resourceId, amount); if (units <= 0) return 0; const flag = getFlag(state, flagId); const added = flag?.buildingId ? addInputResourceToBuilding(state, flag.buildingId, resourceId, units) : 0; if (added < units) addCargoToFlag(state, flagId, resourceId, units - added); return added; }
 
-export function stageWarehouseCargoForRequest(state, requestId) { const request = (state.transportRequests ?? []).find((item) => item.id === requestId) ?? null; if (!request || !request.sourceWarehouseId || request.state !== 'waiting' || Number(request.delivered ?? 0) + Number(request.inTransit ?? 0) >= Number(request.amount ?? 0)) return false; const carrier = getWarehouseCarrier(state, request.sourceWarehouseId); if (!carrier || carrier.cargo) return false; if (getBuildingInventory(state, request.sourceWarehouseId, request.resourceId) < 1) return false; if (!prepareTransportRequest(state, request)) return false; if (removeInventoryFromBuilding(state, request.sourceWarehouseId, request.resourceId, 1) !== 1) return false; if (addCargoToFlag(state, request.sourceFlagId, request.resourceId, 1) !== 1) return false; request.state = 'ready'; request.sourceStaged = true; carrier.cargo = { requestId, resourceId: request.resourceId, amount: 1, fromBuildingId: request.sourceWarehouseId, toFlagId: request.sourceFlagId }; carrier.state = CARRIER_STATES.CARRYING; return true; }
+export function stageWarehouseCargoForRequest(state, requestId) {
+  const request = (state.transportRequests ?? []).find((item) => item.id === requestId) ?? null;
+  if (!request || !request.sourceWarehouseId || request.state !== 'waiting' || Number(request.delivered ?? 0) + Number(request.inTransit ?? 0) >= Number(request.amount ?? 0)) return false;
+  const carrier = getWarehouseCarrier(state, request.sourceWarehouseId);
+  if (!carrier || carrier.cargo) return false;
+  if (getBuildingInventory(state, request.sourceWarehouseId, request.resourceId) < 1) return false;
+  if (!prepareTransportRequest(state, request)) return false;
+  if (removeInventoryFromBuilding(state, request.sourceWarehouseId, request.resourceId, 1) !== 1) return false;
+  if (addCargoToFlag(state, request.sourceFlagId, request.resourceId, 1) !== 1) return false;
+  request.state = 'ready';
+  request.sourceStaged = true;
+  // The warehouse carrier has completed its short local leg: the cargo is
+  // physically on the warehouse flag and is now available to the road carrier.
+  carrier.cargo = null;
+  carrier.state = CARRIER_STATES.IDLE;
+  return true;
+}
 export function completeWarehousePickup(state, requestId) { const request = (state.transportRequests ?? []).find((item) => item.id === requestId) ?? null; const carrier = (state.carriers ?? []).find((item) => item.role === CARRIER_ROLES.WAREHOUSE && item.cargo?.requestId === requestId) ?? null; if (!request || !carrier) return false; carrier.cargo = null; carrier.state = CARRIER_STATES.IDLE; return true; }
 export function prepareTransportRequest(state, request) { const delivered = Number(request?.delivered ?? 0), inTransit = Number(request?.inTransit ?? 0), amount = Number(request?.amount ?? 0); if (!request || delivered + inTransit >= amount || request.ownerId !== state.player?.id) return false; if (!getFlag(state, request.sourceFlagId) || !getFlag(state, request.destinationFlagId)) return false; const route = findFlagRoute(state, request.sourceFlagId, request.destinationFlagId); if (!route || route.flagIds.length < 2) return false; request.routeFlagIds = route.flagIds; request.routeRoadIds = route.roadIds; if (request.state === 'waiting') request.state = 'ready'; return true; }
 function getSegmentForRoad(request, road) { const index = (request.routeRoadIds ?? []).indexOf(road.id); if (index < 0) return null; return { index, fromFlagId: request.routeFlagIds[index], toFlagId: request.routeFlagIds[index + 1] }; }
