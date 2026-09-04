@@ -4,7 +4,6 @@ import { INFLUENCE_RADIUS } from './influence.js';
 import { createTerritorySource, recalculateTerritories } from './territory.js';
 import { BUILDING_TYPES, addBuilding, getFootprintTiles } from './buildings.js';
 import { createGameClock } from './clock.js';
-import { syncBuildingFlags } from './buildingLogistics.js';
 
 export const MAP_WIDTH = 100;
 export const MAP_HEIGHT = 100;
@@ -43,13 +42,11 @@ export function createGameState(now = Date.now()) {
     selectedTileId: null, clock: createGameClock(now),
     player: { id: 'player', name: 'Игрок', resources: createPlayerResources() },
     rules: { influenceRadius: INFLUENCE_RADIUS, headquartersInfluenceRadius: HEADQUARTERS_INFLUENCE_RADIUS, workZoneRadius: 5, resourceUnitPerExtraction: 1 },
-    buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} },
-    workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], tiles,
+    buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} }, workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], tiles,
   };
   const headquartersFootprint = getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   headquartersFootprint.forEach((tile) => { tile.ownerId = 'player'; });
-  const headquarters = addBuilding(state, 'headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
-  syncBuildingFlags(state);
+  addBuilding(state, 'headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   const headquartersCenter = tiles.find((tile) => tile.x === HEADQUARTERS_CENTER_X && tile.y === HEADQUARTERS_CENTER_Y);
   if (headquartersCenter) { state.territorySources.push(createTerritorySource('headquarters-player', 'player', headquartersCenter.id, 1, HEADQUARTERS_INFLUENCE_RADIUS)); recalculateTerritories(state); }
   return state;
