@@ -50,7 +50,7 @@ describe('logistics dispatcher', () => {
     const destination = addDestinationBuilding(state);
     const warehouseFlag = state.flags.find((flag) => flag.buildingId === warehouse.id);
     const destinationFlag = state.flags.find((flag) => flag.buildingId === destination.id);
-    const middleFlag = { id: 'middle-flag', ownerId: state.player.id, buildingId: null, cargo: {} };
+    const middleFlag = { id: 'middle-flag', ownerId: state.player.id, buildingId: null, x: 46, y: 47, cargo: {} };
     state.flags.push(middleFlag);
 
     connectFlags(state, 'road-1', warehouseFlag.id, middleFlag.id);
@@ -66,7 +66,7 @@ describe('logistics dispatcher', () => {
     expect(request.state).toBe('ready');
     expect(dispatchTransportRequests(state)).toBe(1);
     expect(advanceDispatchedCarriers(state)).toBe(1);
-    expect(request.state).toBe('at_destination');
+    expect(request.state).toBe('delivered');
     expect(state.flags.find((flag) => flag.id === destinationFlag.id)?.cargo?.stone).toBe(1);
   });
 });
