@@ -149,6 +149,7 @@ export function dispatchTransportRequests(state) {
   let dispatched = 0;
   for (const request of state.transportRequests) {
     if (request.state === 'delivered' || request.state === 'at_destination') continue;
+    if (!prepareTransportRequest(state, request)) continue;
     const carrier = getRoadCarrierForRequest(state, request);
     if (!carrier) continue;
     if (loadCarrierFromFlag(state, carrier.id, request.id)) dispatched += 1;
