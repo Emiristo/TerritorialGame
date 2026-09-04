@@ -46,6 +46,8 @@ export function createGameState(now = Date.now()) {
     buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} },
     workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], tiles,
   };
+  const headquartersFootprint = getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
+  headquartersFootprint.forEach((tile) => { tile.ownerId = 'player'; });
   const headquarters = addBuilding(state, 'headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   syncBuildingFlags(state);
   const headquartersCenter = tiles.find((tile) => tile.x === HEADQUARTERS_CENTER_X && tile.y === HEADQUARTERS_CENTER_Y);
