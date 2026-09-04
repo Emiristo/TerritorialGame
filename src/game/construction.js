@@ -24,11 +24,11 @@ function getBuildingFlag(state, building) {
   return (state.flags ?? []).find((flag) => flag.id === building.flagId || flag.buildingId === building.id) ?? null;
 }
 
-function ensureConstructionStorage(state, building) {
+function ensureFlagCargo(state, building) {
   const flag = getBuildingFlag(state, building);
   if (!flag) throw new Error('Construction flag not found');
-  flag.constructionStorage ??= {};
-  return flag.constructionStorage;
+  flag.cargo ??= {};
+  return flag.cargo;
 }
 
 function allConstructionMaterialsProcessed(building) {
@@ -50,23 +50,34 @@ function acknowledgeBuilderPickup(state, building, resource) {
 
 function takeNextConstructionMaterial(state, building) {
   if (building.currentConstructionMaterial) return true;
-  const storage = ensureConstructionStorage(state, building);
+  const cargo = ensureFlagCargo(state, building);
   const queue = building.constructionMaterialQueue ?? (building.constructionMaterialQueue = []);
 
   while (queue.length > 0) {
-    const resource = queue.shift();
+    // FIFO is strict: never inspect a later material while the oldest queued
+    // unit is still waiting to be consumed.
+    const resource = queue[0];
     const used = Number(building.constructionMaterialsUsed?.[resource] ?? 0);
     const required = Number(building.constructionMaterialsRequired?.[resource] ?? 0);
-    const available = Number(storage[resource] ?? 0);
+    const available = Number(cargo[resource] ?? 0);
 
-    if (used >= required || available <= 0) continue;
+    if (used >= required) {
+      queue.shift();
+      continue;
+    }
+    if (available <= 0) {
+      building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
+      return false;
+    }
 
-    storage[resource] = available - 1;
+    queue.shift();
+    cargo[resource] = available - 1;
     building.constructionMaterialsUsed[resource] = used + 1;
     acknowledgeBuilderPickup(state, building, resource);
     building.currentConstructionMaterial = resource;
     building.currentConstructionMaterialRemainingTime = getMaterialDuration(resource);
     building.constructionTimer = building.currentConstructionMaterialRemainingTime;
+    building.constructionTimerStartedAt = Date.now();
     building.constructionState = CONSTRUCTION_STATES.BUILDING;
     return true;
   }
@@ -80,7 +91,7 @@ export function getConstructionTime(materials = {}) {
 }
 
 export function startConstruction(state, building, now = Date.now()) {
-  ensureConstructionStorage(state, building);
+  ensureFlagCargo(state, building);
   building.constructionStartedAt = now;
   building.lastConstructionUpdateAt = now;
   building.constructionComplete = false;
@@ -91,8 +102,6 @@ export function startConstruction(state, building, now = Date.now()) {
   building.constructionMaterialsDelivered ??= Object.fromEntries(Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0]));
   building.constructionMaterialsUsed ??= Object.fromEntries(Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0]));
   building.constructionMaterialQueue ??= [];
-  const storage = ensureConstructionStorage(state, building);
-  for (const resource of Object.keys(getConstructionMaterials(building))) storage[resource] ??= 0;
   return building;
 }
 
@@ -109,8 +118,8 @@ export function deliverMaterialToConstructionFlag(state, building, resourceId, a
   const requested = Math.max(0, Math.floor(Number(amount) || 0));
   const units = Math.max(0, Math.min(requested, required - delivered));
   if (!units) return 0;
-  const storage = ensureConstructionStorage(state, building);
-  storage[resourceId] = Number(storage[resourceId] ?? 0) + units;
+  const cargo = ensureFlagCargo(state, building);
+  cargo[resourceId] = Number(cargo[resourceId] ?? 0) + units;
   building.constructionMaterialsDelivered[resourceId] = delivered + units;
   building.constructionMaterialQueue ??= [];
   for (let index = 0; index < units; index += 1) building.constructionMaterialQueue.push(resourceId);
