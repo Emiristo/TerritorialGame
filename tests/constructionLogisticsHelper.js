@@ -13,9 +13,16 @@ function ensurePlayer(state) {
   state.carriers ??= [];
   state.transportRequests ??= [];
 }
+function prepareWarehouseArea(state, x, y) {
+  for (let dy = 0; dy < BUILDING_TYPES.WAREHOUSE.height; dy += 1) for (let dx = 0; dx < BUILDING_TYPES.WAREHOUSE.width; dx += 1) {
+    const tile = state.tiles?.find((item) => item.x === x + dx && item.y === y + dy);
+    if (tile) { tile.ownerId = state.player.id; tile.terrain = 'plains'; }
+  }
+}
 function ensureWarehouse(state, resourceId, amount) {
   let warehouse = state.buildings.find((building) => building.active && building.ownerId === state.player.id && building.typeId === BUILDING_TYPES.WAREHOUSE.id);
   if (!warehouse) {
+    prepareWarehouseArea(state, 5, 5);
     warehouse = addBuilding(state, `test-warehouse-${state.buildings.length}`, state.player.id, BUILDING_TYPES.WAREHOUSE.id, '5-5');
     warehouse.active = true;
     warehouse.constructionComplete = true;
