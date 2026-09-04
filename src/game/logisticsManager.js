@@ -11,6 +11,8 @@ import {
   stageBuildingOutputAtFlag,
   stageWarehouseCargoForRequest,
   prepareTransportRequest,
+  loadCarrierFromFlag,
+  deliverCarrierToFlag,
 } from './carriers.js';
 
 function getBuildingType(state, building) {
@@ -125,6 +127,35 @@ function planSource(state, source) {
 
   state.transportRequests.push(request);
   return true;
+}
+
+function getRoadCarrierForRequest(state, request) {
+  const nextRoadId = request?.routeRoadIds?.find((roadId, index) => {
+    const fromFlagId = request.routeFlagIds?.[index];
+    const fromFlagCargo = getFlagCargo(state, fromFlagId, request.resourceId);
+    return fromFlagCargo > 0 && !((state.carriers ?? []).some((carrier) => carrier.role === 'road'
+      && carrier.roadId === roadId && carrier.cargo?.requestId === request.id));
+  });
+  if (!nextRoadId) return null;
+  return (state.carriers ?? []).find((carrier) => carrier.role === 'road'
+    && carrier.roadId === nextRoadId
+    && !carrier.cargo);
+}
+
+export function dispatchTransportRequests(state) {
+  state.transportRequests ??= [];
+  rebuildLogisticsNetwork(state);
+  let dispatched = 0;
+  for (const request of state.transportRequests) {
+    if (request.state === 'delivered' || request.state === 'at_destination') continue;
+    const carrier = getRoadCarrierForRequest(state, request);
+    if (!carrier) continue;
+    if (loadCarrierFromFlag(state, carrier.id, request.id)) {
+      dispatched += 1;
+      deliverCarrierToFlag(state, carrier.id);
+    }
+  }
+  return dispatched;
 }
 
 export function markLogisticsDirty(state, sourceBuildingId, resourceId = null) {
