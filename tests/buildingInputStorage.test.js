@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { addInputResourceToBuilding, getBuildingInputStorage, getBuildingInputStorageCapacity } from '../src/game/carriers.js';
+import { addInputResourceToBuilding, addProductionOutputToBuilding, getBuildingInputStorage, getBuildingInputStorageCapacity, getBuildingOutputStorageResource, removeProductionOutputFromBuilding } from '../src/game/carriers.js';
 import { addBuilding } from '../src/game/buildings.js';
 import { createGameState } from '../src/game/state.js';
 
 function place(state, id, typeId, tileId = '40-40') {
   const [x, y] = tileId.split('-').map(Number);
-  const type = typeId === 'workshop' ? { width: 3, height: 3 } : { width: 3, height: 3 };
+  const type = { width: 3, height: 3 };
   for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) {
     const tile = state.tiles.find((item) => item.x === x + dx && item.y === y + dy);
     tile.ownerId = state.player.id;
@@ -33,6 +33,18 @@ describe('building input storage', () => {
     expect(addInputResourceToBuilding(state, building.id, 'steel', 2)).toBe(0);
     expect(getBuildingInputStorage(state, building.id)).toEqual(['steel', 'steel', 'planks', 'planks']);
     expect(building.outputStorageSlot).toBeNull();
+  });
+
+  it('keeps the fifth slot reserved exclusively for finished production', () => {
+    const state = createGameState();
+    const building = place(state, 'workshop', 'workshop');
+    expect(addProductionOutputToBuilding(state, building.id, 'tool', 1)).toBe(1);
+    expect(getBuildingOutputStorageResource(state, building.id)).toBe('tool');
+    expect(addProductionOutputToBuilding(state, building.id, 'tool', 1)).toBe(0);
+    expect(addInputResourceToBuilding(state, building.id, 'steel', 1)).toBe(1);
+    expect(getBuildingInputStorage(state, building.id)).toEqual(['steel', null, null, null]);
+    expect(removeProductionOutputFromBuilding(state, building.id, 'tool', 1)).toBe(1);
+    expect(getBuildingOutputStorageResource(state, building.id)).toBeNull();
   });
 
   it('does not create restricted production storage for a warehouse', () => {
