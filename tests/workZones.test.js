@@ -1,27 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
-import { createBuilding } from '../src/game/buildings.js';
+import { BUILDING_TYPES, addBuilding } from '../src/game/buildings.js';
 import { advanceAllConstructions, deliverMaterialToConstructionFlag, startConstruction } from '../src/game/construction.js';
 import {
-  createWorkZone,
-  createWorkZoneForBuilding,
-  getWorkZoneCells,
-  getWorkZoneForBuilding,
-  getWorkZoneRadius,
-  getWorkZoneSpec,
-  isTileInWorkZone,
-  assignWorkerToBuilding,
-  assignWorkerToWorkZone,
-  removeWorkZoneForBuilding,
-  syncWorkZones,
+  createWorkZone, createWorkZoneForBuilding, getWorkZoneCells, getWorkZoneForBuilding, getWorkZoneRadius, getWorkZoneSpec,
+  isTileInWorkZone, assignWorkerToBuilding, assignWorkerToWorkZone, removeWorkZoneForBuilding, syncWorkZones,
 } from '../src/game/workZones.js';
 import { createWorker } from '../src/game/workers.js';
+
+function place(state, id, typeId, tileId = '30-30') {
+  const [x, y] = tileId.split('-').map(Number);
+  const type = BUILDING_TYPES[Object.keys(BUILDING_TYPES).find((key) => BUILDING_TYPES[key].id === typeId)];
+  for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) {
+    const tile = state.tiles.find((item) => item.x === x + dx && item.y === y + dy);
+    tile.ownerId = state.player.id;
+    tile.terrain = 'plains';
+  }
+  return addBuilding(state, id, state.player.id, typeId, tileId);
+}
 
 describe('work zones', () => {
   it('creates an external radius zone for a resource-working building', () => {
     const state = createGameState();
-    const building = createBuilding('lumberjack', 'player', 'lumberjack_hut', '30-30');
-    state.buildings.push(building);
+    const building = place(state, 'lumberjack', 'lumberjack_hut');
     expect(createWorkZoneForBuilding(state, building.id)).toBeNull();
     building.active = true;
     building.constructionComplete = true;
@@ -32,10 +33,9 @@ describe('work zones', () => {
 
   it('creates a footprint-sized zone for buildings whose work is inside the building', () => {
     const state = createGameState();
-    const building = createBuilding('sawmill', 'player', 'sawmill', '30-30');
+    const building = place(state, 'sawmill', 'sawmill', '30-30');
     building.active = true;
     building.constructionComplete = true;
-    state.buildings.push(building);
     expect(getWorkZoneSpec(state, building)).toEqual({ mode: 'footprint' });
     expect(getWorkZoneRadius(state, building)).toBeNull();
     const zone = createWorkZoneForBuilding(state, building.id);
@@ -45,10 +45,9 @@ describe('work zones', () => {
 
   it('uses the full building footprint for the farm work zone', () => {
     const state = createGameState();
-    const building = createBuilding('farm', 'player', 'farm', '30-30');
+    const building = place(state, 'farm', 'farm', '30-30');
     building.active = true;
     building.constructionComplete = true;
-    state.buildings.push(building);
     const zone = createWorkZoneForBuilding(state, building.id);
     expect(zone).toMatchObject({ mode: 'footprint' });
     expect(getWorkZoneCells(state, zone)).toHaveLength(16);
@@ -105,11 +104,10 @@ describe('work zones', () => {
 
   it('syncs zones with active buildings and removes obsolete zones', () => {
     const state = createGameState();
-    const active = createBuilding('active', 'player', 'lumberjack_hut', '30-30');
+    const active = place(state, 'active', 'lumberjack_hut', '30-30');
     active.active = true;
     active.constructionComplete = true;
-    const inactive = createBuilding('inactive', 'player', 'lumberjack_hut', '40-40');
-    state.buildings.push(active, inactive);
+    const inactive = place(state, 'inactive', 'lumberjack_hut', '40-40');
     state.workZones.push(createWorkZone('obsolete', 'player', inactive.id, inactive.tileId, 5));
     syncWorkZones(state);
     expect(getWorkZoneForBuilding(state, active.id)).not.toBeNull();
@@ -130,10 +128,7 @@ describe('work zones', () => {
 
   it('runs the full chain: physical delivery, construction completion, work zone and worker assignment', () => {
     const state = createGameState();
-    const building = createBuilding('lumberjack-1', 'player', 'lumberjack_hut', '30-30');
-    building.flagId = `${building.id}-flag`;
-    state.buildings.push(building);
-    state.flags.push({ id: building.flagId, buildingId: building.id, ownerId: building.ownerId, x: 30, y: 30, constructionStorage: {} });
+    const building = place(state, 'lumberjack-1', 'lumberjack_hut');
     state.player.resources.planks = 2;
     state.workers.push(createWorker('worker-1', 'player', 'lumberjack'));
 
