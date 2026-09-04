@@ -2,7 +2,7 @@ import { TERRAIN_TYPES } from './terrain.js';
 import { createTileResources, createPlayerResources } from './resources.js';
 import { INFLUENCE_RADIUS } from './influence.js';
 import { createTerritorySource, recalculateTerritories } from './territory.js';
-import { BUILDING_TYPES, createBuilding, getFootprintTiles } from './buildings.js';
+import { BUILDING_TYPES, addBuilding, getFootprintTiles } from './buildings.js';
 import { createGameClock } from './clock.js';
 import { syncBuildingFlags } from './buildingLogistics.js';
 
@@ -46,8 +46,7 @@ export function createGameState(now = Date.now()) {
     buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} },
     workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], tiles,
   };
-  const headquarters = createBuilding('headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
-  state.buildings.push(headquarters);
+  const headquarters = addBuilding(state, 'headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   syncBuildingFlags(state);
   const headquartersCenter = tiles.find((tile) => tile.x === HEADQUARTERS_CENTER_X && tile.y === HEADQUARTERS_CENTER_Y);
   if (headquartersCenter) { state.territorySources.push(createTerritorySource('headquarters-player', 'player', headquartersCenter.id, 1, HEADQUARTERS_INFLUENCE_RADIUS)); recalculateTerritories(state); }
