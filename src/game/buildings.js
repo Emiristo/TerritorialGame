@@ -1,4 +1,6 @@
 import { createFlag } from './flags.js';
+import { removeRoadsForFlag } from './roads.js';
+import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 
 export const BUILDING_TYPES = {
   HEADQUARTERS: { id: 'headquarters', name: 'Штаб', width: 3, height: 3, constructionMaterials: {}, terrainIds: null, workerTypeId: null, toolId: null, workZone: null, influenceRadius: 10, input: {}, output: null, productionTime: null, role: 'storage' },
@@ -38,3 +40,4 @@ export function getBuildingAtTile(state,tileId){return(state.buildings??[]).find
 export function isReservedForBuilding(state,tileId){return(state.buildings??[]).some(b=>getReservedTiles(state,b.typeId,b.tileId).some(t=>t.id===tileId));}
 export function canBuildOnTile(state,typeId,tileId,ownerId=state.player.id){const type=findType(typeId),footprint=getFootprintTiles(state,typeId,tileId);if(!type||footprint.length!==type.width*type.height)return false;if(footprint.some(t=>t.ownerId!==ownerId))return false;if(type.terrainIds&&footprint.some(t=>!type.terrainIds.includes(t.terrain)))return false;if(footprint.some(t=>getBuildingAtTile(state,t.id)||isReservedForBuilding(state,t.id)))return false;return Boolean(getBuildingFlagPosition(state,{typeId,tileId}));}
 export function addBuilding(state,id,ownerId,typeId,tileId){const building=createBuildingData(id,ownerId,typeId,tileId);if(!canBuildOnTile(state,building.typeId,building.tileId,building.ownerId))throw new Error('Building cannot be placed on this footprint');state.buildings??=[];state.flags??=[];const p=getBuildingFlagPosition(state,building);building.flagId=`${building.id}-flag`;building.flagPosition=p;state.buildings.push(building);state.flags.push({...createFlag(building.flagId,building.id,building.ownerId,p.x,p.y),constructionStorage:{}});return building;}
+export function destroyBuilding(state,buildingId){const index=(state.buildings??[]).findIndex((building)=>building.id===buildingId);if(index<0)return null;const [building]=state.buildings.splice(index,1);const flag=(state.flags??[]).find((item)=>item.buildingId===buildingId);if(flag)removeRoadsForFlag(state,flag.id);state.flags=(state.flags??[]).filter((item)=>item.buildingId!==buildingId);rebuildLogisticsNetwork(state);return building;}
