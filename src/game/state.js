@@ -10,7 +10,6 @@ export const CAPITAL_X = 49;
 export const CAPITAL_Y = 49;
 export const HEADQUARTERS_CENTER_X = 50;
 export const HEADQUARTERS_CENTER_Y = 50;
-export const HEADQUARTERS_INFLUENCE_RADIUS = BUILDING_TYPES.HEADQUARTERS.influenceRadius;
 export const STARTER_FOREST_AREA = { minX: 46, maxX: 47, minY: 42, maxY: 46 };
 export const STARTER_STONE_AREA = { minX: 53, maxX: 54, minY: 54, maxY: 58 };
 export const STARTER_HILLS_AREA = { minX: 43, maxX: 44, minY: 54, maxY: 55 };
@@ -40,14 +39,17 @@ export function createGameState(now = Date.now()) {
   const state = {
     selectedTileId: null, clock: createGameClock(now),
     player: { id: 'player', name: 'Игрок', resources: createPlayerResources() },
-    rules: { influenceRadius: 5, headquartersInfluenceRadius: HEADQUARTERS_INFLUENCE_RADIUS, workZoneRadius: 5, resourceUnitPerExtraction: 1 },
+    rules: { workZoneRadius: 5, resourceUnitPerExtraction: 1 },
     buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} }, workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], tiles,
   };
   const headquartersFootprint = getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   headquartersFootprint.forEach((tile) => { tile.ownerId = 'player'; });
   addBuilding(state, 'headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   const headquartersCenter = tiles.find((tile) => tile.x === HEADQUARTERS_CENTER_X && tile.y === HEADQUARTERS_CENTER_Y);
-  if (headquartersCenter) { state.territorySources.push(createTerritorySource('headquarters-player', 'player', headquartersCenter.id, 1, HEADQUARTERS_INFLUENCE_RADIUS)); recalculateTerritories(state); }
+  if (headquartersCenter) {
+    state.territorySources.push(createTerritorySource('headquarters-player', 'player', headquartersCenter.id, 1, BUILDING_TYPES.HEADQUARTERS.influenceRadius));
+    recalculateTerritories(state);
+  }
   return state;
 }
 export function getSelectedTile(state) { return state.tiles.find((tile) => tile.id === state.selectedTileId) ?? null; }
