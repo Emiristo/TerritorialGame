@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createFlag } from '../src/game/flags.js';
-import { createRoad, addRoad, getRoadCarrierCapacity, getRoadLevel } from '../src/game/roads.js';
+import { createRoad, addRoad, getRoadCarrierCapacity, getRoadLevel, recordRoadCargo } from '../src/game/roads.js';
 import { rebuildLogisticsNetwork } from '../src/game/logisticsNetwork.js';
 import {
   CARRIER_STATES,
@@ -32,16 +32,16 @@ describe('carrier logistics', () => {
     addTestFlag(state, 'a', 1, 1);
     addTestFlag(state, 'b', 4, 1);
     addTestRoad(state, 'road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']);
-    addCarrier(state, createCarrier('carrier-1', 'player', 'road-a-b'));
+    const carrier = state.carriers.find((item) => item.roadId === 'road-a-b');
     const request = createTransportRequest('request-1', 'player', 'stone', 1, 'a', 'b');
     state.transportRequests.push(request);
     addCargoToFlag(state, 'a', 'stone', 1);
 
-    expect(advanceCarrier(state, 'carrier-1', 'request-1')).toBe(true);
-    expect(state.carriers[0].state).toBe(CARRIER_STATES.CARRYING);
+    expect(advanceCarrier(state, carrier.id, 'request-1')).toBe(true);
+    expect(carrier.state).toBe(CARRIER_STATES.CARRYING);
     expect(getFlagCargo(state, 'a', 'stone')).toBe(0);
 
-    expect(advanceCarrier(state, 'carrier-1', 'request-1')).toBe(true);
+    expect(advanceCarrier(state, carrier.id, 'request-1')).toBe(true);
     expect(getFlagCargo(state, 'b', 'stone')).toBe(1);
     expect(request.delivered).toBe(1);
     expect(request.state).toBe('delivered');
@@ -54,21 +54,21 @@ describe('carrier logistics', () => {
     addTestFlag(state, 'c', 7, 1);
     addTestRoad(state, 'road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']);
     addTestRoad(state, 'road-b-c', 'b', 'c', ['4-1', '5-1', '6-1', '7-1']);
-    addCarrier(state, createCarrier('carrier-ab', 'player', 'road-a-b'));
-    addCarrier(state, createCarrier('carrier-bc', 'player', 'road-b-c'));
+    const carrierAB = state.carriers.find((item) => item.roadId === 'road-a-b');
+    const carrierBC = state.carriers.find((item) => item.roadId === 'road-b-c');
     rebuildLogisticsNetwork(state);
     const request = createTransportRequest('request-1', 'player', 'stone', 1, 'a', 'c');
     state.transportRequests.push(request);
     addCargoToFlag(state, 'a', 'stone', 1);
 
-    expect(advanceCarrier(state, 'carrier-ab', 'request-1')).toBe(true);
-    expect(advanceCarrier(state, 'carrier-ab', 'request-1')).toBe(true);
+    expect(advanceCarrier(state, carrierAB.id, 'request-1')).toBe(true);
+    expect(advanceCarrier(state, carrierAB.id, 'request-1')).toBe(true);
     expect(getFlagCargo(state, 'b', 'stone')).toBe(1);
     expect(getFlagCargo(state, 'c', 'stone')).toBe(0);
     expect(request.delivered).toBe(0);
 
-    expect(advanceCarrier(state, 'carrier-bc', 'request-1')).toBe(true);
-    expect(advanceCarrier(state, 'carrier-bc', 'request-1')).toBe(true);
+    expect(advanceCarrier(state, carrierBC.id, 'request-1')).toBe(true);
+    expect(advanceCarrier(state, carrierBC.id, 'request-1')).toBe(true);
     expect(getFlagCargo(state, 'c', 'stone')).toBe(1);
     expect(request.delivered).toBe(1);
   });
@@ -92,21 +92,20 @@ describe('carrier logistics', () => {
     addTestFlag(state, 'b', 4, 1);
     addTestRoad(state, 'road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']);
     const road = state.roads[0];
-    road.transportedCargo = 200;
-    addCarrier(state, createCarrier('carrier-1', 'player', road.id));
-    addCarrier(state, createCarrier('carrier-2', 'player', road.id));
+    recordRoadCargo(state, road.id, 200);
+    const [carrier1, carrier2] = state.carriers.filter((carrier) => carrier.roadId === road.id);
 
     const request = createTransportRequest('request-1', 'player', 'stone', 1, 'a', 'b');
     state.transportRequests.push(request);
     addCargoToFlag(state, 'a', 'stone', 2);
 
-    expect(advanceCarrier(state, 'carrier-1', 'request-1')).toBe(true);
+    expect(advanceCarrier(state, carrier1.id, 'request-1')).toBe(true);
     expect(request.inTransit).toBe(1);
     expect(getFlagCargo(state, 'a', 'stone')).toBe(1);
-    expect(advanceCarrier(state, 'carrier-2', 'request-1')).toBe(false);
+    expect(advanceCarrier(state, carrier2.id, 'request-1')).toBe(false);
     expect(getFlagCargo(state, 'a', 'stone')).toBe(1);
 
-    expect(advanceCarrier(state, 'carrier-1', 'request-1')).toBe(true);
+    expect(advanceCarrier(state, carrier1.id, 'request-1')).toBe(true);
     expect(request.delivered).toBe(1);
     expect(request.inTransit).toBe(0);
     expect(getFlagCargo(state, 'b', 'stone')).toBe(1);
@@ -118,17 +117,16 @@ describe('carrier logistics', () => {
     addTestFlag(state, 'b', 4, 1);
     addTestRoad(state, 'road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']);
     const road = state.roads[0];
-    road.transportedCargo = 200;
-    addCarrier(state, createCarrier('carrier-1', 'player', road.id));
-    addCarrier(state, createCarrier('carrier-2', 'player', road.id));
+    recordRoadCargo(state, road.id, 200);
+    const [carrier1, carrier2] = state.carriers.filter((carrier) => carrier.roadId === road.id);
 
     const request1 = createTransportRequest('request-1', 'player', 'stone', 1, 'a', 'b');
     const request2 = createTransportRequest('request-2', 'player', 'stone', 1, 'a', 'b');
     state.transportRequests.push(request1, request2);
     addCargoToFlag(state, 'a', 'stone', 2);
 
-    expect(advanceCarrier(state, 'carrier-1', 'request-1')).toBe(true);
-    expect(advanceCarrier(state, 'carrier-2', 'request-2')).toBe(true);
+    expect(advanceCarrier(state, carrier1.id, 'request-1')).toBe(true);
+    expect(advanceCarrier(state, carrier2.id, 'request-2')).toBe(true);
     expect(request1.inTransit).toBe(1);
     expect(request2.inTransit).toBe(1);
     expect(getFlagCargo(state, 'a', 'stone')).toBe(0);
@@ -166,18 +164,18 @@ describe('carrier logistics', () => {
     addTestFlag(state, 'b', 4, 1);
     addTestRoad(state, 'road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']);
     const road = state.roads[0];
+    const carrier1 = state.carriers.find((carrier) => carrier.roadId === road.id);
 
-    addCarrier(state, createCarrier('carrier-1', 'player', road.id));
-    expect(() => addCarrier(state, createCarrier('carrier-2', 'player', road.id))).toThrow('carrier capacity');
+    expect(state.carriers.filter((carrier) => carrier.roadId === road.id)).toHaveLength(1);
 
-    road.transportedCargo = 200;
+    recordRoadCargo(state, road.id, 200);
     expect(getRoadCarrierCapacity(state, road.id)).toBe(2);
-    addCarrier(state, createCarrier('carrier-2', 'player', road.id));
-    expect(state.carriers.filter((carrier) => carrier.roadId === road.id)).toHaveLength(2);
+    const carriersAtLevel2 = state.carriers.filter((carrier) => carrier.roadId === road.id);
+    expect(carriersAtLevel2).toHaveLength(2);
+    expect(carriersAtLevel2).toContain(carrier1);
 
-    road.transportedCargo = 400;
-    addCarrier(state, createCarrier('carrier-3', 'player', road.id));
+    recordRoadCargo(state, road.id, 200);
+    expect(getRoadCarrierCapacity(state, road.id)).toBe(3);
     expect(state.carriers.filter((carrier) => carrier.roadId === road.id)).toHaveLength(3);
-    expect(() => addCarrier(state, createCarrier('carrier-4', 'player', road.id))).toThrow('carrier capacity');
   });
 });
