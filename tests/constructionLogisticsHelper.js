@@ -1,6 +1,6 @@
 import { BUILDING_TYPES, addBuilding } from '../src/game/buildings.js';
 import { addRoad, createRoad, findShortestRoadPaths } from '../src/game/roads.js';
-import { addCarrier, createCarrier, deliverCarrierToFlag, loadCarrierFromFlag } from '../src/game/carriers.js';
+import { deliverCarrierToFlag, loadCarrierFromFlag } from '../src/game/carriers.js';
 import { createTransportTasks } from '../src/game/logisticsManager.js';
 
 function ensurePlayer(state) {
@@ -39,6 +39,9 @@ function ensureRoad(state, sourceFlag, destinationFlag, buildingId) {
   if (!path) throw new Error('Test road path not found');
   return addRoad(state, createRoad(`test-construction-road-${buildingId}-${state.roads.length}`, sourceFlag.id, destinationFlag.id, path));
 }
+function getRoadCarrier(state, road) {
+  return state.carriers.find((carrier) => carrier.role === 'road' && carrier.roadId === road.id && !carrier.cargo) ?? null;
+}
 export function deliverConstructionMaterialViaLogistics(state, building, resourceId, amount = 1) {
   ensurePlayer(state);
   const requested = Math.max(0, Math.floor(Number(amount) || 0));
@@ -48,8 +51,8 @@ export function deliverConstructionMaterialViaLogistics(state, building, resourc
   const warehouseFlag = ensureWarehouse(state, resourceId, requested);
   let delivered = 0;
   const road = ensureRoad(state, warehouseFlag, destinationFlag, building.id);
-  const carrier = createCarrier(`test-road-carrier-${building.id}-${resourceId}-${state.carriers.length}`, state.player.id, road.id);
-  addCarrier(state, carrier);
+  const carrier = getRoadCarrier(state, road);
+  if (!carrier) throw new Error(`Road carrier not found: ${road.id}`);
   for (let unit = 0; unit < requested; unit += 1) {
     const before = state.transportRequests.length;
     createTransportTasks(state);
