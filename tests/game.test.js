@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createGameState, MAP_WIDTH, MAP_HEIGHT, HEADQUARTERS_INFLUENCE_RADIUS, STARTER_FOREST_AREA, STARTER_STONE_AREA, STARTER_HILLS_AREA, STARTER_MOUNTAINS_AREA } from '../src/game/state.js';
+import { createGameState, MAP_WIDTH, MAP_HEIGHT, STARTER_FOREST_AREA, STARTER_STONE_AREA, STARTER_HILLS_AREA, STARTER_MOUNTAINS_AREA } from '../src/game/state.js';
 import { BUILDING_TYPES, addBuilding, canBuildOnTile, getFootprintTiles, getReservedTiles, isReservedForBuilding } from '../src/game/buildings.js';
 import { createGameClock, startGameClock, tickGameClock } from '../src/game/clock.js';
 import { BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, startConstruction, advanceConstruction } from '../src/game/construction.js';
@@ -49,7 +49,10 @@ describe('territorial influence radii', () => {
     expect(BUILDING_TYPES.FORTRESS.influenceRadius).toBe(25);
     for (const type of [BUILDING_TYPES.HEADQUARTERS, BUILDING_TYPES.OUTPOST, BUILDING_TYPES.BARRACKS, BUILDING_TYPES.WATCHTOWER, BUILDING_TYPES.FORTRESS]) expect(Number.isInteger(type.influenceRadius)).toBe(true);
   });
-  it('uses the radius stored by the territory source instead of a global influence constant', () => {
+  it('requires an explicit radius for every territory influence source', () => {
+    expect(() => createTerritorySource('test-source', 'player', '50-50')).toThrow('Territory source radius is required');
+  });
+  it('uses the radius stored by the territory source', () => {
     const source = createTerritorySource('test-source', 'player', '50-50', 1, BUILDING_TYPES.FORTRESS.influenceRadius);
     expect(source.radius).toBe(25);
     expect(isWithinInfluenceRadius({ x: 50, y: 50 }, { x: 75, y: 50 }, source.radius)).toBe(true);
@@ -57,4 +60,4 @@ describe('territorial influence radii', () => {
   });
 });
 
-void MAP_WIDTH; void MAP_HEIGHT; void HEADQUARTERS_INFLUENCE_RADIUS; void STARTER_FOREST_AREA; void STARTER_STONE_AREA; void STARTER_HILLS_AREA; void STARTER_MOUNTAINS_AREA; void isWithinInfluenceRadius; void WORKER_TYPES; void createWorker; void createWorkZone; void assignWorkerToBuilding; void workWorker; void createTerritorySource; void addTerritorySource; void getOwnedTiles; void getReservedTiles; void isReservedForBuilding; void canBuildOnTile;
+void MAP_WIDTH; void MAP_HEIGHT; void STARTER_FOREST_AREA; void STARTER_STONE_AREA; void STARTER_HILLS_AREA; void STARTER_MOUNTAINS_AREA; void isWithinInfluenceRadius; void WORKER_TYPES; void createWorker; void createWorkZone; void assignWorkerToBuilding; void workWorker; void createTerritorySource; void addTerritorySource; void getOwnedTiles; void getReservedTiles; void isReservedForBuilding; void canBuildOnTile;
