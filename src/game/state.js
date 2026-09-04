@@ -1,6 +1,5 @@
 import { TERRAIN_TYPES } from './terrain.js';
 import { createTileResources, createPlayerResources } from './resources.js';
-import { INFLUENCE_RADIUS } from './influence.js';
 import { createTerritorySource, recalculateTerritories } from './territory.js';
 import { BUILDING_TYPES, addBuilding, getFootprintTiles } from './buildings.js';
 import { createGameClock } from './clock.js';
@@ -11,7 +10,7 @@ export const CAPITAL_X = 49;
 export const CAPITAL_Y = 49;
 export const HEADQUARTERS_CENTER_X = 50;
 export const HEADQUARTERS_CENTER_Y = 50;
-export const HEADQUARTERS_INFLUENCE_RADIUS = 10;
+export const HEADQUARTERS_INFLUENCE_RADIUS = BUILDING_TYPES.HEADQUARTERS.influenceRadius;
 export const STARTER_FOREST_AREA = { minX: 46, maxX: 47, minY: 42, maxY: 46 };
 export const STARTER_STONE_AREA = { minX: 53, maxX: 54, minY: 54, maxY: 58 };
 export const STARTER_HILLS_AREA = { minX: 43, maxX: 44, minY: 54, maxY: 55 };
@@ -41,7 +40,7 @@ export function createGameState(now = Date.now()) {
   const state = {
     selectedTileId: null, clock: createGameClock(now),
     player: { id: 'player', name: 'Игрок', resources: createPlayerResources() },
-    rules: { influenceRadius: INFLUENCE_RADIUS, headquartersInfluenceRadius: HEADQUARTERS_INFLUENCE_RADIUS, workZoneRadius: 5, resourceUnitPerExtraction: 1 },
+    rules: { influenceRadius: 5, headquartersInfluenceRadius: HEADQUARTERS_INFLUENCE_RADIUS, workZoneRadius: 5, resourceUnitPerExtraction: 1 },
     buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} }, workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], tiles,
   };
   const headquartersFootprint = getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
