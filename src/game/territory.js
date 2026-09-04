@@ -1,6 +1,6 @@
-import { INFLUENCE_RADIUS, addInfluence, getInfluenceWinner, isWithinInfluenceRadius } from './influence.js';
+import { addInfluence, getInfluenceWinner, isWithinInfluenceRadius } from './influence.js';
 
-export function createTerritorySource(id, ownerId, tileId, influence = 1, radius = INFLUENCE_RADIUS) {
+export function createTerritorySource(id, ownerId, tileId, influence = 1, radius = 5) {
   return { id, ownerId, tileId, influence, radius, active: true };
 }
 
