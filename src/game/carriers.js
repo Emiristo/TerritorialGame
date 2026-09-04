@@ -15,6 +15,21 @@ function ensureBuildingInventory(building) { building.inventory ??= {}; return b
 function ensureInputStorage(building) { building.inputStorageSlots ??= Array(BUILDING_INPUT_STORAGE_CAPACITY).fill(null); return building.inputStorageSlots; }
 function carrierCountOnRoad(state, roadId, excludeCarrierId = null) { return (state.carriers ?? []).filter((item) => item.roadId === roadId && item.id !== excludeCarrierId && item.role !== CARRIER_ROLES.WAREHOUSE).length; }
 
+function registerConstructionDelivery(building, resourceId, amount) {
+  if (!building || building.constructionComplete || !building.constructionMaterialsRequired?.[resourceId]) return 0;
+  building.constructionMaterialsDelivered ??= {};
+  building.constructionMaterialsUsed ??= {};
+  building.constructionMaterialQueue ??= [];
+  const required = Number(building.constructionMaterialsRequired[resourceId] ?? 0);
+  const delivered = Number(building.constructionMaterialsDelivered[resourceId] ?? 0);
+  const units = Math.max(0, Math.min(Number(amount) || 0, required - delivered));
+  if (units <= 0) return 0;
+  building.constructionMaterialsDelivered[resourceId] = delivered + units;
+  for (let index = 0; index < units; index += 1) building.constructionMaterialQueue.push(resourceId);
+  building.constructionState = 'WAITING_FOR_MATERIAL';
+  return units;
+}
+
 export function createCarrier(id, ownerId, roadId = null) { return { id, ownerId, typeId: 'carrier', role: CARRIER_ROLES.ROAD, state: roadId ? CARRIER_STATES.WAITING : CARRIER_STATES.IDLE, roadId, buildingId: null, cargo: null }; }
 export function createWarehouseCarrier(id, ownerId, buildingId) { return { id, ownerId, typeId: 'carrier', role: CARRIER_ROLES.WAREHOUSE, state: CARRIER_STATES.IDLE, roadId: null, buildingId, cargo: null }; }
 export function createTransportRequest(id, ownerId, resourceId, amount, sourceFlagId, destinationFlagId) { return { id, ownerId, resourceId, amount: Math.max(0, Math.floor(Number(amount) || 0)), delivered: 0, inTransit: 0, sourceFlagId, destinationFlagId, routeFlagIds: [], routeRoadIds: [], currentSegmentIndex: 0, state: 'waiting' }; }
@@ -101,6 +116,7 @@ export function deliverCarrierToFlag(state, carrierId) {
       removeCargoFromFlag(state, destination.id, cargo.resourceId, cargo.amount);
       if (request.delivered >= request.amount) request.state = 'delivered';
     } else if (request.destinationBuildingId) {
+      registerConstructionDelivery(getBuilding(state, request.destinationBuildingId), cargo.resourceId, cargo.amount);
       request.state = 'at_destination';
       request.currentSegmentIndex = request.routeRoadIds.length;
     } else {
