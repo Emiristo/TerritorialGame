@@ -14,7 +14,9 @@ import {
 } from './carriers.js';
 
 function getBuildingType(state, building) {
-  return Object.values(BUILDING_TYPES).find((type) => type.id === building?.typeId) ?? null;
+  return (state.buildingTypes ?? []).find((type) => type.id === building?.typeId)
+    ?? Object.values(BUILDING_TYPES).find((type) => type.id === building?.typeId)
+    ?? null;
 }
 
 function getBuildingFlag(state, buildingId) {
