@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
-import { createBuilding } from '../src/game/buildings.js';
+import { addBuilding, getFootprintTiles } from '../src/game/buildings.js';
 import { createWorker } from '../src/game/workers.js';
 import { WORKER_REQUEST_STATES, createWorkerRequest, createWorkerRequestForBuilding, getWorkerRequestForBuilding, syncWorkerRequests, assignWorkerToRequest } from '../src/game/workerRequests.js';
 
 describe('worker requests', () => {
-  function readyBuilding(id, typeId) {
-    const building = createBuilding(id, 'player', typeId, '30-30');
+  function readyBuilding(state, id, typeId) {
+    const tileId = id === 'inactive' ? '35-35' : '30-30';
+    getFootprintTiles(state, typeId, tileId).forEach((tile) => { tile.ownerId = 'player'; });
+    const building = addBuilding(state, id, 'player', typeId, tileId);
     building.active = true;
     building.constructionComplete = true;
     return building;
@@ -14,30 +16,29 @@ describe('worker requests', () => {
 
   it('creates one request for a completed worker building', () => {
     const state = createGameState();
-    const building = readyBuilding('lumberjack-1', 'lumberjack_hut');
-    state.buildings.push(building);
+    const building = readyBuilding(state, 'lumberjack-1', 'lumberjack_hut');
     const request = createWorkerRequestForBuilding(state, building.id);
     expect(request).toMatchObject({ buildingId: building.id, ownerId: 'player', workerTypeId: 'lumberjack', requiredCount: 1, state: WORKER_REQUEST_STATES.WAITING, assignedWorkerIds: [] });
   });
 
   it('does not create a request for a building without a worker', () => {
     const state = createGameState();
-    const building = readyBuilding('warehouse-1', 'warehouse');
-    state.buildings.push(building);
+    const building = readyBuilding(state, 'warehouse-1', 'warehouse');
     expect(createWorkerRequest(building.id, building)).toBeNull();
     expect(createWorkerRequestForBuilding(state, building.id)).toBeNull();
     expect(state.workerRequests).toEqual([]);
   });
 
   it('uses requiredSoldiers for military buildings', () => {
-    const request = createWorkerRequest('request-1', readyBuilding('fortress-1', 'fortress'));
+    const state = createGameState();
+    const building = readyBuilding(state, 'fortress-1', 'fortress');
+    const request = createWorkerRequest('request-1', building);
     expect(request).toMatchObject({ workerTypeId: 'soldier', requiredCount: 9 });
   });
 
   it('does not duplicate a request for the same building', () => {
     const state = createGameState();
-    const building = readyBuilding('lumberjack-1', 'lumberjack_hut');
-    state.buildings.push(building);
+    const building = readyBuilding(state, 'lumberjack-1', 'lumberjack_hut');
     const first = createWorkerRequestForBuilding(state, building.id);
     const second = createWorkerRequestForBuilding(state, building.id);
     expect(second).toBe(first);
@@ -47,9 +48,8 @@ describe('worker requests', () => {
 
   it('syncs requests and removes requests for inactive buildings', () => {
     const state = createGameState();
-    const active = readyBuilding('active', 'lumberjack_hut');
-    const inactive = readyBuilding('inactive', 'stonecutter_hut');
-    state.buildings.push(active, inactive);
+    const active = readyBuilding(state, 'active', 'lumberjack_hut');
+    const inactive = readyBuilding(state, 'inactive', 'stonecutter_hut');
     createWorkerRequestForBuilding(state, inactive.id);
     inactive.active = false;
     syncWorkerRequests(state);
@@ -59,8 +59,7 @@ describe('worker requests', () => {
 
   it('assigns a matching owned worker and fulfills a one-worker request', () => {
     const state = createGameState();
-    const building = readyBuilding('lumberjack-1', 'lumberjack_hut');
-    state.buildings.push(building);
+    const building = readyBuilding(state, 'lumberjack-1', 'lumberjack_hut');
     const worker = createWorker('worker-1', 'player', 'lumberjack');
     state.workers.push(worker);
     const request = createWorkerRequestForBuilding(state, building.id);
@@ -70,8 +69,7 @@ describe('worker requests', () => {
 
   it('rejects wrong profession and owner', () => {
     const state = createGameState();
-    const building = readyBuilding('lumberjack-1', 'lumberjack_hut');
-    state.buildings.push(building);
+    const building = readyBuilding(state, 'lumberjack-1', 'lumberjack_hut');
     const request = createWorkerRequestForBuilding(state, building.id);
     state.workers.push(createWorker('wrong-type', 'player', 'stonemason'), createWorker('wrong-owner', 'other', 'lumberjack'));
     expect(assignWorkerToRequest(state, request.id, 'wrong-type')).toBe(false);
@@ -81,8 +79,7 @@ describe('worker requests', () => {
 
   it('fulfills a military request only after all required workers are assigned', () => {
     const state = createGameState();
-    const building = readyBuilding('barracks-1', 'barracks');
-    state.buildings.push(building);
+    const building = readyBuilding(state, 'barracks-1', 'barracks');
     const request = createWorkerRequestForBuilding(state, building.id);
     const workers = Array.from({ length: 3 }, (_, i) => createWorker(`soldier-${i}`, 'player', 'soldier'));
     state.workers.push(...workers);
@@ -93,8 +90,7 @@ describe('worker requests', () => {
 
   it('rejects duplicate workers and workers beyond capacity', () => {
     const state = createGameState();
-    const building = readyBuilding('barracks-1', 'barracks');
-    state.buildings.push(building);
+    const building = readyBuilding(state, 'barracks-1', 'barracks');
     const request = createWorkerRequestForBuilding(state, building.id);
     const workers = Array.from({ length: 4 }, (_, i) => createWorker(`soldier-${i}`, 'player', 'soldier'));
     state.workers.push(...workers);
