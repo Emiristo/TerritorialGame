@@ -52,7 +52,8 @@ describe('logistics integration', () => {
     state.transportRequests.push(request);
     expect(stageWarehouseCargoForRequest(state, request.id)).toBe(false);
     expect(request.state).toBe('waiting');
-    expect(state.carriers).toHaveLength(1);
+    expect(state.carriers.filter((carrier) => carrier.role === 'warehouse')).toHaveLength(1);
+    expect(state.carriers.filter((carrier) => carrier.role === 'road')).toHaveLength(1);
   });
 
   it('stages extraction output at the producing building flag and queues logistics', () => {
