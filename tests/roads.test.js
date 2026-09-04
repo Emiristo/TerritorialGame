@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
 import { createFlag, addFlag } from '../src/game/flags.js';
-import { addRoad, buildRoadToNearestFlag, createRoad, findNearestFlag, findShortestRoadPaths, isRoadPathValid } from '../src/game/roads.js';
+import { addRoad, buildRoadToNearestFlag, createRoad, findNearestFlag, findShortestRoadPaths, isRoadPathValid, recordRoadCargo } from '../src/game/roads.js';
 
 function addTestFlag(state, id, x, y) { addFlag(state, createFlag(id, null, 'player', x, y)); }
 
@@ -13,6 +13,17 @@ describe('automatic road construction', () => {
   it('finds shortest paths using 8 directions with turns limited to 45 degrees', () => {
     const state = createGameState(); addTestFlag(state, 'flag-target', 53, 52); const paths = findShortestRoadPaths(state, 'headquarters-1-flag', 'flag-target');
     expect(paths.length).toBeGreaterThan(0); expect(paths.every((cells) => cells.length === 3)).toBe(true); expect(paths.every((cells) => isRoadPathValid(state, { id: 'test', startFlagId: 'headquarters-1-flag', endFlagId: 'flag-target', cells, active: true }))).toBe(true);
+  });
+  it('creates and keeps a persistent carrier for every road', () => {
+    const state = createGameState(); addTestFlag(state, 'flag-carrier', 53, 52);
+    const path = findShortestRoadPaths(state, 'headquarters-1-flag', 'flag-carrier')[0];
+    const road = addRoad(state, createRoad('road-carrier-test', 'headquarters-1-flag', 'flag-carrier', path));
+    const carriers = state.carriers.filter((carrier) => carrier.role === 'road' && carrier.roadId === road.id);
+    expect(carriers).toHaveLength(1);
+    const carrierId = carriers[0].id;
+    recordRoadCargo(state, road.id, 200);
+    expect(state.carriers.filter((carrier) => carrier.role === 'road' && carrier.roadId === road.id)).toHaveLength(2);
+    expect(state.carriers.find((carrier) => carrier.id === carrierId)?.roadId).toBe(road.id);
   });
   it('rejects roads shorter than two cells and road intersections without a maximum length', () => {
     const state = createGameState(); addTestFlag(state, 'flag-a', 40, 50); addTestFlag(state, 'flag-b', 50, 50); addTestFlag(state, 'flag-long', 60, 50); addTestFlag(state, 'flag-c', 45, 45); addTestFlag(state, 'flag-d', 45, 55);
