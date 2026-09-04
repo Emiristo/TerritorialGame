@@ -130,16 +130,17 @@ function planSource(state, source) {
 }
 
 function getRoadCarrierForRequest(state, request) {
-  const nextRoadId = request?.routeRoadIds?.find((roadId, index) => {
+  if (!request?.routeRoadIds?.length) return null;
+  for (let index = 0; index < request.routeRoadIds.length; index += 1) {
+    const roadId = request.routeRoadIds[index];
     const fromFlagId = request.routeFlagIds?.[index];
-    const fromFlagCargo = getFlagCargo(state, fromFlagId, request.resourceId);
-    return fromFlagCargo > 0 && !((state.carriers ?? []).some((carrier) => carrier.role === 'road'
-      && carrier.roadId === roadId && carrier.cargo?.requestId === request.id));
-  });
-  if (!nextRoadId) return null;
-  return (state.carriers ?? []).find((carrier) => carrier.role === 'road'
-    && carrier.roadId === nextRoadId
-    && !carrier.cargo);
+    if (getFlagCargo(state, fromFlagId, request.resourceId) <= 0) continue;
+    const carrier = (state.carriers ?? []).find((item) => item.role === 'road'
+      && item.roadId === roadId
+      && !item.cargo);
+    if (carrier) return carrier;
+  }
+  return null;
 }
 
 export function dispatchTransportRequests(state) {
@@ -150,12 +151,18 @@ export function dispatchTransportRequests(state) {
     if (request.state === 'delivered' || request.state === 'at_destination') continue;
     const carrier = getRoadCarrierForRequest(state, request);
     if (!carrier) continue;
-    if (loadCarrierFromFlag(state, carrier.id, request.id)) {
-      dispatched += 1;
-      deliverCarrierToFlag(state, carrier.id);
-    }
+    if (loadCarrierFromFlag(state, carrier.id, request.id)) dispatched += 1;
   }
   return dispatched;
+}
+
+export function advanceDispatchedCarriers(state) {
+  let advanced = 0;
+  for (const carrier of state.carriers ?? []) {
+    if (carrier.role !== 'road' || !carrier.cargo?.requestId) continue;
+    if (deliverCarrierToFlag(state, carrier.id)) advanced += 1;
+  }
+  return advanced;
 }
 
 export function markLogisticsDirty(state, sourceBuildingId, resourceId = null) {
