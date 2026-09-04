@@ -117,8 +117,9 @@ export function deliverCarrierToFlag(state, carrierId) {
       if (request.delivered >= request.amount) request.state = 'delivered';
     } else if (request.destinationBuildingId) {
       registerConstructionDelivery(getBuilding(state, request.destinationBuildingId), cargo.resourceId, cargo.amount);
-      request.state = 'at_destination';
+      request.delivered = Number(request.delivered ?? 0) + cargo.amount;
       request.currentSegmentIndex = request.routeRoadIds.length;
+      if (request.delivered >= request.amount) request.state = 'delivered';
     } else {
       request.delivered = Number(request.delivered ?? 0) + cargo.amount;
       if (request.delivered >= request.amount) request.state = 'delivered';
