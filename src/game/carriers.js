@@ -3,7 +3,8 @@ import { getRoadCarrierCapacity, recordRoadCargo } from './roads.js';
 
 export const CARRIER_STATES = Object.freeze({ IDLE: 'idle', WAITING: 'waiting', CARRYING: 'carrying' });
 export const CARRIER_ROLES = Object.freeze({ ROAD: 'road', WAREHOUSE: 'warehouse' });
-export const BUILDING_INPUT_STORAGE_CAPACITY = 5;
+export const BUILDING_INPUT_STORAGE_CAPACITY = 4;
+export const BUILDING_OUTPUT_STORAGE_CAPACITY = 1;
 
 function getFlag(state, flagId) { return (state.flags ?? []).find((flag) => flag.id === flagId) ?? null; }
 function getRoad(state, roadId) { return (state.roads ?? []).find((road) => road.id === roadId && road.active) ?? null; }
@@ -46,7 +47,7 @@ export function getFlagCargo(state, flagId, resourceId) { return Number(getFlag(
 export function removeCargoFromFlag(state, flagId, resourceId, amount = 1) { const flag = getFlag(state, flagId), available = getFlagCargo(state, flagId, resourceId); const units = Math.max(0, Math.min(Math.floor(Number(amount) || 0), available)); if (!flag || units <= 0) return 0; flag.cargo[resourceId] = available - units; return units; }
 export function addInventoryToBuilding(state, buildingId, resourceId, amount = 1) { const building = getBuilding(state, buildingId), units = Math.max(0, Math.floor(Number(amount) || 0)); if (!building || !resourceId || units <= 0) return 0; const inventory = ensureBuildingInventory(building); inventory[resourceId] = Number(inventory[resourceId] ?? 0) + units; return units; }
 export function getBuildingInventory(state, buildingId, resourceId) { return Number(getBuilding(state, buildingId)?.inventory?.[resourceId] ?? 0); }
-export function removeInventoryFromBuilding(state, buildingId, resourceId, amount = 1) { const building = getBuilding(state, buildingId), available = getBuildingInventory(state, buildingId, resourceId); const units = Math.max(0, Math.min(Math.floor(Number(amount) || 0), available)); if (!building || units <= 0) return 0; building.inventory[resourceId] = available - units; return units; }
+export function removeInventoryFromBuilding(state, buildingId, resourceId, amount = 1) { const building = getBuilding(state, buildingId), available = getBuildingInventory(state, buildingId, resourceId); const units = Math.max(0, Math.min(Math.floor(Number(amount) || 0), available)); if (!building || !resourceId || units <= 0) return 0; building.inventory[resourceId] = available - units; return units; }
 
 export function getBuildingInputStorage(state, buildingId) { const building = getBuilding(state, buildingId); return building ? ensureInputStorage(building) : []; }
 export function getBuildingInputStorageCapacity() { return BUILDING_INPUT_STORAGE_CAPACITY; }
@@ -56,7 +57,7 @@ export function addInputResourceToBuilding(state, buildingId, resourceId, amount
   const building = getBuilding(state, buildingId), units = Math.max(0, Math.floor(Number(amount) || 0));
   if (!building || !resourceId || units <= 0) return 0;
   const type = getBuildingType(state, building);
-  if (!type?.input?.[resourceId]) return 0;
+  if (!type?.input?.[resourceId] || type.role !== 'production') return 0;
   const slots = ensureInputStorage(building);
   let added = 0;
   for (let i = 0; i < slots.length && added < units; i += 1) {
@@ -75,8 +76,33 @@ export function removeInputResourceFromBuilding(state, buildingId, resourceId, a
   return removed;
 }
 
-export function stageBuildingOutputAtFlag(state, buildingId, resourceId, amount = 1) { const flag = (state.flags ?? []).find((item) => item.buildingId === buildingId) ?? null; const units = removeInventoryFromBuilding(state, buildingId, resourceId, amount); if (!flag || units <= 0) { if (units > 0) addInventoryToBuilding(state, buildingId, resourceId, units); return 0; } return addCargoToFlag(state, flag.id, resourceId, units); }
-export function deliverFlagCargoToBuilding(state, flagId, resourceId, amount = 1) { const units = removeCargoFromFlag(state, flagId, resourceId, amount); if (units <= 0) return 0; const flag = getFlag(state, flagId); const added = flag?.buildingId ? addInputResourceToBuilding(state, flag.buildingId, resourceId, units) : 0; if (added < units) addCargoToFlag(state, flagId, resourceId, units - added); return added; }
+export function getBuildingOutputStorageCapacity() { return BUILDING_OUTPUT_STORAGE_CAPACITY; }
+export function getBuildingOutputStorageResource(state, buildingId) { return getBuilding(state, buildingId)?.outputStorageSlot ?? null; }
+export function addProductionOutputToBuilding(state, buildingId, resourceId, amount = 1) {
+  const building = getBuilding(state, buildingId), units = Math.max(0, Math.floor(Number(amount) || 0));
+  if (!building || !resourceId || units !== 1) return 0;
+  const type = getBuildingType(state, building);
+  if (type?.role !== 'production' || type.output?.resourceId !== resourceId || building.outputStorageSlot != null) return 0;
+  building.outputStorageSlot = resourceId;
+  return 1;
+}
+export function removeProductionOutputFromBuilding(state, buildingId, resourceId, amount = 1) {
+  const building = getBuilding(state, buildingId), units = Math.max(0, Math.floor(Number(amount) || 0));
+  if (!building || !resourceId || units !== 1 || building.outputStorageSlot !== resourceId) return 0;
+  building.outputStorageSlot = null;
+  return 1;
+}
+
+export function stageBuildingOutputAtFlag(state, buildingId, resourceId, amount = 1) {
+  const building = getBuilding(state, buildingId);
+  const flag = (state.flags ?? []).find((item) => item.buildingId === buildingId) ?? null;
+  const type = getBuildingType(state, building);
+  if (!building || !flag || !resourceId || amount !== 1) return 0;
+  if (type?.role === 'production') return removeProductionOutputFromBuilding(state, buildingId, resourceId, 1) && addCargoToFlag(state, flag.id, resourceId, 1) ? 1 : 0;
+  const units = removeInventoryFromBuilding(state, buildingId, resourceId, amount);
+  if (units <= 0) return 0;
+  return addCargoToFlag(state, flag.id, resourceId, units);
+}
 
 export function stageWarehouseCargoForRequest(state, requestId) {
   const request = (state.transportRequests ?? []).find((item) => item.id === requestId) ?? null;
