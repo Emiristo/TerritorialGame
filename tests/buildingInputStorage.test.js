@@ -15,28 +15,31 @@ function place(state, id, typeId, tileId = '40-40') {
 }
 
 describe('building input storage', () => {
-  it('provides exactly five input slots for a building that consumes resources', () => {
+  it('provides exactly four input slots plus one reserved output slot for a production building', () => {
     const state = createGameState();
     const building = place(state, 'workshop', 'workshop');
-    expect(getBuildingInputStorageCapacity()).toBe(5);
-    expect(getBuildingInputStorage(state, building.id)).toHaveLength(5);
-    expect(getBuildingInputStorage(state, building.id)).toEqual([null, null, null, null, null]);
+    expect(getBuildingInputStorageCapacity()).toBe(4);
+    expect(getBuildingInputStorage(state, building.id)).toHaveLength(4);
+    expect(getBuildingInputStorage(state, building.id)).toEqual([null, null, null, null]);
+    expect(building.outputStorageSlot).toBeNull();
   });
 
-  it('accepts any resource requested by the building, but never an unrelated resource or more than five units', () => {
+  it('accepts requested resources only into the four input slots and never into the reserved output slot', () => {
     const state = createGameState();
     const building = place(state, 'workshop', 'workshop');
     expect(addInputResourceToBuilding(state, building.id, 'steel', 2)).toBe(2);
     expect(addInputResourceToBuilding(state, building.id, 'planks', 2)).toBe(2);
     expect(addInputResourceToBuilding(state, building.id, 'wood', 1)).toBe(0);
-    expect(addInputResourceToBuilding(state, building.id, 'steel', 2)).toBe(1);
-    expect(getBuildingInputStorage(state, building.id)).toEqual(['steel', 'steel', 'planks', 'planks', 'steel']);
+    expect(addInputResourceToBuilding(state, building.id, 'steel', 2)).toBe(0);
+    expect(getBuildingInputStorage(state, building.id)).toEqual(['steel', 'steel', 'planks', 'planks']);
+    expect(building.outputStorageSlot).toBeNull();
   });
 
-  it('does not create restricted input storage for a warehouse', () => {
+  it('does not create restricted production storage for a warehouse', () => {
     const state = createGameState();
     const warehouse = place(state, 'warehouse', 'warehouse');
     expect(warehouse.inputStorageSlots).toBeNull();
+    expect(warehouse.outputStorageSlot).toBeUndefined();
     expect(addInputResourceToBuilding(state, warehouse.id, 'steel', 1)).toBe(0);
   });
 });
