@@ -48,13 +48,13 @@ export function deliverConstructionMaterialViaLogistics(state, building, resourc
   const warehouseFlag = ensureWarehouse(state, resourceId, requested);
   let delivered = 0;
   const road = ensureRoad(state, warehouseFlag, destinationFlag, building.id);
+  const carrier = createCarrier(`test-road-carrier-${building.id}-${resourceId}-${state.carriers.length}`, state.player.id, road.id);
+  addCarrier(state, carrier);
   for (let unit = 0; unit < requested; unit += 1) {
     const before = state.transportRequests.length;
     createTransportTasks(state);
     const request = state.transportRequests.slice(before).find((item) => item.destinationBuildingId === building.id && item.resourceId === resourceId && item.state !== 'delivered');
     if (!request) break;
-    const carrier = createCarrier(`test-road-carrier-${building.id}-${resourceId}-${unit}-${state.carriers.length}`, state.player.id, road.id);
-    addCarrier(state, carrier);
     if (!loadCarrierFromFlag(state, carrier.id, request.id)) break;
     if (!deliverCarrierToFlag(state, carrier.id)) break;
     delivered += 1;
