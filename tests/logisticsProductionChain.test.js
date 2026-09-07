@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createFlag } from '../src/game/flags.js';
 import { createRoad, addRoad } from '../src/game/roads.js';
-import { createCarrier, getFlagCargo } from '../src/game/carriers.js';
-import { createTransportTasks, dispatchTransportRequests, advanceDispatchedCarriers } from '../src/game/logisticsManager.js';
+import { getFlagCargo, getBuildingInventory } from '../src/game/carriers.js';
+import { createTransportTasks, processLogisticsTasks, dispatchTransportRequests, advanceDispatchedCarriers } from '../src/game/logisticsManager.js';
 import { advanceBuildingWorkers, createWorker } from '../src/game/workers.js';
 import { advanceAllProductions } from '../src/game/production.js';
 
@@ -53,5 +53,49 @@ describe('building logistics and production chain', () => {
     expect(advanceBuildingWorkers(state)).toBe(1);
     expect(state.buildings[1].outputStorageSlot).toBeNull();
     expect(getFlagCargo(state, 'destination-flag', 'planks')).toBe(1);
+  });
+
+  it('moves finished production from the building flag through logistics into a warehouse', () => {
+    const state = {
+      player: { id: 'player', resources: {} },
+      tiles: [],
+      flags: [
+        createFlag('workshop-flag', 'workshop', 'player', 1.5, 1),
+        createFlag('warehouse-flag', 'warehouse', 'player', 4.5, 1),
+      ],
+      roads: [],
+      buildings: [
+        { id: 'workshop', ownerId: 'player', typeId: 'workshop', active: true, constructionComplete: true, workerIds: ['worker-1'], inputStorageSlots: [null, null, null, null], outputStorageSlot: 'planks' },
+        { id: 'warehouse', ownerId: 'player', typeId: 'warehouse', active: true, inventory: {} },
+      ],
+      buildingTypes: [
+        { id: 'workshop', role: 'production', workerTypeId: 'baker', output: { resourceId: 'planks', amount: 1 }, productionTime: 1 },
+        { id: 'warehouse', role: 'storage' },
+      ],
+      carriers: [],
+      transportRequests: [],
+      workers: [createWorker('worker-1', 'player', 'baker')],
+    };
+    state.workers[0].buildingId = 'workshop';
+    state.workers[0].state = 'working';
+
+    for (let y = 0; y < 2; y += 1) for (let x = 0; x < 5; x += 1) state.tiles.push({ id: `${x}-${y}`, x, y, terrain: 'plains', resources: {} });
+    addRoad(state, createRoad('road-1', 'workshop-flag', 'warehouse-flag', ['1-0', '2-0', '3-0', '4-0']));
+
+    expect(advanceBuildingWorkers(state)).toBe(1);
+    expect(state.buildings[0].outputStorageSlot).toBeNull();
+    expect(getFlagCargo(state, 'workshop-flag', 'planks')).toBe(1);
+
+    expect(processLogisticsTasks(state)).toBe(1);
+    const request = state.transportRequests[0];
+    expect(request.sourceBuildingId).toBe('workshop');
+    expect(request.destinationWarehouseId).toBe('warehouse');
+
+    expect(dispatchTransportRequests(state)).toBe(1);
+    expect(advanceDispatchedCarriers(state)).toBe(1);
+    expect(request.state).toBe('delivered');
+    expect(getBuildingInventory(state, 'warehouse', 'planks')).toBe(1);
+    expect(getFlagCargo(state, 'warehouse-flag', 'planks')).toBe(0);
+    expect(getFlagCargo(state, 'workshop-flag', 'planks')).toBe(0);
   });
 });
