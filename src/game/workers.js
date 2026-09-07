@@ -109,6 +109,16 @@ function getBuildingWorker(state, building) {
     && worker.typeId === getBuildingType(state, building)?.workerTypeId) ?? null;
 }
 
+function completeProductionInputDelivery(state, building, resourceId) {
+  const request = (state.transportRequests ?? []).find((item) => item.state === 'at_destination'
+    && item.destinationBuildingId === building.id
+    && item.resourceId === resourceId);
+  if (!request) return false;
+  request.delivered = Number(request.delivered ?? 0) + 1;
+  request.state = Number(request.delivered) >= Number(request.amount ?? 0) ? 'delivered' : 'at_destination';
+  return true;
+}
+
 export function moveBuildingWorkerCargo(state, workerId) {
   const worker = findWorker(state, workerId);
   const building = worker?.buildingId ? findBuilding(state, worker.buildingId) : null;
@@ -130,6 +140,7 @@ export function moveBuildingWorkerCargo(state, workerId) {
     if (getFlagCargo(state, flag.id, resourceId) <= 0) continue;
     if (addInputResourceToBuilding(state, building.id, resourceId, 1) !== 1) continue;
     removeCargoFromFlag(state, flag.id, resourceId, 1);
+    completeProductionInputDelivery(state, building, resourceId);
     return true;
   }
   return false;
