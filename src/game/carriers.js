@@ -124,7 +124,7 @@ export function prepareTransportRequest(state, request) { const delivered = Numb
 function getSegmentForRoad(request, road) { const index = (request.routeRoadIds ?? []).indexOf(road.id); if (index < 0 || index !== Number(request.currentSegmentIndex ?? 0)) return null; return { index, fromFlagId: request.routeFlagIds[index], toFlagId: request.routeFlagIds[index + 1] }; }
 export function loadCarrierFromFlag(state, carrierId, requestId) { const carrier = getCarrier(state, carrierId), request = (state.transportRequests ?? []).find((item) => item.id === requestId) ?? null, road = getCarrierRoad(state, carrierId); if (!carrier || carrier.role !== CARRIER_ROLES.ROAD || !request || !road || carrier.cargo || carrier.ownerId !== request.ownerId) return false; if (!prepareTransportRequest(state, request)) return false; const segment = getSegmentForRoad(request, road); if (!segment) return false; if (!removeCargoFromFlag(state, segment.fromFlagId, request.resourceId, 1)) return false; request.inTransit = Number(request.inTransit ?? 0) + 1; request.state = 'inTransit'; carrier.cargo = { requestId: request.id, resourceId: request.resourceId, amount: 1, fromFlagId: segment.fromFlagId, toFlagId: segment.toFlagId, roadId: road.id, segmentIndex: segment.index }; carrier.state = CARRIER_STATES.CARRYING; return true; }
 
-// Physical road-carrier delivery ends at a flag. Destination ownership is handled by the receiving system.
+// Normal road transport stops at the destination flag; the receiving system performs the final handoff.
 export function deliverCarrierToFlag(state, carrierId) {
   const carrier = getCarrier(state, carrierId);
   if (!carrier?.cargo || carrier.role !== CARRIER_ROLES.ROAD) return false;
@@ -150,7 +150,8 @@ export function deliverCarrierToFlag(state, carrierId) {
   return true;
 }
 
-// Construction is the one final-destination exception: unfinished buildings consume the material from their flag.
+// Construction keeps the original physical delivery model: the road carrier
+// puts the material on the construction flag and registers it for the builder.
 export function deliverCarrierToConstructionFlag(state, carrierId) {
   const carrier = getCarrier(state, carrierId);
   if (!carrier?.cargo || carrier.role !== CARRIER_ROLES.ROAD) return false;
@@ -163,12 +164,13 @@ export function deliverCarrierToConstructionFlag(state, carrierId) {
   if (addCargoToFlag(state, destination.id, cargo.resourceId, cargo.amount) !== cargo.amount) return false;
   request.inTransit = Math.max(0, Number(request.inTransit ?? 0) - cargo.amount);
   recordRoadCargo(state, cargo.roadId, cargo.amount);
+
   const delivered = registerConstructionDelivery(building, cargo.resourceId, cargo.amount);
   if (delivered !== cargo.amount) return false;
-  removeCargoFromFlag(state, destination.id, cargo.resourceId, delivered);
   request.delivered = Number(request.delivered ?? 0) + delivered;
   request.currentSegmentIndex = request.routeRoadIds.length;
-  request.state = Number(request.delivered) >= Number(request.amount ?? 0) ? 'delivered' : 'at_destination';
+  if (request.delivered >= request.amount) request.state = 'delivered';
+
   carrier.cargo = null;
   carrier.state = CARRIER_STATES.WAITING;
   return true;
