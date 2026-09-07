@@ -27,7 +27,7 @@ function addTestRoad(state, id, start, end, cells) {
 }
 
 describe('carrier logistics', () => {
-  it('moves one cargo unit from one flag to the next flag', () => {
+  it('moves one cargo unit from one flag to the next flag and stops at the destination handoff', () => {
     const state = makeState();
     addTestFlag(state, 'a', 1, 1);
     addTestFlag(state, 'b', 4, 1);
@@ -43,8 +43,9 @@ describe('carrier logistics', () => {
 
     expect(advanceCarrier(state, carrier.id, 'request-1')).toBe(true);
     expect(getFlagCargo(state, 'b', 'stone')).toBe(1);
-    expect(request.delivered).toBe(1);
-    expect(request.state).toBe('delivered');
+    expect(request.delivered).toBe(0);
+    expect(request.inTransit).toBe(0);
+    expect(request.state).toBe('at_destination');
   });
 
   it('passes cargo through multiple flag-to-flag carriers without teleporting to the destination', () => {
@@ -66,11 +67,13 @@ describe('carrier logistics', () => {
     expect(getFlagCargo(state, 'b', 'stone')).toBe(1);
     expect(getFlagCargo(state, 'c', 'stone')).toBe(0);
     expect(request.delivered).toBe(0);
+    expect(request.state).toBe('ready');
 
     expect(advanceCarrier(state, carrierBC.id, 'request-1')).toBe(true);
     expect(advanceCarrier(state, carrierBC.id, 'request-1')).toBe(true);
     expect(getFlagCargo(state, 'c', 'stone')).toBe(1);
-    expect(request.delivered).toBe(1);
+    expect(request.delivered).toBe(0);
+    expect(request.state).toBe('at_destination');
   });
 
   it('does not load cargo when source and destination are disconnected', () => {
@@ -106,7 +109,8 @@ describe('carrier logistics', () => {
     expect(getFlagCargo(state, 'a', 'stone')).toBe(1);
 
     expect(advanceCarrier(state, carrier1.id, 'request-1')).toBe(true);
-    expect(request.delivered).toBe(1);
+    expect(request.delivered).toBe(0);
+    expect(request.state).toBe('at_destination');
     expect(request.inTransit).toBe(0);
     expect(getFlagCargo(state, 'b', 'stone')).toBe(1);
   });
@@ -141,9 +145,7 @@ describe('carrier logistics', () => {
 
     expect(getRoadLevel(state, road.id)).toBe(1);
     expect(getRoadCarrierCapacity(state, road.id)).toBe(1);
-    for (let i = 0; i < 199; i += 1) {
-      road.transportedCargo += 1;
-    }
+    for (let i = 0; i < 199; i += 1) road.transportedCargo += 1;
     expect(getRoadLevel(state, road.id)).toBe(1);
     expect(getRoadCarrierCapacity(state, road.id)).toBe(1);
 
