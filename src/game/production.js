@@ -19,12 +19,6 @@ function hasRequiredInputs(slots, input) {
     getInputCount(slots, resourceId) >= Number(amount ?? 0));
 }
 
-function consumeInputs(building, type) {
-  for (const [resourceId, amount] of Object.entries(type.input ?? {})) {
-    removeInputResourceFromBuilding(building.__state, building.id, resourceId, Number(amount ?? 0));
-  }
-}
-
 export function canStartProduction(state, building) {
   if (!building?.active || !building.constructionComplete) return false;
   const type = getBuildingType(state, building);
