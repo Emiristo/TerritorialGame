@@ -39,10 +39,11 @@ describe('building logistics and production chain', () => {
     const request = state.transportRequests[0];
     expect(dispatchTransportRequests(state)).toBe(1);
     expect(advanceDispatchedCarriers(state)).toBe(1);
-    expect(request.state).toBe('delivered');
+    expect(request.state).toBe('at_destination');
     expect(getFlagCargo(state, 'destination-flag', 'wood')).toBe(1);
 
     expect(advanceBuildingWorkers(state)).toBe(1);
+    expect(request.state).toBe('delivered');
     expect(state.buildings[1].inputStorageSlots).toEqual(['wood', null, null, null]);
     expect(getFlagCargo(state, 'destination-flag', 'wood')).toBe(0);
 
