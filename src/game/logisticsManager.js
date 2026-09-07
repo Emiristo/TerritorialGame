@@ -8,6 +8,7 @@ import {
   getBuildingInputStorageCount,
   getBuildingInputStorage,
   getBuildingInventory,
+  getBuildingOutputStorageResource,
   getFlagCargo,
   stageBuildingOutputAtFlag,
   stageWarehouseCargoForRequest,
@@ -70,7 +71,10 @@ function planSource(state, source) {
   if (!source?.active) return false;
   const sourceType = getBuildingType(state, source), sourceFlag = getBuildingFlag(state, source.id);
   if (!sourceType?.output?.resourceId || !sourceFlag) return false;
-  const resourceId = sourceType.output.resourceId, available = getFlagCargo(state, sourceFlag.id, resourceId) + getBuildingInventory(state, source.id, resourceId);
+  const resourceId = sourceType.output.resourceId;
+  const stagedOutput = getFlagCargo(state, sourceFlag.id, resourceId);
+  const outputSlot = getBuildingOutputStorageResource(state, source.id) === resourceId ? 1 : 0;
+  const available = stagedOutput + getBuildingInventory(state, source.id, resourceId) + outputSlot;
   if (available <= 0 || hasOutstandingSourceRequest(state, source.id, resourceId)) return false;
   const routes = findShortestFlagRoutes(state, sourceFlag.id);
   const productionCandidates = (state.buildings ?? []).filter((candidate) => {
