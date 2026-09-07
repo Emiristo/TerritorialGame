@@ -62,7 +62,7 @@ export function removeProductionOutputFromBuilding(state, buildingId, resourceId
 export function stageBuildingOutputAtFlag(state, buildingId, resourceId, amount = 1) { const building = getBuilding(state, buildingId), flag = (state.flags ?? []).find((item) => item.buildingId === buildingId) ?? null, type = getBuildingType(state, building); if (!building || !flag || !resourceId || amount !== 1) return 0; if (type?.role === 'production') return removeProductionOutputFromBuilding(state, buildingId, resourceId, 1) && addCargoToFlag(state, flag.id, resourceId, 1) ? 1 : 0; const units = removeInventoryFromBuilding(state, buildingId, resourceId, amount); if (units <= 0) return 0; return addCargoToFlag(state, flag.id, resourceId, units); }
 export function stageWarehouseCargoForRequest(state, requestId) { const request = (state.transportRequests ?? []).find((item) => item.id === requestId) ?? null; if (!request || !request.sourceWarehouseId || request.state !== 'waiting' || Number(request.delivered ?? 0) + Number(request.inTransit ?? 0) >= Number(request.amount ?? 0)) return false; const carrier = getWarehouseCarrier(state, request.sourceWarehouseId); if (!carrier || carrier.cargo) return false; if (getBuildingInventory(state, request.sourceWarehouseId, request.resourceId) < 1) return false; if (!prepareTransportRequest(state, request)) return false; if (removeInventoryFromBuilding(state, request.sourceWarehouseId, request.resourceId, 1) !== 1) return false; if (addCargoToFlag(state, request.sourceFlagId, request.resourceId, 1) !== 1) return false; request.state = 'ready'; request.sourceStaged = true; carrier.cargo = null; carrier.state = CARRIER_STATES.IDLE; return true; }
 export function completeWarehousePickup(state, requestId) { const request = (state.transportRequests ?? []).find((item) => item.id === requestId) ?? null; const carrier = (state.carriers ?? []).find((item) => item.role === CARRIER_ROLES.WAREHOUSE && item.cargo?.requestId === requestId) ?? null; if (!request || !carrier) return false; carrier.cargo = null; carrier.state = CARRIER_STATES.IDLE; return true; }
-export function prepareTransportRequest(state, request) { const delivered = Number(request?.delivered ?? 0), inTransit = Number(request?.inTransit ?? 0), amount = Number(request?.amount ?? 0); if (!request || delivered + inTransit >= amount || request.ownerId !== state.player?.id) return false; if (!getFlag(state, request.sourceFlagId) || !getFlag(state, request.destinationFlagId)) return false; const route = findFlagRoute(state, request.sourceFlagId, request.destinationFlagId); if (!route || route.flagIds.length < 2) return false; request.routeFlagIds = route.flagIds; request.routeRoadIds = route.roadIds; if (request.currentSegmentIndex >= request.routeRoadIds.length) request.currentSegmentIndex = 0; if (request.state === 'waiting') request.state = 'ready'; return true; }
+export function prepareTransportRequest(state, request) { const delivered = Number(request?.delivered ?? 0), inTransit = Number(request?.inTransit ?? 0), amount = Number(request?.amount ?? 0); if (!request || delivered + inTransit >= amount || request.ownerId !== state.player?.id) return false; if (!getFlag(state, request.sourceFlagId) || !getFlag(state, request.destinationFlagId)) return false; if (request.routeFlagIds?.length && request.routeRoadIds?.length) { if (request.currentSegmentIndex >= request.routeRoadIds.length) request.currentSegmentIndex = request.routeRoadIds.length; if (request.state === 'waiting') request.state = 'ready'; return true; } const route = findFlagRoute(state, request.sourceFlagId, request.destinationFlagId); if (!route || route.flagIds.length < 2) return false; request.routeFlagIds = route.flagIds; request.routeRoadIds = route.roadIds; if (request.currentSegmentIndex >= request.routeRoadIds.length) request.currentSegmentIndex = 0; if (request.state === 'waiting') request.state = 'ready'; return true; }
 function getSegmentForRoad(request, road) { const index = (request.routeRoadIds ?? []).indexOf(road.id); if (index < 0 || index !== Number(request.currentSegmentIndex ?? 0)) return null; return { index, fromFlagId: request.routeFlagIds[index], toFlagId: request.routeFlagIds[index + 1] }; }
 export function loadCarrierFromFlag(state, carrierId, requestId) { const carrier = getCarrier(state, carrierId), request = (state.transportRequests ?? []).find((item) => item.id === requestId) ?? null, road = getCarrierRoad(state, carrierId); if (!carrier || carrier.role !== CARRIER_ROLES.ROAD || !request || !road || carrier.cargo || carrier.ownerId !== request.ownerId) return false; if (!prepareTransportRequest(state, request)) return false; const segment = getSegmentForRoad(request, road); if (!segment) return false; if (!removeCargoFromFlag(state, segment.fromFlagId, request.resourceId, 1)) return false; request.inTransit = Number(request.inTransit ?? 0) + 1; request.state = 'inTransit'; carrier.cargo = { requestId: request.id, resourceId: request.resourceId, amount: 1, fromFlagId: segment.fromFlagId, toFlagId: segment.toFlagId, roadId: road.id, segmentIndex: segment.index }; carrier.state = CARRIER_STATES.CARRYING; return true; }
 
@@ -74,24 +74,13 @@ export function deliverCarrierToFlag(state, carrierId) {
   const request = (state.transportRequests ?? []).find((item) => item.id === cargo.requestId) ?? null;
   const destination = getFlag(state, cargo.toFlagId);
   if (!request || !destination) return false;
-
   const constructionBuilding = request.destinationBuildingId ? getBuilding(state, request.destinationBuildingId) : null;
-  if (constructionBuilding?.constructionComplete === false && destination.id === request.destinationFlagId) {
-    return deliverCarrierToConstructionFlag(state, carrierId);
-  }
-
+  if (constructionBuilding?.constructionComplete === false && destination.id === request.destinationFlagId) return deliverCarrierToConstructionFlag(state, carrierId);
   if (addCargoToFlag(state, destination.id, cargo.resourceId, cargo.amount) !== cargo.amount) return false;
   request.inTransit = Math.max(0, Number(request.inTransit ?? 0) - cargo.amount);
   recordRoadCargo(state, cargo.roadId, cargo.amount);
-
-  if (destination.id === request.destinationFlagId) {
-    request.currentSegmentIndex = request.routeRoadIds.length;
-    request.state = 'at_destination';
-  } else {
-    request.currentSegmentIndex = Number(cargo.segmentIndex) + 1;
-    request.state = 'ready';
-  }
-
+  if (destination.id === request.destinationFlagId) { request.currentSegmentIndex = request.routeRoadIds.length; request.state = 'at_destination'; }
+  else { request.currentSegmentIndex = Number(cargo.segmentIndex) + 1; request.state = 'ready'; }
   carrier.cargo = null;
   carrier.state = CARRIER_STATES.WAITING;
   return true;
@@ -108,10 +97,7 @@ export function deliverCarrierToConstructionFlag(state, carrierId) {
   if (!request || !destination || !building || building.constructionComplete !== false || destination.id !== request.destinationFlagId) return false;
   if (addCargoToFlag(state, destination.id, cargo.resourceId, cargo.amount) !== cargo.amount) return false;
   const delivered = registerConstructionDelivery(building, cargo.resourceId, cargo.amount);
-  if (delivered !== cargo.amount) {
-    removeCargoFromFlag(state, destination.id, cargo.resourceId, cargo.amount);
-    return false;
-  }
+  if (delivered !== cargo.amount) { removeCargoFromFlag(state, destination.id, cargo.resourceId, cargo.amount); return false; }
   request.inTransit = Math.max(0, Number(request.inTransit ?? 0) - cargo.amount);
   request.delivered = Number(request.delivered ?? 0) + delivered;
   recordRoadCargo(state, cargo.roadId, cargo.amount);
