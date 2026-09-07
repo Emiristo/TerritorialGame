@@ -111,7 +111,7 @@ describe('building logistics and production chain', () => {
       flags: [
         createFlag('source-flag', 'source', 'player', 0.5, 1),
         createFlag('workshop-flag', 'workshop', 'player', 4.5, 1),
-        createFlag('warehouse-flag', 'warehouse', 'player', 4.5, 2),
+        createFlag('warehouse-flag', 'warehouse', 'player', 4.5, 3),
       ],
       roads: [],
       buildings: [
@@ -132,9 +132,9 @@ describe('building logistics and production chain', () => {
     state.workers[0].state = 'working';
     state.buildings[0].outputStorageSlot = 'planks';
 
-    for (let y = 0; y < 3; y += 1) for (let x = 0; x < 6; x += 1) state.tiles.push({ id: `${x}-${y}`, x, y, terrain: 'plains', resources: {} });
+    for (let y = 0; y < 4; y += 1) for (let x = 0; x < 6; x += 1) state.tiles.push({ id: `${x}-${y}`, x, y, terrain: 'plains', resources: {} });
     addRoad(state, createRoad('road-source-workshop', 'source-flag', 'workshop-flag', ['1-0', '2-0', '3-0', '4-0']));
-    addRoad(state, createRoad('road-source-warehouse', 'source-flag', 'warehouse-flag', ['1-0', '2-0', '3-0', '4-0', '5-1']));
+    addRoad(state, createRoad('road-workshop-warehouse', 'workshop-flag', 'warehouse-flag', ['4-1', '4-2', '4-3']));
 
     expect(createTransportTasks(state)).toBe(1);
     const request = state.transportRequests[0];
