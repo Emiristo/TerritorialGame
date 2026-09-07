@@ -15,7 +15,7 @@ import {
   removeProductionOutputFromBuilding,
   removeCargoFromFlag,
 } from './carriers.js';
-import { markLogisticsDirty } from './logisticsManager.js';
+import { markLogisticsDirty } from './logisticsSignals.js';
 
 export const WORKER_TYPES = {
   FORESTER: { id: 'forester', name: 'Лесничий', toolId: 'shovel' },
