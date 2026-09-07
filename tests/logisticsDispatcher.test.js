@@ -39,6 +39,16 @@ describe('logistics dispatcher', () => {
     const road1 = connectFlags(state, 'road-1', warehouseFlag.id, middleFlag.id); const road2 = connectFlags(state, 'road-2', middleFlag.id, destinationFlag.id);
     const request = createWarehouseTransportRequest(state, 'request-2', state.player.id, 'stone', 1, warehouse.id, destination.id); state.transportRequests.push(request); addCargoToFlag(state, warehouseFlag.id, 'stone', 1); request.state = 'ready'; request.routeFlagIds = [warehouseFlag.id, middleFlag.id, destinationFlag.id]; request.routeRoadIds = [road1.id, road2.id];
     expect(dispatchTransportRequests(state)).toBe(1); expect(request.state).toBe('inTransit'); expect(advanceDispatchedCarriers(state)).toBe(1); expect(request.state).toBe('ready');
-    expect(dispatchTransportRequests(state)).toBe(1); expect(advanceDispatchedCarriers(state)).toBe(1); expect(request.state).toBe('at_destination'); expect(state.flags.find((flag) => flag.id === destinationFlag.id)?.cargo?.stone).toBe(1);
+    const firstCarrier = state.carriers.find((carrier) => carrier.role === 'road' && carrier.roadId === road1.id);
+    expect(firstCarrier?.cargo).toBeNull();
+    const secondRequest = createWarehouseTransportRequest(state, 'request-3', state.player.id, 'stone', 1, warehouse.id, destination.id); state.transportRequests.push(secondRequest); addCargoToFlag(state, warehouseFlag.id, 'stone', 1); secondRequest.state = 'ready'; secondRequest.routeFlagIds = [warehouseFlag.id, middleFlag.id, destinationFlag.id]; secondRequest.routeRoadIds = [road1.id, road2.id];
+    expect(dispatchTransportRequests(state)).toBe(2);
+    expect(state.carriers.find((carrier) => carrier.role === 'road' && carrier.roadId === road1.id)?.cargo?.requestId).toBe('request-3');
+    expect(state.carriers.find((carrier) => carrier.role === 'road' && carrier.roadId === road2.id)?.cargo?.requestId).toBe('request-2');
+    expect(request.state).toBe('inTransit'); expect(secondRequest.state).toBe('inTransit');
+    expect(advanceDispatchedCarriers(state)).toBe(2);
+    expect(request.state).toBe('at_destination'); expect(secondRequest.state).toBe('ready');
+    expect(state.flags.find((flag) => flag.id === destinationFlag.id)?.cargo?.stone).toBe(1);
+    expect(state.flags.find((flag) => flag.id === middleFlag.id)?.cargo?.stone).toBe(1);
   });
 });
