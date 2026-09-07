@@ -1,6 +1,7 @@
 import { BUILDING_TYPES } from './buildings.js';
 import { findShortestFlagRoutes, rebuildLogisticsNetwork } from './logisticsNetwork.js';
 import { recordRoadCargo } from './roads.js';
+import { markLogisticsDirty } from './logisticsSignals.js';
 import {
   createBuildingTransportRequest,
   createProductionToWarehouseTransportRequest,
@@ -187,8 +188,9 @@ export function advanceWarehouseCarriers(state) {
   return completed;
 }
 
-export function markLogisticsDirty(state, sourceBuildingId, resourceId = null) { state.logisticsDirtySources ??= new Set(); state.logisticsDirtySources.add(`${sourceBuildingId}:${resourceId ?? '*'}`); }
 function consumeDirtySources(state) { const dirty = state.logisticsDirtySources ?? new Set(); state.logisticsDirtySources = new Set(); return dirty; }
 export function processLogisticsTasks(state) { state.transportRequests ??= []; const dirty = consumeDirtySources(state); rebuildLogisticsNetwork(state); let created = 0; for (const key of dirty) { const sourceBuildingId = key.slice(0, key.lastIndexOf(':')); const source = (state.buildings ?? []).find((building) => building.id === sourceBuildingId); if (planSource(state, source)) created += 1; } for (const building of state.buildings ?? []) if (planConstructionDemand(state, building)) created += 1; return created; }
 export function createTransportTasks(state) { state.transportRequests ??= []; rebuildLogisticsNetwork(state); let created = 0; for (const building of state.buildings ?? []) if (planConstructionDemand(state, building)) created += 1; for (const source of state.buildings ?? []) if (planSource(state, source)) created += 1; return created; }
 export function getReadyTransportRequests(state) { return (state.transportRequests ?? []).filter((request) => request.state === 'ready' || request.state === 'waiting'); }
+
+export { markLogisticsDirty };
