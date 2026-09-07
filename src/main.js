@@ -7,7 +7,7 @@ import { addStandaloneFlag } from './game/flags.js';
 import { advanceAllConstructions, startConstruction } from './game/construction.js';
 import { advanceGameClock, GAME_SPEEDS, pauseGameClock, setGameSpeed, startGameClock } from './game/clock.js';
 import { buildRoadToNearestFlag } from './game/roads.js';
-import { processLogisticsTasks } from './game/logisticsManager.js';
+import { processLogisticsTasks, dispatchTransportRequests, advanceDispatchedCarriers } from './game/logisticsManager.js';
 import { advanceBuildingWorkers } from './game/workers.js';
 import { advanceAllProductions } from './game/production.js';
 
@@ -36,6 +36,8 @@ setInterval(() => {
   const simulationTicks = advanceGameClock(state.clock);
   for (let tick = 0; tick < simulationTicks; tick += 1) {
     processLogisticsTasks(state);
+    dispatchTransportRequests(state);
+    advanceDispatchedCarriers(state);
     advanceBuildingWorkers(state);
     advanceAllProductions(state, 1);
     advanceAllConstructions(state, 1);
