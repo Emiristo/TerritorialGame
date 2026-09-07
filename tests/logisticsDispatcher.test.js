@@ -10,7 +10,13 @@ function addDestinationBuilding(state, id = 'dispatcher-destination') {
   for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) {
     const tile = state.tiles.find((item) => item.x === x + dx && item.y === y + dy); tile.ownerId = state.player.id; tile.terrain = 'plains';
   }
-  return addBuilding(state, id, state.player.id, type.id, `${x}-${y}`);
+  const building = addBuilding(state, id, state.player.id, type.id, `${x}-${y}`);
+  // This suite tests road dispatch/handoff, not construction. Use a completed receiver
+  // so the final road stage stops at the destination flag (AT_DESTINATION).
+  building.active = true;
+  building.constructionComplete = true;
+  building.constructionState = 'COMPLETED';
+  return building;
 }
 function connectFlags(state, id, startFlagId, endFlagId) {
   const path = findShortestRoadPaths(state, startFlagId, endFlagId)[0];
