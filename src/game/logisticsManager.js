@@ -1,5 +1,6 @@
 import { BUILDING_TYPES } from './buildings.js';
 import { findShortestFlagRoutes, rebuildLogisticsNetwork } from './logisticsNetwork.js';
+import { recordRoadCargo } from './roads.js';
 import {
   createBuildingTransportRequest,
   createProductionToWarehouseTransportRequest,
@@ -13,6 +14,9 @@ import {
   prepareTransportRequest,
   loadCarrierFromFlag,
   deliverCarrierToFlag,
+  getWarehouseCarrier,
+  removeCargoFromFlag,
+  addInventoryToBuilding,
 } from './carriers.js';
 
 function getBuildingType(state, building) {
@@ -58,6 +62,9 @@ function planConstructionDemand(state, building) {
   }
   return false;
 }
+
+// Production output always prefers an outstanding request from another production building.
+// Storage is only the fallback destination when no production consumer can receive the resource.
 function planSource(state, source) {
   if (!source?.active) return false;
   const sourceType = getBuildingType(state, source), sourceFlag = getBuildingFlag(state, source.id);
@@ -74,7 +81,8 @@ function planSource(state, source) {
   const productionDestination = findNearestDestination(state, productionCandidates, routes);
   const warehouseCandidates = (state.buildings ?? []).filter((candidate) => candidate.active && candidate.id !== source.id
     && candidate.ownerId === source.ownerId && getBuildingType(state, candidate)?.role === 'storage');
-  const destination = productionDestination ?? findNearestDestination(state, warehouseCandidates, routes); if (!destination) return false;
+  const destination = productionDestination ?? findNearestDestination(state, warehouseCandidates, routes);
+  if (!destination) return false;
   const requestId = `transport-${source.id}-${destination.building.id}-${resourceId}-${state.transportRequests.length + 1}`;
   const request = productionDestination
     ? createBuildingTransportRequest(state, requestId, source.ownerId, resourceId, 1, source.id, destination.building.id)
@@ -84,6 +92,7 @@ function planSource(state, source) {
   if (!prepareTransportRequest(state, request)) return false;
   state.transportRequests.push(request); return true;
 }
+
 function getRoadCarrierForRequest(state, request) {
   if (!request?.routeRoadIds?.length) return null;
   for (let index = 0; index < request.routeRoadIds.length; index += 1) {
@@ -94,12 +103,70 @@ function getRoadCarrierForRequest(state, request) {
   }
   return null;
 }
+
+function deliverRoadCarrierToWarehouseFlag(state, carrier, request) {
+  const cargo = carrier.cargo;
+  const destination = (state.flags ?? []).find((flag) => flag.id === cargo.toFlagId) ?? null;
+  if (!destination || destination.id !== request.destinationFlagId) return false;
+  if (getFlagCargo(state, destination.id, cargo.resourceId) < 0) return false;
+  destination.cargo ??= {};
+  destination.cargo[cargo.resourceId] = Number(destination.cargo[cargo.resourceId] ?? 0) + cargo.amount;
+  request.inTransit = Math.max(0, Number(request.inTransit ?? 0) - cargo.amount);
+  recordRoadCargo(state, cargo.roadId, cargo.amount);
+  request.state = 'at_destination';
+  carrier.cargo = null;
+  carrier.state = 'waiting';
+  return true;
+}
+
 export function dispatchTransportRequests(state) {
   state.transportRequests ??= []; rebuildLogisticsNetwork(state); let dispatched = 0;
-  for (const request of state.transportRequests) { if (request.state === 'delivered' || request.state === 'at_destination') continue; const carrier = getRoadCarrierForRequest(state, request); if (carrier && loadCarrierFromFlag(state, carrier.id, request.id)) dispatched += 1; }
+  for (const request of state.transportRequests) {
+    if (request.state === 'delivered' || request.state === 'at_destination') continue;
+    const carrier = getRoadCarrierForRequest(state, request);
+    if (carrier && loadCarrierFromFlag(state, carrier.id, request.id)) dispatched += 1;
+  }
   return dispatched;
 }
-export function advanceDispatchedCarriers(state) { let advanced = 0; for (const carrier of state.carriers ?? []) { if (carrier.role !== 'road' || !carrier.cargo?.requestId) continue; if (deliverCarrierToFlag(state, carrier.id)) advanced += 1; } return advanced; }
+
+export function advanceDispatchedCarriers(state) {
+  let advanced = 0;
+  for (const carrier of state.carriers ?? []) {
+    if (carrier.role !== 'road' || !carrier.cargo?.requestId) continue;
+    const request = (state.transportRequests ?? []).find((item) => item.id === carrier.cargo.requestId) ?? null;
+    if (request?.destinationWarehouseId && carrier.cargo.toFlagId === request.destinationFlagId) {
+      if (deliverRoadCarrierToWarehouseFlag(state, carrier, request)) advanced += 1;
+    } else if (deliverCarrierToFlag(state, carrier.id)) {
+      advanced += 1;
+    }
+  }
+  return advanced;
+}
+
+// A warehouse flag is only a transfer point. The request becomes delivered after the warehouse carrier moves the cargo into inventory.
+export function advanceWarehouseCarriers(state) {
+  let completed = 0;
+  for (const request of state.transportRequests ?? []) {
+    if (request.state !== 'at_destination' || !request.destinationWarehouseId) continue;
+    if (Number(request.delivered ?? 0) >= Number(request.amount ?? 0)) continue;
+    const flag = getBuildingFlag(state, request.destinationWarehouseId);
+    if (!flag || getFlagCargo(state, flag.id, request.resourceId) < 1) continue;
+    const carrier = getWarehouseCarrier(state, request.destinationWarehouseId);
+    if (!carrier || carrier.cargo) continue;
+    const amount = removeCargoFromFlag(state, flag.id, request.resourceId, 1);
+    if (amount !== 1) continue;
+    carrier.cargo = { requestId: request.id, resourceId: request.resourceId, amount: 1 };
+    carrier.state = 'carrying';
+    if (addInventoryToBuilding(state, request.destinationWarehouseId, request.resourceId, 1) !== 1) continue;
+    request.delivered = Number(request.delivered ?? 0) + 1;
+    request.state = Number(request.delivered) >= Number(request.amount ?? 0) ? 'delivered' : 'at_destination';
+    carrier.cargo = null;
+    carrier.state = 'idle';
+    completed += 1;
+  }
+  return completed;
+}
+
 export function markLogisticsDirty(state, sourceBuildingId, resourceId = null) { state.logisticsDirtySources ??= new Set(); state.logisticsDirtySources.add(`${sourceBuildingId}:${resourceId ?? '*'}`); }
 function consumeDirtySources(state) { const dirty = state.logisticsDirtySources ?? new Set(); state.logisticsDirtySources = new Set(); return dirty; }
 export function processLogisticsTasks(state) { state.transportRequests ??= []; const dirty = consumeDirtySources(state); rebuildLogisticsNetwork(state); let created = 0; for (const key of dirty) { const sourceBuildingId = key.slice(0, key.lastIndexOf(':')); const source = (state.buildings ?? []).find((building) => building.id === sourceBuildingId); if (planSource(state, source)) created += 1; } for (const building of state.buildings ?? []) if (planConstructionDemand(state, building)) created += 1; return created; }
