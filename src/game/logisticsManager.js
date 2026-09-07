@@ -17,6 +17,7 @@ import {
   getWarehouseCarrier,
   removeCargoFromFlag,
   addInventoryToBuilding,
+  addCargoToFlag,
 } from './carriers.js';
 
 function getBuildingType(state, building) {
@@ -104,19 +105,27 @@ function getRoadCarrierForRequest(state, request) {
   return null;
 }
 
-function deliverRoadCarrierToWarehouseFlag(state, carrier, request) {
+function deliverRoadCarrierToFlagOnly(state, carrier, request) {
   const cargo = carrier.cargo;
   const destination = (state.flags ?? []).find((flag) => flag.id === cargo.toFlagId) ?? null;
   if (!destination || destination.id !== request.destinationFlagId) return false;
-  if (getFlagCargo(state, destination.id, cargo.resourceId) < 0) return false;
-  destination.cargo ??= {};
-  destination.cargo[cargo.resourceId] = Number(destination.cargo[cargo.resourceId] ?? 0) + cargo.amount;
+  if (addCargoToFlag(state, destination.id, cargo.resourceId, cargo.amount) !== cargo.amount) return false;
   request.inTransit = Math.max(0, Number(request.inTransit ?? 0) - cargo.amount);
   recordRoadCargo(state, cargo.roadId, cargo.amount);
   request.state = 'at_destination';
   carrier.cargo = null;
   carrier.state = 'waiting';
   return true;
+}
+
+function deliverRoadCarrierToWarehouseFlag(state, carrier, request) {
+  return deliverRoadCarrierToFlagOnly(state, carrier, request);
+}
+
+function deliverRoadCarrierToProductionFlag(state, carrier, request) {
+  const building = (state.buildings ?? []).find((item) => item.id === request.destinationBuildingId) ?? null;
+  if (!building || building.constructionComplete === false) return false;
+  return deliverRoadCarrierToFlagOnly(state, carrier, request);
 }
 
 export function dispatchTransportRequests(state) {
@@ -136,6 +145,13 @@ export function advanceDispatchedCarriers(state) {
     const request = (state.transportRequests ?? []).find((item) => item.id === carrier.cargo.requestId) ?? null;
     if (request?.destinationWarehouseId && carrier.cargo.toFlagId === request.destinationFlagId) {
       if (deliverRoadCarrierToWarehouseFlag(state, carrier, request)) advanced += 1;
+    } else if (request?.destinationBuildingId && !request.destinationWarehouseId && carrier.cargo.toFlagId === request.destinationFlagId) {
+      const destinationBuilding = (state.buildings ?? []).find((item) => item.id === request.destinationBuildingId) ?? null;
+      if (destinationBuilding?.constructionComplete) {
+        if (deliverRoadCarrierToProductionFlag(state, carrier, request)) advanced += 1;
+      } else if (deliverCarrierToFlag(state, carrier.id)) {
+        advanced += 1;
+      }
     } else if (deliverCarrierToFlag(state, carrier.id)) {
       advanced += 1;
     }
