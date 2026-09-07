@@ -109,7 +109,7 @@ describe('building logistics and production chain', () => {
       player: { id: 'player', resources: {} },
       tiles: [],
       flags: [
-        createFlag('source-flag', 'source', 'player', 0.5, 1),
+        createFlag('source-flag', 'source', 'player', 1.5, 1),
         createFlag('workshop-flag', 'workshop', 'player', 4.5, 1),
         createFlag('warehouse-flag', 'warehouse', 'player', 5.5, 3),
       ],
