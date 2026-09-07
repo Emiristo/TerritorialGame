@@ -16,6 +16,7 @@ import {
   prepareTransportRequest,
   loadCarrierFromFlag,
   deliverCarrierToFlag,
+  deliverCarrierToConstructionFlag,
   getWarehouseCarrier,
   removeCargoFromFlag,
   addInventoryToBuilding,
@@ -154,7 +155,7 @@ export function advanceDispatchedCarriers(state) {
       const destinationBuilding = (state.buildings ?? []).find((item) => item.id === request.destinationBuildingId) ?? null;
       if (destinationBuilding?.constructionComplete) {
         if (deliverRoadCarrierToProductionFlag(state, carrier, request)) advanced += 1;
-      } else if (deliverCarrierToFlag(state, carrier.id)) {
+      } else if (deliverCarrierToConstructionFlag(state, carrier.id)) {
         advanced += 1;
       }
     } else if (deliverCarrierToFlag(state, carrier.id)) {
