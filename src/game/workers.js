@@ -6,7 +6,15 @@ import {
   getWorkZoneForBuilding,
   removeWorkZoneForBuilding,
 } from './workZones.js';
-import { addCargoToFlag } from './carriers.js';
+import {
+  addCargoToFlag,
+  getFlagCargo,
+  getBuildingInputStorage,
+  addInputResourceToBuilding,
+  getBuildingOutputStorageResource,
+  removeProductionOutputFromBuilding,
+  removeCargoFromFlag,
+} from './carriers.js';
 import { markLogisticsDirty } from './logisticsManager.js';
 
 export const WORKER_TYPES = {
@@ -93,4 +101,48 @@ export function workWorker(state, workerId) {
   if (!tile) return false;
   worker.targetTileId = tile.id;
   return extractForWorker(state, worker.id);
+}
+
+function getBuildingWorker(state, building) {
+  return (state.workers ?? []).find((worker) => worker.buildingId === building.id
+    && worker.ownerId === building.ownerId
+    && worker.typeId === getBuildingType(state, building)?.workerTypeId) ?? null;
+}
+
+export function moveBuildingWorkerCargo(state, workerId) {
+  const worker = findWorker(state, workerId);
+  const building = worker?.buildingId ? findBuilding(state, worker.buildingId) : null;
+  const type = getBuildingType(state, building);
+  const flag = building ? (state.flags ?? []).find((item) => item.buildingId === building.id) : null;
+  if (!worker || !building || !flag || worker.state !== 'working' || type?.role !== 'production') return false;
+
+  const output = getBuildingOutputStorageResource(state, building.id);
+  if (output != null) {
+    if (removeProductionOutputFromBuilding(state, building.id, output, 1) !== 1) return false;
+    if (addCargoToFlag(state, flag.id, output, 1) !== 1) return false;
+    markLogisticsDirty(state, building.id, output);
+    return true;
+  }
+
+  const slots = getBuildingInputStorage(state, building.id);
+  if (slots.length >= 4 && slots.every(Boolean)) return false;
+  for (const resourceId of Object.keys(type.input ?? {})) {
+    if (getFlagCargo(state, flag.id, resourceId) <= 0) continue;
+    if (addInputResourceToBuilding(state, building.id, resourceId, 1) !== 1) continue;
+    removeCargoFromFlag(state, flag.id, resourceId, 1);
+    return true;
+  }
+  return false;
+}
+
+export function advanceBuildingWorkers(state) {
+  let moved = 0;
+  for (const building of state.buildings ?? []) {
+    if (!building.active || !building.constructionComplete) continue;
+    const type = getBuildingType(state, building);
+    if (type?.role !== 'production') continue;
+    const worker = getBuildingWorker(state, building);
+    if (worker && moveBuildingWorkerCargo(state, worker.id)) moved += 1;
+  }
+  return moved;
 }
