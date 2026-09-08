@@ -1,5 +1,5 @@
 import { BUILDING_TYPES } from './buildings.js';
-import { INPUT_SLOT_CAPACITY, getFreeInputSlotCount } from './inputReservations.js';
+import { getFreeInputSlotCount } from './inputReservations.js';
 
 function getBuildingType(state, building) {
   return (state.buildingTypes ?? []).find((type) => type.id === building?.typeId)
@@ -42,13 +42,15 @@ export function getGlobalDemand(state, resourceId) {
 }
 
 export function reserveGlobalDemand(state, resourceId, buildingId, amount = 1) {
-  const entries = getGlobalDemand(state, resourceId);
-  const entry = entries.find((item) => item.buildingId === buildingId);
+  const entry = getGlobalDemand(state, resourceId).find((item) => item.buildingId === buildingId);
   if (!entry || Number(entry.amount ?? 0) < amount) return false;
   entry.amount = Number(entry.amount) - amount;
   return true;
 }
 
-export function getGlobalDemandCapacity(state, buildingId, resourceId) {
-  return Math.max(0, Math.min(INPUT_SLOT_CAPACITY, getFreeInputSlotCount(state, buildingId)));
+export function releaseGlobalDemand(state, resourceId, buildingId, amount = 1) {
+  const entry = getGlobalDemand(state, resourceId).find((item) => item.buildingId === buildingId);
+  if (!entry) return false;
+  entry.amount = Number(entry.amount ?? 0) + amount;
+  return true;
 }
