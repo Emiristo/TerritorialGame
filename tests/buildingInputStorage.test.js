@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { addInputResourceToBuilding, addProductionOutputToBuilding, getBuildingInputStorage, getBuildingInputStorageCapacity, getBuildingOutputStorageResource, removeProductionOutputFromBuilding } from '../src/game/carriers.js';
 import { addBuilding } from '../src/game/buildings.js';
 import { createGameState } from '../src/game/state.js';
+import { getFreeInputSlotCount, getInputSlotReservations, getReservedInputSlotCount, occupyReservedInputSlot, releaseBuildingInputSlot, reserveBuildingInputSlot } from '../src/game/inputReservations.js';
 
 function place(state, id, typeId, tileId = '40-40') {
   const [x, y] = tileId.split('-').map(Number);
@@ -53,5 +54,52 @@ describe('building input storage', () => {
     expect(warehouse.inputStorageSlots).toBeNull();
     expect(warehouse.outputStorageSlot).toBeUndefined();
     expect(addInputResourceToBuilding(state, warehouse.id, 'steel', 1)).toBe(0);
+  });
+
+  it('reserves distinct input slots for distinct transport requests', () => {
+    const state = createGameState();
+    const building = place(state, 'workshop', 'workshop');
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-001')).toBe(0);
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-002')).toBe(1);
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-003')).toBe(2);
+    expect(getReservedInputSlotCount(state, building.id)).toBe(3);
+    expect(getFreeInputSlotCount(state, building.id)).toBe(1);
+    expect(getInputSlotReservations(state, building.id)).toEqual([
+      { state: 'reserved', requestId: 'TR-001', resourceId: 'steel' },
+      { state: 'reserved', requestId: 'TR-002', resourceId: 'steel' },
+      { state: 'reserved', requestId: 'TR-003', resourceId: 'steel' },
+      null,
+    ]);
+  });
+
+  it('does not allow one request to reserve two slots or a fifth request to exceed capacity', () => {
+    const state = createGameState();
+    const building = place(state, 'workshop', 'workshop');
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-001')).toBe(0);
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-001')).toBe(-1);
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-002')).toBe(1);
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-003')).toBe(2);
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-004')).toBe(3);
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-005')).toBe(-1);
+    expect(getReservedInputSlotCount(state, building.id)).toBe(4);
+  });
+
+  it('turns a reservation into a physical input and frees the reservation', () => {
+    const state = createGameState();
+    const building = place(state, 'workshop', 'workshop');
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-001')).toBe(0);
+    expect(occupyReservedInputSlot(state, building.id, 'TR-001', 'steel')).toBe(true);
+    expect(getInputSlotReservations(state, building.id)).toEqual([null, null, null, null]);
+    expect(getBuildingInputStorage(state, building.id)).toEqual(['steel', null, null, null]);
+    expect(getReservedInputSlotCount(state, building.id)).toBe(0);
+  });
+
+  it('releases a reservation so another transport request can use the slot', () => {
+    const state = createGameState();
+    const building = place(state, 'workshop', 'workshop');
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-001')).toBe(0);
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-002')).toBe(1);
+    expect(releaseBuildingInputSlot(state, building.id, 'TR-001')).toBe(true);
+    expect(reserveBuildingInputSlot(state, building.id, 'steel', 'TR-003')).toBe(0);
   });
 });
