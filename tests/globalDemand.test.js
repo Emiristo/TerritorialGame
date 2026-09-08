@@ -7,9 +7,17 @@ import { getFlagCargo } from '../src/game/carriers.js';
 import { processLogisticsTasks } from '../src/game/logisticsManager.js';
 
 function makeState() {
+  const tiles = [];
+  for (let y = 2; y <= 5; y += 1) {
+    for (let x = 2; x <= 8; x += 1) {
+      tiles.push({ id: `${x}-${y}`, x, y, terrain: 'hills', resources: {} });
+    }
+  }
+  tiles.find((tile) => tile.id === '2-2').resources.stone = 1;
+
   return {
     player: { id: 'player', resources: {} },
-    tiles: [{ id: '2-2', x: 2, y: 2, terrain: 'hills', resources: { stone: 1 } }],
+    tiles,
     flags: [],
     roads: [],
     buildings: [
