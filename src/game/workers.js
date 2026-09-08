@@ -15,6 +15,7 @@ import {
   removeProductionOutputFromBuilding,
   removeCargoFromFlag,
 } from './carriers.js';
+import { findReservedInputSlot, occupyReservedInputSlot } from './inputReservations.js';
 import { markLogisticsDirty } from './logisticsSignals.js';
 
 export const WORKER_TYPES = {
@@ -110,10 +111,21 @@ function getBuildingWorker(state, building) {
 }
 
 function completeProductionInputDelivery(state, building, resourceId) {
+  const slotIndex = (state.transportRequests ?? [])
+    .map((request) => ({ request, slot: Number(request.reservedInputSlot) }))
+    .find(({ request, slot }) => request.state === 'at_destination'
+      && request.destinationBuildingId === building.id
+      && request.resourceId === resourceId
+      && Number.isInteger(slot)
+      && slot >= 0)?.slot ?? -1;
+  if (slotIndex < 0) return false;
   const request = (state.transportRequests ?? []).find((item) => item.state === 'at_destination'
     && item.destinationBuildingId === building.id
-    && item.resourceId === resourceId);
+    && item.resourceId === resourceId
+    && Number(item.reservedInputSlot) === slotIndex) ?? null;
   if (!request) return false;
+  if (!occupyReservedInputSlot(state, building.id, request.id, resourceId)) return false;
+  request.reservedInputSlot = null;
   request.delivered = Number(request.delivered ?? 0) + 1;
   request.state = Number(request.delivered) >= Number(request.amount ?? 0) ? 'delivered' : 'at_destination';
   return true;
@@ -138,9 +150,21 @@ export function moveBuildingWorkerCargo(state, workerId) {
   if (slots.length >= 4 && slots.every(Boolean)) return false;
   for (const resourceId of Object.keys(type.input ?? {})) {
     if (getFlagCargo(state, flag.id, resourceId) <= 0) continue;
-    if (addInputResourceToBuilding(state, building.id, resourceId, 1) !== 1) continue;
-    removeCargoFromFlag(state, flag.id, resourceId, 1);
-    completeProductionInputDelivery(state, building, resourceId);
+    const matchingRequest = (state.transportRequests ?? []).find((request) => request.state === 'at_destination'
+      && request.destinationBuildingId === building.id
+      && request.resourceId === resourceId
+      && Number.isInteger(Number(request.reservedInputSlot)));
+    if (!matchingRequest) continue;
+    const slotIndex = Number(matchingRequest.reservedInputSlot);
+    if (findReservedInputSlot(state, building.id, matchingRequest.id) !== slotIndex) continue;
+    if (removeCargoFromFlag(state, flag.id, resourceId, 1) !== 1) continue;
+    if (!occupyReservedInputSlot(state, building.id, matchingRequest.id, resourceId)) {
+      addCargoToFlag(state, flag.id, resourceId, 1);
+      continue;
+    }
+    matchingRequest.reservedInputSlot = null;
+    matchingRequest.delivered = Number(matchingRequest.delivered ?? 0) + 1;
+    matchingRequest.state = Number(matchingRequest.delivered) >= Number(matchingRequest.amount ?? 0) ? 'delivered' : 'at_destination';
     return true;
   }
   return false;
