@@ -23,7 +23,6 @@ export function canStartProduction(state, building) {
   if (!building?.active || !building.constructionComplete) return false;
   const type = getBuildingType(state, building);
   if (type?.role !== 'production' || !type.output?.resourceId || !Number(type.productionTime)) return false;
-  if (!(building.workerIds ?? []).length) return false;
   if (building.outputStorageSlot != null) return false;
   if (building.productionState === PRODUCTION_STATES.PROCESSING) return false;
   return hasRequiredInputs(getBuildingInputStorage(state, building.id), type.input);
