@@ -1,5 +1,5 @@
 import { BUILDING_TYPES } from './buildings.js';
-import { getFreeInputSlotCount } from './inputReservations.js';
+import { INPUT_SLOT_CAPACITY, getInputSlotReservations } from './inputReservations.js';
 
 function getBuildingType(state, building) {
   return (state.buildingTypes ?? []).find((type) => type.id === building?.typeId)
@@ -12,6 +12,15 @@ function ensureDemand(state) {
   return state.globalDemand;
 }
 
+function getStoredInputCount(building, resourceId) {
+  return (building?.inputStorageSlots ?? []).filter((resource) => resource === resourceId).length;
+}
+
+function getReservedInputCount(state, buildingId, resourceId) {
+  return getInputSlotReservations(state, buildingId)
+    .filter((reservation) => reservation?.resourceId === resourceId).length;
+}
+
 export function rebuildGlobalDemand(state) {
   const demand = {};
 
@@ -20,9 +29,21 @@ export function rebuildGlobalDemand(state) {
     const type = getBuildingType(state, building);
     if (type?.role !== 'production') continue;
 
-    for (const resourceId of Object.keys(type.input ?? {})) {
-      const amount = Math.max(0, getFreeInputSlotCount(state, building.id));
+    const input = type.input ?? {};
+    const totalRecipeInputs = Object.values(input)
+      .reduce((sum, amount) => sum + Math.max(0, Number(amount ?? 0)), 0);
+    if (totalRecipeInputs <= 0) continue;
+
+    const recipeCapacity = Math.floor(INPUT_SLOT_CAPACITY / totalRecipeInputs);
+
+    for (const [resourceId, requiredValue] of Object.entries(input)) {
+      const requiredPerCycle = Math.max(0, Number(requiredValue ?? 0));
+      const targetAmount = recipeCapacity * requiredPerCycle;
+      const stored = getStoredInputCount(building, resourceId);
+      const reserved = getReservedInputCount(state, building.id, resourceId);
+      const amount = Math.max(0, targetAmount - stored - reserved);
       if (amount <= 0) continue;
+
       demand[resourceId] ??= [];
       demand[resourceId].push({
         buildingId: building.id,
