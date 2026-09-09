@@ -13,23 +13,14 @@ const state = {
 };
 
 function makeState(overrides = {}) {
-  return {
-    ...state,
-    ...overrides,
-    buildings: [],
-  };
+  return { ...state, ...overrides, buildings: [] };
 }
 
 describe('production', () => {
   it('starts automatically without a worker when a complete recipe is available', () => {
     const game = makeState();
-    const building = {
-      id: 'b1', typeId: 'bakery', active: true, constructionComplete: true,
-      workerIds: [], outputStorageSlot: null,
-      inputStorageSlots: ['flour', 'water', null, null],
-    };
+    const building = { id: 'b1', typeId: 'bakery', active: true, constructionComplete: true, workerIds: [], outputStorageSlot: null, inputStorageSlots: ['flour', 'water', null, null] };
     game.buildings.push(building);
-
     expect(canStartProduction(game, building)).toBe(true);
     expect(startProduction(game, building)).toBe(true);
     expect(building.productionState).toBe('processing');
@@ -37,25 +28,15 @@ describe('production', () => {
 
   it('does not start when the recipe is incomplete', () => {
     const game = makeState();
-    const building = {
-      id: 'b1', typeId: 'bakery', active: true, constructionComplete: true,
-      workerIds: [], outputStorageSlot: null,
-      inputStorageSlots: ['flour', null, null, null],
-    };
+    const building = { id: 'b1', typeId: 'bakery', active: true, constructionComplete: true, workerIds: [], outputStorageSlot: null, inputStorageSlots: ['flour', null, null, null] };
     game.buildings.push(building);
-
     expect(canStartProduction(game, building)).toBe(false);
   });
 
   it('finishes automatically and places the output in the output slot', () => {
     const game = makeState();
-    const building = {
-      id: 'b1', typeId: 'bakery', active: true, constructionComplete: true,
-      workerIds: [], outputStorageSlot: null,
-      inputStorageSlots: ['flour', 'water', null, null],
-    };
+    const building = { id: 'b1', typeId: 'bakery', active: true, constructionComplete: true, workerIds: [], outputStorageSlot: null, inputStorageSlots: ['flour', 'water', null, null] };
     game.buildings.push(building);
-
     startProduction(game, building);
     expect(advanceProduction(game, building, 10)).toBe(true);
     expect(building.outputStorageSlot).toBe('bread');
