@@ -48,6 +48,34 @@ describe('global production demand', () => {
     expect(Object.values(state.globalDemand).flat().some((entry) => entry.buildingId === 'miner')).toBe(false);
   });
 
+  it('uses four physical input slots as two recipe sets for a two-input recipe', () => {
+    const state = makeState();
+    state.buildingTypes.find((type) => type.id === 'workshop').input = { flour: 1, water: 1 };
+    rebuildGlobalDemand(state);
+
+    expect(getGlobalDemand(state, 'flour')).toEqual([
+      { buildingId: 'workshop', ownerId: 'player', resourceId: 'flour', amount: 2 },
+    ]);
+    expect(getGlobalDemand(state, 'water')).toEqual([
+      { buildingId: 'workshop', ownerId: 'player', resourceId: 'water', amount: 2 },
+    ]);
+  });
+
+  it('reduces demand by resources already physically stored or reserved', () => {
+    const state = makeState();
+    const workshop = state.buildings.find((building) => building.id === 'workshop');
+    state.buildingTypes.find((type) => type.id === 'workshop').input = { flour: 1, water: 1 };
+    workshop.inputStorageSlots = ['flour', 'water', null, null];
+    workshop.inputSlotReservations = [null, null, { state: 'reserved', requestId: 'water-1', resourceId: 'water' }, null];
+
+    rebuildGlobalDemand(state);
+
+    expect(getGlobalDemand(state, 'flour')).toEqual([
+      { buildingId: 'workshop', ownerId: 'player', resourceId: 'flour', amount: 1 },
+    ]);
+    expect(getGlobalDemand(state, 'water')).toEqual([]);
+  });
+
   it('makes a source deliver directly to the nearest demanded consumer', () => {
     const state = makeState();
     state.flags.push(createFlag('miner-flag', 'miner', 'player', 2, 4));
