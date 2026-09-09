@@ -105,7 +105,7 @@ describe('building logistics and production chain', () => {
     expect(getFlagCargo(state, 'warehouse-flag', 'planks')).toBe(0);
   });
 
-  it('prioritizes a production building request over warehouse storage for finished production', () => {
+  it('does not stage production output itself: a building worker must move output to the flag before logistics can create a request', () => {
     const state = {
       player: { id: 'player', resources: {} },
       tiles: [],
@@ -116,7 +116,7 @@ describe('building logistics and production chain', () => {
       ],
       roads: [],
       buildings: [
-        { id: 'source', ownerId: 'player', typeId: 'source', active: true, inventory: {} },
+        { id: 'source', ownerId: 'player', typeId: 'source', active: true, constructionComplete: true, workerIds: ['worker-2'], inputStorageSlots: [null, null, null, null], outputStorageSlot: 'planks' },
         { id: 'workshop', ownerId: 'player', typeId: 'workshop', active: true, constructionComplete: true, workerIds: ['worker-1'], inputStorageSlots: [null, null, null, null], outputStorageSlot: null },
         { id: 'warehouse', ownerId: 'player', typeId: 'warehouse', active: true, inventory: {} },
       ],
@@ -127,15 +127,25 @@ describe('building logistics and production chain', () => {
       ],
       carriers: [],
       transportRequests: [],
-      workers: [createWorker('worker-1', 'player', 'baker')],
+      workers: [createWorker('worker-1', 'player', 'baker'), createWorker('worker-2', 'player', 'producer')],
     };
     state.workers[0].buildingId = 'workshop';
     state.workers[0].state = 'working';
-    state.buildings[0].outputStorageSlot = 'planks';
+    state.workers[1].buildingId = 'source';
+    state.workers[1].state = 'working';
 
     for (let y = 0; y < 4; y += 1) for (let x = 0; x < 6; x += 1) state.tiles.push({ id: `${x}-${y}`, x, y, terrain: 'plains', resources: {} });
     addRoad(state, createRoad('road-source-workshop', 'source-flag', 'workshop-flag', ['1-0', '2-0', '3-0', '4-0']));
     addRoad(state, createRoad('road-workshop-warehouse', 'workshop-flag', 'warehouse-flag', ['4-1', '5-2', '5-3']));
+
+    expect(createTransportTasks(state)).toBe(0);
+    expect(state.buildings[0].outputStorageSlot).toBe('planks');
+    expect(getFlagCargo(state, 'source-flag', 'planks')).toBe(0);
+    expect(state.transportRequests).toHaveLength(0);
+
+    expect(advanceBuildingWorkers(state)).toBe(1);
+    expect(state.buildings[0].outputStorageSlot).toBeNull();
+    expect(getFlagCargo(state, 'source-flag', 'planks')).toBe(1);
 
     expect(createTransportTasks(state)).toBe(1);
     const request = state.transportRequests[0];
