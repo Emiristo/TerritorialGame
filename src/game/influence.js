@@ -19,8 +19,13 @@ function createGeometryForTiles(a, b) {
 }
 
 export function distanceBetweenTiles(a, b) {
-  const geometry = createGeometryForTiles(a, b);
-  return geometry?.distance(a, b) ?? Infinity;
+  if (!Number.isFinite(a?.x) || !Number.isFinite(a?.y) || !Number.isFinite(b?.x) || !Number.isFinite(b?.y)) return Infinity;
+  const bothTiles = Number.isInteger(a.x) && Number.isInteger(a.y) && Number.isInteger(b.x) && Number.isInteger(b.y);
+  if (bothTiles) {
+    const geometry = createGeometryForTiles(a, b);
+    return geometry?.distance(a, b) ?? Infinity;
+  }
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }
 
 export function isWithinInfluenceRadius(sourceTile, targetTile, radius) {
