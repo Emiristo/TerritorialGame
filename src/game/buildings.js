@@ -1,6 +1,7 @@
 import { createFlag } from './flags.js';
 import { removeRoadsForFlag } from './roads.js';
 import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
+import { createMapGeometry } from './world/mapGeometry.js';
 
 export const BUILDING_TYPES = {
   HEADQUARTERS: { id: 'headquarters', name: 'Штаб', width: 3, height: 3, constructionMaterials: {}, terrainIds: null, workerTypeId: null, toolId: null, workZone: null, influenceRadius: 10, input: {}, output: null, productionTime: null, role: 'storage' },
@@ -26,16 +27,28 @@ export const BUILDING_TYPES = {
   WATCHTOWER: { id: 'watchtower', name: 'Сторожевая башня', width: 2, height: 2, constructionMaterials: { planks: 5, stone: 5 }, terrainIds: ['plains'], workerTypeId: 'soldier', toolId: null, workZone: { mode: 'footprint' }, input: {}, output: null, productionTime: null, influenceRadius: 23, influenceMultiplier: 1.25, requiredSoldiers: 6, role: 'military' },
   FORTRESS: { id: 'fortress', name: 'Крепость', width: 5, height: 5, constructionMaterials: { planks: 10, stone: 10 }, terrainIds: ['plains'], workerTypeId: 'soldier', toolId: null, workZone: { mode: 'footprint' }, input: {}, output: null, productionTime: null, influenceRadius: 25, influenceMultiplier: 1.5, requiredSoldiers: 9, blockChanceBonus: 0.05, role: 'military' },
 };
-const MAP_WIDTH=100, MAP_HEIGHT=100;
+
+const fallbackGeometryByState = new WeakMap();
+function getMapGeometry(state) {
+  if (state.worldMap?.geometry) return state.worldMap.geometry;
+  if (fallbackGeometryByState.has(state)) return fallbackGeometryByState.get(state);
+  const tiles = Array.isArray(state.tiles) ? state.tiles : [];
+  if (!tiles.length) return null;
+  const width = Math.max(...tiles.map(tile => tile.x)) + 1;
+  const height = Math.max(...tiles.map(tile => tile.y)) + 1;
+  const geometry = createMapGeometry(width, height);
+  fallbackGeometryByState.set(state, geometry);
+  return geometry;
+}
 function findType(id){return Object.values(BUILDING_TYPES).find(x=>x.id===id)??null;}
-function getTileAt(state,x,y){const worldMap=state.worldMap;if(worldMap?.geometry) return worldMap.geometry.inBounds(x,y)?worldMap.tiles[y*worldMap.width+x]??null:null;if(x<0||y<0||x>=MAP_WIDTH||y>=MAP_HEIGHT)return null;return state.tiles[y*MAP_WIDTH+x]??null;}
-function getTileById(state,id){if(typeof id!=='string')return null;const s=id.indexOf('-');if(s<=0)return null;const x=Number(id.slice(0,s)),y=Number(id.slice(s+1));return Number.isInteger(x)&&Number.isInteger(y)?getTileAt(state,x,y):null;}
+function getTileAt(state,x,y){const geometry=getMapGeometry(state);if(!geometry||!geometry.inBounds(x,y))return null;return (state.worldMap?.tiles??state.tiles??[])[y*geometry.width+x]??null;}
+function getTileById(state,id){if(typeof id!=='string')return null;const geometry=getMapGeometry(state);return geometry?.parseTileId(id)?getTileAt(state,geometry.parseTileId(id).x,geometry.parseTileId(id).y):null;}
 export function getConstructionMaterials(building){return {...(findType(building.typeId)?.constructionMaterials??{})};}
-export function getBuildingFlagPosition(state,building){const type=findType(building.typeId),origin=getTileById(state,building.tileId);if(!type||!origin)return null;const x=origin.x+1,y=origin.y+type.height;const width=state.worldMap?.width??MAP_WIDTH,height=state.worldMap?.height??MAP_HEIGHT;return x>=0&&x<=width&&y>=0&&y<=height?{x,y}:null;}
+export function getBuildingFlagPosition(state,building){const type=findType(building.typeId),origin=getTileById(state,building.tileId),geometry=getMapGeometry(state);if(!type||!origin||!geometry)return null;const x=origin.x+1,y=origin.y+type.height;return x>=0&&x<=geometry.width&&y>=0&&y<=geometry.height?{x,y}:null;}
 function createBuildingData(id,ownerId,typeId,tileId){const type=findType(typeId);if(!type)throw new Error(`Unknown building type: ${typeId}`);const required=getConstructionMaterials({typeId}),complete=Object.keys(required).length===0,needsInput=Object.keys(type.input??{}).length>0,isProduction=type.role==='production';return{id,ownerId,typeId,tileId,active:complete,constructionComplete:complete,constructionMaterialsRequired:required,constructionMaterialsDelivered:Object.fromEntries(Object.keys(required).map(r=>[r,0])),constructionMaterialsUsed:Object.fromEntries(Object.keys(required).map(r=>[r,0])),currentConstructionMaterial:null,currentConstructionMaterialRemainingTime:0,workerIds:[],soldierIds:[],constructionTimer:0,inputStorageSlots:needsInput?Array(4).fill(null):null,outputStorageSlot:isProduction?null:undefined};}
 export function getBuildingType(building){return findType(building.typeId);}
 export function getFootprintTiles(state,typeId,originTileId){const type=findType(typeId),origin=getTileById(state,originTileId);if(!type||!origin)return[];const out=[];for(let dy=0;dy<type.height;dy+=1)for(let dx=0;dx<type.width;dx+=1){const t=getTileAt(state,origin.x+dx,origin.y+dy);if(!t)return[];out.push(t);}return out;}
-export function getReservedTiles(state,typeId,originTileId){const footprint=getFootprintTiles(state,typeId,originTileId);if(!footprint.length)return[];const ids=new Set(footprint.map(t=>t.id));const tiles=state.worldMap?.tiles??state.tiles;return tiles.filter(t=>!ids.has(t.id)&&footprint.some(c=>Math.max(Math.abs(t.x-c.x),Math.abs(t.y-c.y))===1));}
+export function getReservedTiles(state,typeId,originTileId){const footprint=getFootprintTiles(state,typeId,originTileId),geometry=getMapGeometry(state);if(!footprint.length||!geometry)return[];const ids=new Set(footprint.map(t=>t.id));const tiles=state.worldMap?.tiles??state.tiles??[];return tiles.filter(t=>!ids.has(t.id)&&footprint.some(c=>geometry.distance(t,c)===1));}
 export function getBuildingAtTile(state,tileId){return(state.buildings??[]).find(b=>getFootprintTiles(state,b.typeId,b.tileId).some(t=>t.id===tileId))??null;}
 export function isReservedForBuilding(state,tileId){return(state.buildings??[]).some(b=>getReservedTiles(state,b.typeId,b.tileId).some(t=>t.id===tileId));}
 export function canBuildOnTile(state,typeId,tileId,ownerId=state.player.id){const type=findType(typeId),footprint=getFootprintTiles(state,typeId,tileId);if(!type||footprint.length!==type.width*type.height)return false;if(footprint.some(t=>t.ownerId!==ownerId))return false;if(type.terrainIds&&footprint.some(t=>!type.terrainIds.includes(t.terrain)))return false;if(footprint.some(t=>getBuildingAtTile(state,t.id)||isReservedForBuilding(state,t.id)))return false;return Boolean(getBuildingFlagPosition(state,{typeId,tileId}));}
