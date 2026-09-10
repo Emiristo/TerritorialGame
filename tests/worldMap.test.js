@@ -64,6 +64,17 @@ describe('MapGeometry', () => {
     expect(geometry.direction('2-2', '2-2')).toBeNull();
   });
 
+  it('provides the road-compatible 8-direction turn rules', () => {
+    const geometry = createMapGeometry(10, 10);
+    expect(geometry.directionIndex('east')).toBe(0);
+    expect(geometry.directionIndex('southEast')).toBe(1);
+    expect(geometry.directionIndex('northEast')).toBe(7);
+    expect(geometry.directionChange('east', 'southEast')).toBe(1);
+    expect(geometry.directionChange('east', 'northEast')).toBe(1);
+    expect(geometry.directionChange('east', 'south')).toBe(2);
+    expect(geometry.directionChange('east', 'north')).toBe(2);
+  });
+
   it('provides bounded straight-line queries', () => {
     const geometry = createMapGeometry(10, 10);
     expect(geometry.line('1-1', '4-4').map((tile) => tile.id)).toEqual(['1-1', '2-2', '3-3', '4-4']);
