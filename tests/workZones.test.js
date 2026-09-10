@@ -12,7 +12,7 @@ function place(state, id, typeId, tileId = '30-30') {
   const [x, y] = tileId.split('-').map(Number);
   const type = BUILDING_TYPES[Object.keys(BUILDING_TYPES).find((key) => BUILDING_TYPES[key].id === typeId)];
   for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) {
-    const tile = state.tiles.find((item) => item.x === x + dx && item.y === y + dy);
+    const tile = state.worldMap.getWorldTile(x + dx, y + dy);
     tile.ownerId = state.player.id;
     tile.terrain = 'plains';
   }
