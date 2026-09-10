@@ -3,6 +3,7 @@ import { createTileResources, createPlayerResources } from './resources.js';
 import { createTerritorySource, recalculateTerritories } from './territory.js';
 import { BUILDING_TYPES, addBuilding, getFootprintTiles } from './buildings.js';
 import { createGameClock } from './clock.js';
+import { createWorldMap } from './world/worldMap.js';
 
 export const MAP_WIDTH = 100;
 export const MAP_HEIGHT = 100;
@@ -30,17 +31,19 @@ function createInitialResources(terrainId, x, y) {
   if (terrainId === TERRAIN_TYPES.PLAINS.id) resources.food = 9;
   return resources;
 }
-export function createGameState(now = Date.now()) {
-  const tiles = [];
-  for (let y = 0; y < MAP_HEIGHT; y += 1) for (let x = 0; x < MAP_WIDTH; x += 1) {
-    const terrain = getInitialTerrain(x, y);
-    tiles.push({ id: `${x}-${y}`, x, y, terrain, ownerId: null, influence: {}, resources: createInitialResources(terrain, x, y) });
+export function createGameState(now = Date.now(), mapWidth = MAP_WIDTH, mapHeight = MAP_HEIGHT) {
+  const worldMap = createWorldMap(mapWidth, mapHeight);
+  const tiles = worldMap.tiles;
+  for (let y = 0; y < mapHeight; y += 1) for (let x = 0; x < mapWidth; x += 1) {
+    const tile = tiles[y * mapWidth + x];
+    tile.terrain = getInitialTerrain(x, y);
+    tile.resources = createInitialResources(tile.terrain, x, y);
   }
   const state = {
     selectedTileId: null, clock: createGameClock(now),
     player: { id: 'player', name: 'Игрок', resources: createPlayerResources() },
     rules: { workZoneRadius: 5, resourceUnitPerExtraction: 1 },
-    buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} }, workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], tiles,
+    buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} }, workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], worldMap, tiles,
   };
   const headquartersFootprint = getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   headquartersFootprint.forEach((tile) => { tile.ownerId = 'player'; });
