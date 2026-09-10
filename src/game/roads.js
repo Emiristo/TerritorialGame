@@ -14,7 +14,7 @@ function getFlag(state, id) { return (state.flags ?? []).find(f => f.id === id) 
 function tileCenter(tile) { return { x: tile.x + 0.5, y: tile.y + 0.5 }; }
 function adjacentToNode(tile, node) { if (!tile || !node) return false; const c = tileCenter(tile); return Math.max(Math.abs(c.x - node.x), Math.abs(c.y - node.y)) === 0.5; }
 function areAdjacent(state, a, b) { return Boolean(getGeometry(state)?.areAdjacent(a, b)); }
-function directionIndex(state, dx, dy) { const geometry = getGeometry(state); if (!geometry) return -1; return geometry.directionIndex(geometry.direction({ x: 0, y: 0 }, { x: dx, y: dy })); }
+function directionIndex(state, dx, dy) { const geometry = getGeometry(state); if (!geometry) return -1; return geometry.directionIndex(geometry.directionFromDelta(dx, dy)); }
 function directionChange(state, a, b) { return getGeometry(state)?.directionChange(a, b) ?? 0; }
 export function countRoadsForFlag(state, id) { return (state.roads ?? []).filter(r => r.active && (r.startFlagId === id || r.endFlagId === id)).length; }
 function occupiedRoadCells(state) { return new Set((state.roads ?? []).filter(r => r.active).flatMap(r => r.cells)); }
