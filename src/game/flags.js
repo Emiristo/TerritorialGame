@@ -2,15 +2,24 @@ import { isWithinInfluenceRadius } from './influence.js';
 import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 import { getRoadAtNode, splitRoadAtNode } from './roads.js';
 
-function isValidNodeCoordinate(x, y) {
+function getMapGeometry(state) {
+  return state.worldMap?.geometry ?? null;
+}
+
+function isValidNodeCoordinate(state, x, y) {
+  const geometry = getMapGeometry(state);
   return Number.isFinite(x) && Number.isFinite(y)
-    && x >= 0 && x <= 100 && y >= 0 && y <= 100
     && Number.isInteger(x * 2) && Number.isInteger(y * 2)
-    && (Number.isInteger(x) || Number.isInteger(y));
+    && (Number.isInteger(x) || Number.isInteger(y))
+    && (geometry ? x >= 0 && x <= geometry.width && y >= 0 && y <= geometry.height : x >= 0 && x <= 100 && y >= 0 && y <= 100);
 }
 
 export function createFlag(id, buildingId = null, ownerId, x, y) {
-  if (!isValidNodeCoordinate(x, y)) throw new Error('Flag coordinates must be a valid inter-cell node');
+  if (!Number.isFinite(x) || !Number.isFinite(y)
+    || Number.isInteger(x * 2) === false || Number.isInteger(y * 2) === false
+    || (Number.isInteger(x) === false && Number.isInteger(y) === false)) {
+    throw new Error('Flag coordinates must be a valid inter-cell node');
+  }
   return { id, buildingId, ownerId, x, y, roadIds: [], connected: false };
 }
 export function createStandaloneFlag(id, ownerId, x, y) { return createFlag(id, null, ownerId, x, y); }
@@ -49,7 +58,7 @@ export function isNodeWithinOwnerInfluence(state, x, y, ownerId) {
 }
 
 export function canPlaceStandaloneFlag(state, x, y, ownerId = state.player.id) {
-  if (!isValidNodeCoordinate(x, y) || getFlagAtNode(state, x, y) || nodeInsideBuilding(state, x, y)) return false;
+  if (!isValidNodeCoordinate(state, x, y) || getFlagAtNode(state, x, y) || nodeInsideBuilding(state, x, y)) return false;
   if (!ownedAdjacent(state, x, y, ownerId) || !isNodeWithinOwnerInfluence(state, x, y, ownerId)) return false;
   const road = getRoadAtNode(state, x, y);
   return !road || Boolean(splitRoadAtNode(state, road.id, x, y, { validateOnly: true }));
