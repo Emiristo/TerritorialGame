@@ -2,6 +2,37 @@ import { BUILDING_TYPES } from './buildings.js';
 
 export const WORK_ZONE_DEFAULT_RADIUS = 5;
 
+function getGeometry(state) {
+  if (state.worldMap?.geometry) return state.worldMap.geometry;
+  const tiles = Array.isArray(state.tiles) ? state.tiles : [];
+  if (!tiles.length) return null;
+  const width = Math.max(...tiles.map((tile) => tile.x)) + 1;
+  const height = Math.max(...tiles.map((tile) => tile.y)) + 1;
+  return createLegacyGeometry(width, height);
+}
+
+function createLegacyGeometry(width, height) {
+  return {
+    coordinates(tileOrId) {
+      if (typeof tileOrId === 'string') {
+        const [x, y] = tileOrId.split('-').map(Number);
+        return Number.isInteger(x) && Number.isInteger(y) ? { x, y } : null;
+      }
+      return tileOrId && Number.isInteger(tileOrId.x) && Number.isInteger(tileOrId.y) ? tileOrId : null;
+    },
+    distance(a, b) {
+      const first = this.coordinates(a);
+      const second = this.coordinates(b);
+      if (!first || !second) return Infinity;
+      return Math.max(Math.abs(first.x - second.x), Math.abs(first.y - second.y));
+    },
+  };
+}
+
+function getTiles(state) {
+  return state.worldMap?.tiles ?? state.tiles ?? [];
+}
+
 function findBuilding(state, buildingId) {
   return (state.buildings ?? []).find((building) => building.id === buildingId) ?? null;
 }
@@ -11,15 +42,11 @@ function findWorker(state, workerId) {
 }
 
 function findTile(state, tileId) {
-  return (state.tiles ?? []).find((tile) => tile.id === tileId) ?? null;
+  return getTiles(state).find((tile) => tile.id === tileId) ?? null;
 }
 
 function findBuildingType(building) {
   return Object.values(BUILDING_TYPES).find((type) => type.id === building?.typeId) ?? null;
-}
-
-function chebyshevDistance(a, b) {
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }
 
 export function getWorkZoneSpec(state, building) {
@@ -40,7 +67,7 @@ export function getWorkZoneCells(state, zone) {
     const building = findBuilding(state, zone.buildingId);
     const type = findBuildingType(building);
     if (!building || !type) return [];
-    return (state.tiles ?? []).filter((tile) => (
+    return getTiles(state).filter((tile) => (
       tile.x >= center.x
       && tile.x < center.x + type.width
       && tile.y >= center.y
@@ -49,7 +76,9 @@ export function getWorkZoneCells(state, zone) {
   }
 
   if (zone.radius == null || zone.radius < 0) return [];
-  return (state.tiles ?? []).filter((tile) => chebyshevDistance(center, tile) <= zone.radius);
+  const geometry = getGeometry(state);
+  if (!geometry) return [];
+  return getTiles(state).filter((tile) => geometry.distance(center, tile) <= zone.radius);
 }
 
 export function createWorkZone(id, ownerId, buildingId, centerTileId, radius = null, mode = 'radius') {
