@@ -54,4 +54,20 @@ describe('MapGeometry', () => {
     expect(geometry.radius('5-5', 1)).toHaveLength(9);
     expect(geometry.radius('0-0', 1)).toHaveLength(4);
   });
+
+  it('provides canonical direction lookup', () => {
+    const geometry = createMapGeometry(10, 10);
+    expect(geometry.direction('2-2', '2-1')).toBe('north');
+    expect(geometry.direction('2-2', '3-2')).toBe('east');
+    expect(geometry.direction('2-2', '3-1')).toBe('northEast');
+    expect(geometry.direction('2-2', '5-4')).toBe('southEast');
+    expect(geometry.direction('2-2', '2-2')).toBeNull();
+  });
+
+  it('provides bounded straight-line queries', () => {
+    const geometry = createMapGeometry(10, 10);
+    expect(geometry.line('1-1', '4-4').map((tile) => tile.id)).toEqual(['1-1', '2-2', '3-3', '4-4']);
+    expect(geometry.tilesBetween('1-1', '4-4').map((tile) => tile.id)).toEqual(['2-2', '3-3']);
+    expect(geometry.tilesBetween('2-2', '3-3')).toEqual([]);
+  });
 });
