@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createMapGeometry } from '../src/game/world/mapGeometry.js';
 import { createWorldMap, getWorldTile, getWorldTileById } from '../src/game/world/worldMap.js';
+import { createGameState } from '../src/game/state.js';
 
 describe('WorldMap foundation', () => {
   it('creates worlds of arbitrary dimensions', () => {
@@ -18,6 +19,14 @@ describe('WorldMap foundation', () => {
     expect(getWorldTileById(map, '3-6')).toMatchObject({ id: '3-6', x: 3, y: 6 });
     expect(getWorldTileById(map, '10-6')).toBeNull();
     expect(getWorldTileById(map, 'bad-id')).toBeNull();
+  });
+
+  it('attaches a variable-size WorldMap to the game state', () => {
+    const state = createGameState(Date.now(), 120, 110);
+    expect(state.worldMap.width).toBe(120);
+    expect(state.worldMap.height).toBe(110);
+    expect(state.tiles).toBe(state.worldMap.tiles);
+    expect(state.tiles).toHaveLength(120 * 110);
   });
 });
 
