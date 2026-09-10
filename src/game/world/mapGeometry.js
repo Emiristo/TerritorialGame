@@ -25,7 +25,9 @@ export function createMapGeometry(width, height) {
   };
   const coordinates = (tileOrId) => {
     if (typeof tileOrId === 'string') return parseTileId(tileOrId);
-    if (tileOrId && Number.isInteger(tileOrId.x) && Number.isInteger(tileOrId.y) && inBounds(tileOrId.x, tileOrId.y)) return { x: tileOrId.x, y: tileOrId.y, id: tileId(tileOrId.x, tileOrId.y) };
+    if (tileOrId && Number.isInteger(tileOrId.x) && Number.isInteger(tileOrId.y) && inBounds(tileOrId.x, tileOrId.y)) {
+      return { x: tileOrId.x, y: tileOrId.y, id: tileId(tileOrId.x, tileOrId.y) };
+    }
     return null;
   };
   const neighbours = (tileOrId) => {
@@ -53,6 +55,14 @@ export function createMapGeometry(width, height) {
     if (!first || !second) return Infinity;
     return Math.max(Math.abs(first.x - second.x), Math.abs(first.y - second.y));
   };
+  const direction = (from, to) => {
+    const first = coordinates(from);
+    const second = coordinates(to);
+    if (!first || !second || (first.x === second.x && first.y === second.y)) return null;
+    const dx = Math.sign(second.x - first.x);
+    const dy = Math.sign(second.y - first.y);
+    return MAP_DIRECTIONS.find((entry) => entry.dx === dx && entry.dy === dy)?.id ?? null;
+  };
   const radius = (center, range) => {
     const origin = coordinates(center);
     if (!origin || !Number.isInteger(range) || range < 0) return [];
@@ -64,6 +74,46 @@ export function createMapGeometry(width, height) {
     }
     return result;
   };
+  const line = (from, to) => {
+    const first = coordinates(from);
+    const second = coordinates(to);
+    if (!first || !second) return [];
+    const result = [];
+    let x = first.x;
+    let y = first.y;
+    const dx = Math.abs(second.x - first.x);
+    const dy = Math.abs(second.y - first.y);
+    const sx = first.x < second.x ? 1 : -1;
+    const sy = first.y < second.y ? 1 : -1;
+    let error = dx - dy;
+    while (true) {
+      result.push({ id: tileId(x, y), x, y });
+      if (x === second.x && y === second.y) break;
+      const doubled = 2 * error;
+      if (doubled > -dy) { error -= dy; x += sx; }
+      if (doubled < dx) { error += dx; y += sy; }
+    }
+    return result;
+  };
+  const tilesBetween = (from, to) => {
+    const result = line(from, to);
+    return result.length > 2 ? result.slice(1, -1) : [];
+  };
 
-  return Object.freeze({ width, height, size: width * height, inBounds, tileId, parseTileId, coordinates, neighbours, areAdjacent, distance, radius });
+  return Object.freeze({
+    width,
+    height,
+    size: width * height,
+    inBounds,
+    tileId,
+    parseTileId,
+    coordinates,
+    neighbours,
+    areAdjacent,
+    distance,
+    direction,
+    radius,
+    line,
+    tilesBetween,
+  });
 }
