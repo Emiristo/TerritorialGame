@@ -1,12 +1,12 @@
 export const MAP_DIRECTIONS = Object.freeze([
-  Object.freeze({ id: 'north', dx: 0, dy: -1 }),
   Object.freeze({ id: 'east', dx: 1, dy: 0 }),
-  Object.freeze({ id: 'south', dx: 0, dy: 1 }),
-  Object.freeze({ id: 'west', dx: -1, dy: 0 }),
-  Object.freeze({ id: 'northEast', dx: 1, dy: -1 }),
-  Object.freeze({ id: 'southWest', dx: -1, dy: 1 }),
-  Object.freeze({ id: 'northWest', dx: -1, dy: -1 }),
   Object.freeze({ id: 'southEast', dx: 1, dy: 1 }),
+  Object.freeze({ id: 'south', dx: 0, dy: 1 }),
+  Object.freeze({ id: 'southWest', dx: -1, dy: 1 }),
+  Object.freeze({ id: 'west', dx: -1, dy: 0 }),
+  Object.freeze({ id: 'northWest', dx: -1, dy: -1 }),
+  Object.freeze({ id: 'north', dx: 0, dy: -1 }),
+  Object.freeze({ id: 'northEast', dx: 1, dy: -1 }),
 ]);
 
 export function createMapGeometry(width, height) {
@@ -63,6 +63,17 @@ export function createMapGeometry(width, height) {
     const dy = Math.sign(second.y - first.y);
     return MAP_DIRECTIONS.find((entry) => entry.dx === dx && entry.dy === dy)?.id ?? null;
   };
+  const directionIndex = (value) => {
+    if (typeof value === 'number') return Number.isInteger(value) && value >= 0 && value < MAP_DIRECTIONS.length ? value : -1;
+    return MAP_DIRECTIONS.findIndex((entry) => entry.id === value);
+  };
+  const directionChange = (from, to) => {
+    const first = directionIndex(from);
+    const second = directionIndex(to);
+    if (first < 0 || second < 0) return 0;
+    const difference = Math.abs(first - second);
+    return Math.min(difference, MAP_DIRECTIONS.length - difference);
+  };
   const radius = (center, range) => {
     const origin = coordinates(center);
     if (!origin || !Number.isInteger(range) || range < 0) return [];
@@ -112,6 +123,8 @@ export function createMapGeometry(width, height) {
     areAdjacent,
     distance,
     direction,
+    directionIndex,
+    directionChange,
     radius,
     line,
     tilesBetween,
