@@ -53,6 +53,19 @@ function findZone(state, zoneId) { return (state.workZones ?? []).find((zone) =>
 function getBuildingType(state, building) { return (state.buildingTypes ?? []).find((type) => type.id === building?.typeId) ?? null; }
 export function getWorkerType(worker) { return Object.values(WORKER_TYPES).find((type) => type.id === worker?.typeId) ?? null; }
 
+function getMapGeometry(state) {
+  return state.worldMap?.geometry ?? null;
+}
+
+function getMapTiles(state) {
+  return state.worldMap?.tiles ?? state.tiles ?? [];
+}
+
+function getTileById(state, tileId) {
+  if (state.worldMap?.getWorldTileById) return state.worldMap.getWorldTileById(tileId);
+  return getMapTiles(state).find((tile) => tile.id === tileId) ?? null;
+}
+
 export function getExtractionRule(state, worker) {
   if (worker?.typeId !== 'miner') return RESOURCE_RULES[worker?.typeId] ?? null;
   const zone = findZone(state, worker?.zoneId);
@@ -69,17 +82,20 @@ export function findAvailableResourceTile(state, worker) {
   if (!rule || !worker?.zoneId) return null;
   const zone = findZone(state, worker.zoneId);
   if (!zone) return null;
-  const center = (state.tiles ?? []).find((item) => item.id === zone.centerTileId);
+  const center = getTileById(state, zone.centerTileId);
   if (!center) return null;
-  return (state.tiles ?? []).find((tile) => rule.terrainIds.includes(tile.terrain)
+  const geometry = getMapGeometry(state);
+  return getMapTiles(state).find((tile) => rule.terrainIds.includes(tile.terrain)
     && (tile.resources?.[rule.resourceId] ?? 0) > 0
-    && Math.max(Math.abs(tile.x - center.x), Math.abs(tile.y - center.y)) <= zone.radius) ?? null;
+    && (geometry
+      ? geometry.distance(tile, center) <= zone.radius
+      : Math.max(Math.abs(tile.x - center.x), Math.abs(tile.y - center.y)) <= zone.radius)) ?? null;
 }
 
 export function extractForWorker(state, workerId) {
   const worker = findWorker(state, workerId);
   const tile = worker?.targetTileId
-    ? (state.tiles ?? []).find((item) => item.id === worker.targetTileId)
+    ? getTileById(state, worker.targetTileId)
     : findAvailableResourceTile(state, worker);
   const rule = worker ? getExtractionRule(state, worker) : null;
   const building = worker?.buildingId ? findBuilding(state, worker.buildingId) : null;
