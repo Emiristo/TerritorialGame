@@ -59,10 +59,9 @@ export function createMapGeometry(width, height) {
     const first = coordinates(from);
     const second = coordinates(to);
     if (!first || !second || (first.x === second.x && first.y === second.y)) return null;
-    const dx = Math.sign(second.x - first.x);
-    const dy = Math.sign(second.y - first.y);
-    return MAP_DIRECTIONS.find((entry) => entry.dx === dx && entry.dy === dy)?.id ?? null;
+    return directionFromDelta(Math.sign(second.x - first.x), Math.sign(second.y - first.y));
   };
+  const directionFromDelta = (dx, dy) => MAP_DIRECTIONS.find((entry) => entry.dx === Math.sign(dx) && entry.dy === Math.sign(dy))?.id ?? null;
   const directionIndex = (value) => {
     if (typeof value === 'number') return Number.isInteger(value) && value >= 0 && value < MAP_DIRECTIONS.length ? value : -1;
     return MAP_DIRECTIONS.findIndex((entry) => entry.id === value);
@@ -123,6 +122,7 @@ export function createMapGeometry(width, height) {
     areAdjacent,
     distance,
     direction,
+    directionFromDelta,
     directionIndex,
     directionChange,
     radius,
