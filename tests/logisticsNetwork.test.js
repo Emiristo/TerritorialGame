@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
+import { getWorldTile } from '../src/game/world/worldMap.js';
 import { addBuilding } from '../src/game/buildings.js';
 import { syncBuildingFlags, destroyBuilding } from '../src/game/buildingLogistics.js';
 import { createFlag, addFlag, getFlagForBuilding } from '../src/game/flags.js';
@@ -8,7 +9,7 @@ import { areFlagsConnected, findFlagRoute, rebuildLogisticsNetwork } from '../sr
 
 function prepareArea(state, x, y, width, height) {
   for (let dy = 0; dy < height; dy += 1) for (let dx = 0; dx < width; dx += 1) {
-    const tile = state.tiles.find((item) => item.x === x + dx && item.y === y + dy);
+    const tile = getWorldTile(state.worldMap, x + dx, y + dy);
     tile.ownerId = 'player'; tile.terrain = 'plains';
   }
 }
