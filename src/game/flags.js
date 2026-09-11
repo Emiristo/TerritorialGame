@@ -1,6 +1,7 @@
 import { isWithinInfluenceRadius } from './influence.js';
 import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 import { getRoadAtNode, splitRoadAtNode } from './roads.js';
+import { getWorldTileById } from './world/worldMap.js';
 
 function getMapGeometry(state) {
   return state.worldMap?.geometry ?? null;
@@ -11,7 +12,8 @@ function isValidNodeCoordinate(state, x, y) {
   return Number.isFinite(x) && Number.isFinite(y)
     && Number.isInteger(x * 2) && Number.isInteger(y * 2)
     && (Number.isInteger(x) || Number.isInteger(y))
-    && (geometry ? x >= 0 && x <= geometry.width && y >= 0 && y <= geometry.height : x >= 0 && x <= 100 && y >= 0 && y <= 100);
+    && geometry !== null
+    && x >= 0 && x <= geometry.width && y >= 0 && y <= geometry.height;
 }
 
 export function createFlag(id, buildingId = null, ownerId, x, y) {
@@ -41,7 +43,20 @@ function nodeInsideBuilding(state, x, y) {
 }
 
 function getAdjacentTiles(state, x, y) {
-  return (state.tiles ?? []).filter((t) => Math.abs((t.x + 0.5) - x) <= 0.5 && Math.abs((t.y + 0.5) - y) <= 0.5);
+  const geometry = getMapGeometry(state);
+  if (!geometry) return [];
+  const minX = Math.floor(x - 0.5);
+  const maxX = Math.floor(x + 0.5);
+  const minY = Math.floor(y - 0.5);
+  const maxY = Math.floor(y + 0.5);
+  const tiles = [];
+  for (let ty = minY; ty <= maxY; ty += 1) {
+    for (let tx = minX; tx <= maxX; tx += 1) {
+      const tile = geometry.inBounds(tx, ty) ? getWorldTileById(state.worldMap, geometry.tileId(tx, ty)) : null;
+      if (tile && Math.abs((tile.x + 0.5) - x) <= 0.5 && Math.abs((tile.y + 0.5) - y) <= 0.5) tiles.push(tile);
+    }
+  }
+  return tiles;
 }
 
 function ownedAdjacent(state, x, y, ownerId) {
@@ -51,7 +66,7 @@ function ownedAdjacent(state, x, y, ownerId) {
 export function isNodeWithinOwnerInfluence(state, x, y, ownerId) {
   return (state.territorySources ?? []).some((source) => {
     if (!source.active || source.ownerId !== ownerId) return false;
-    const center = (state.tiles ?? []).find((tile) => tile.id === source.tileId);
+    const center = getWorldTileById(state.worldMap, source.tileId);
     if (!center) return false;
     return isWithinInfluenceRadius(center, { x, y }, source.radius);
   });
