@@ -3,7 +3,7 @@ import { createTileResources, createPlayerResources } from './resources.js';
 import { createTerritorySource, recalculateTerritories } from './territory.js';
 import { BUILDING_TYPES, addBuilding, getFootprintTiles } from './buildings.js';
 import { createGameClock } from './clock.js';
-import { createWorldMap } from './world/worldMap.js';
+import { createWorldMap, getWorldTileById } from './world/worldMap.js';
 
 export const MAP_WIDTH = 100;
 export const MAP_HEIGHT = 100;
@@ -48,12 +48,12 @@ export function createGameState(now = Date.now(), mapWidth = MAP_WIDTH, mapHeigh
   const headquartersFootprint = getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   headquartersFootprint.forEach((tile) => { tile.ownerId = 'player'; });
   addBuilding(state, 'headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
-  const headquartersCenter = tiles.find((tile) => tile.x === HEADQUARTERS_CENTER_X && tile.y === HEADQUARTERS_CENTER_Y);
+  const headquartersCenter = worldMap.tiles.find((tile) => tile.x === HEADQUARTERS_CENTER_X && tile.y === HEADQUARTERS_CENTER_Y);
   if (headquartersCenter) {
     state.territorySources.push(createTerritorySource('headquarters-player', 'player', headquartersCenter.id, 1, BUILDING_TYPES.HEADQUARTERS.influenceRadius));
     recalculateTerritories(state);
   }
   return state;
 }
-export function getSelectedTile(state) { return state.tiles.find((tile) => tile.id === state.selectedTileId) ?? null; }
+export function getSelectedTile(state) { return getWorldTileById(state.worldMap, state.selectedTileId) ?? null; }
 export function getHeadquartersTiles(state) { return getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`); }
