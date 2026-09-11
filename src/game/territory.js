@@ -1,4 +1,4 @@
-import { addInfluence, getInfluenceWinner, isWithinInfluenceRadius } from './influence.js';
+import { addInfluence, getInfluenceWinner } from './influence.js';
 import { getWorldTileById } from './world/worldMap.js';
 
 function getTiles(state) {
@@ -21,18 +21,16 @@ export function createTerritorySource(id, ownerId, tileId, influence = 1, radius
 export function recalculateTerritories(state) {
   const tiles = getTiles(state);
   const geometry = getGeometry(state);
+  if (!geometry) return state;
   for (const tile of tiles) tile.influence = {};
   for (const source of state.territorySources ?? []) {
     if (!source.active) continue;
     const center = getTileById(state, source.tileId);
     if (!center) continue;
-    const candidates = geometry ? geometry.radius(center, source.radius) : [];
-    for (const candidate of candidates) {
+    for (const candidate of geometry.radius(center, source.radius)) {
       const tile = getTileById(state, candidate.id);
       if (!tile) continue;
-      if (geometry ? geometry.distance(center, tile) <= source.radius : isWithinInfluenceRadius(center, tile, source.radius)) {
-        addInfluence(tile, source.ownerId, source.influence);
-      }
+      if (geometry.distance(center, tile) <= source.radius) addInfluence(tile, source.ownerId, source.influence);
     }
   }
   for (const tile of tiles) tile.ownerId = getInfluenceWinner(tile);
