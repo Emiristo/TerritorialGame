@@ -5,19 +5,20 @@ import { addRoad, createRoad } from '../src/game/roads.js';
 import { getGlobalDemand, rebuildGlobalDemand } from '../src/game/globalDemand.js';
 import { getFlagCargo } from '../src/game/carriers.js';
 import { processLogisticsTasks } from '../src/game/logisticsManager.js';
+import { createWorldMap, getWorldTile } from '../src/game/world/worldMap.js';
 
 function makeState() {
-  const tiles = [];
-  for (let y = 2; y <= 5; y += 1) {
-    for (let x = 2; x <= 8; x += 1) {
-      tiles.push({ id: `${x}-${y}`, x, y, terrain: 'hills', resources: {} });
+  const worldMap = createWorldMap(100, 100);
+  for (let y = 0; y < worldMap.height; y += 1) {
+    for (let x = 0; x < worldMap.width; x += 1) {
+      getWorldTile(worldMap, x, y).terrain = 'hills';
     }
   }
-  tiles.find((tile) => tile.id === '2-2').resources.stone = 1;
+  getWorldTile(worldMap, 2, 2).resources.stone = 1;
 
   return {
     player: { id: 'player', resources: {} },
-    tiles,
+    worldMap,
     flags: [],
     roads: [],
     buildings: [
