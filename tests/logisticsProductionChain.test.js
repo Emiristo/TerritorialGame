@@ -7,7 +7,7 @@ import { createTransportTasks, processLogisticsTasks, dispatchTransportRequests,
 import { advanceBuildingWorkers, createWorker } from '../src/game/workers.js';
 import { advanceAllProductions } from '../src/game/production.js';
 
-function createTestWorldMap(width, height) {
+function createTestWorldMap(width = 100, height = 100) {
   const worldMap = createWorldMap(width, height);
   for (const tile of worldMap.tiles) {
     tile.terrain = 'plains';
@@ -20,7 +20,7 @@ describe('building logistics and production chain', () => {
   it('moves a resource from warehouse-side flag to input storage and then returns production output to the building flag', () => {
     const state = {
       player: { id: 'player', resources: {} },
-      worldMap: createTestWorldMap(5, 2),
+      worldMap: createTestWorldMap(),
       flags: [
         createFlag('source-flag', 'source', 'player', 1.5, 1),
         createFlag('destination-flag', 'workshop', 'player', 4.5, 1),
@@ -68,7 +68,7 @@ describe('building logistics and production chain', () => {
   it('moves finished production from the building flag through the road carrier to the warehouse flag, then the warehouse carrier completes delivery', () => {
     const state = {
       player: { id: 'player', resources: {} },
-      worldMap: createTestWorldMap(5, 2),
+      worldMap: createTestWorldMap(),
       flags: [
         createFlag('workshop-flag', 'workshop', 'player', 1.5, 1),
         createFlag('warehouse-flag', 'warehouse', 'player', 4.5, 1),
@@ -116,7 +116,7 @@ describe('building logistics and production chain', () => {
   it('does not stage production output itself: a building worker must move output to the flag before logistics can create a request', () => {
     const state = {
       player: { id: 'player', resources: {} },
-      worldMap: createTestWorldMap(6, 4),
+      worldMap: createTestWorldMap(),
       flags: [
         createFlag('source-flag', 'source', 'player', 1.5, 1),
         createFlag('workshop-flag', 'workshop', 'player', 4.5, 1),
