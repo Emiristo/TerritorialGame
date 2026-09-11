@@ -55,6 +55,10 @@ export function createMapGeometry(width, height) {
     if (!first || !second) return Infinity;
     return Math.max(Math.abs(first.x - second.x), Math.abs(first.y - second.y));
   };
+  const distanceBetweenPositions = (a, b) => {
+    if (!Number.isFinite(a?.x) || !Number.isFinite(a?.y) || !Number.isFinite(b?.x) || !Number.isFinite(b?.y)) return Infinity;
+    return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+  };
   const direction = (from, to) => {
     const first = coordinates(from);
     const second = coordinates(to);
@@ -121,6 +125,7 @@ export function createMapGeometry(width, height) {
     neighbours,
     areAdjacent,
     distance,
+    distanceBetweenPositions,
     direction,
     directionFromDelta,
     directionIndex,
