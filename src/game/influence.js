@@ -11,7 +11,10 @@ export function getInfluenceWinner(tile) {
 
 export function distanceBetweenTiles(a, b, geometry = null) {
   if (!Number.isFinite(a?.x) || !Number.isFinite(a?.y) || !Number.isFinite(b?.x) || !Number.isFinite(b?.y)) return Infinity;
-  if (geometry) return geometry.distance(a, b);
+  if (geometry) {
+    const bothTiles = Number.isInteger(a.x) && Number.isInteger(a.y) && Number.isInteger(b.x) && Number.isInteger(b.y);
+    return bothTiles ? geometry.distance(a, b) : geometry.distanceBetweenPositions(a, b);
+  }
   return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }
 
