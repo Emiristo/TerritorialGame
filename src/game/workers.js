@@ -17,6 +17,7 @@ import {
 } from './carriers.js';
 import { findReservedInputSlot, occupyReservedInputSlot } from './inputReservations.js';
 import { markLogisticsDirty } from './logisticsSignals.js';
+import { getWorldTileById } from './world/worldMap.js';
 
 export const WORKER_TYPES = {
   FORESTER: { id: 'forester', name: 'Лесничий', toolId: 'shovel' },
@@ -58,12 +59,11 @@ function getMapGeometry(state) {
 }
 
 function getMapTiles(state) {
-  return state.worldMap?.tiles ?? state.tiles ?? [];
+  return state.worldMap?.tiles ?? [];
 }
 
 function getTileById(state, tileId) {
-  if (state.worldMap?.getWorldTileById) return state.worldMap.getWorldTileById(tileId);
-  return getMapTiles(state).find((tile) => tile.id === tileId) ?? null;
+  return getWorldTileById(state.worldMap, tileId);
 }
 
 export function getExtractionRule(state, worker) {
@@ -87,9 +87,8 @@ export function findAvailableResourceTile(state, worker) {
   const geometry = getMapGeometry(state);
   return getMapTiles(state).find((tile) => rule.terrainIds.includes(tile.terrain)
     && (tile.resources?.[rule.resourceId] ?? 0) > 0
-    && (geometry
-      ? geometry.distance(tile, center) <= zone.radius
-      : Math.max(Math.abs(tile.x - center.x), Math.abs(tile.y - center.y)) <= zone.radius)) ?? null;
+    && geometry
+    && geometry.distance(tile, center) <= zone.radius) ?? null;
 }
 
 export function extractForWorker(state, workerId) {
