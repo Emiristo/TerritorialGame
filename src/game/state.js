@@ -3,7 +3,7 @@ import { createTileResources, createPlayerResources } from './resources.js';
 import { createTerritorySource, recalculateTerritories } from './territory.js';
 import { BUILDING_TYPES, addBuilding, getFootprintTiles } from './buildings.js';
 import { createGameClock } from './clock.js';
-import { createWorldMap, getWorldTileById } from './world/worldMap.js';
+import { createWorldMap, getWorldTile, getWorldTileById } from './world/worldMap.js';
 
 export const MAP_WIDTH = 100;
 export const MAP_HEIGHT = 100;
@@ -35,7 +35,7 @@ export function createGameState(now = Date.now(), mapWidth = MAP_WIDTH, mapHeigh
   const worldMap = createWorldMap(mapWidth, mapHeight);
   const tiles = worldMap.tiles;
   for (let y = 0; y < mapHeight; y += 1) for (let x = 0; x < mapWidth; x += 1) {
-    const tile = tiles[y * mapWidth + x];
+    const tile = getWorldTile(worldMap, x, y);
     tile.terrain = getInitialTerrain(x, y);
     tile.resources = createInitialResources(tile.terrain, x, y);
   }
@@ -48,12 +48,12 @@ export function createGameState(now = Date.now(), mapWidth = MAP_WIDTH, mapHeigh
   const headquartersFootprint = getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   headquartersFootprint.forEach((tile) => { tile.ownerId = 'player'; });
   addBuilding(state, 'headquarters-1', 'player', BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
-  const headquartersCenter = worldMap.tiles.find((tile) => tile.x === HEADQUARTERS_CENTER_X && tile.y === HEADQUARTERS_CENTER_Y);
+  const headquartersCenter = getWorldTile(worldMap, HEADQUARTERS_CENTER_X, HEADQUARTERS_CENTER_Y);
   if (headquartersCenter) {
     state.territorySources.push(createTerritorySource('headquarters-player', 'player', headquartersCenter.id, 1, BUILDING_TYPES.HEADQUARTERS.influenceRadius));
     recalculateTerritories(state);
   }
   return state;
 }
-export function getSelectedTile(state) { return getWorldTileById(state.worldMap, state.selectedTileId) ?? null; }
+export function getSelectedTile(state) { return getWorldTileById(state.worldMap, state.selectedTileId); }
 export function getHeadquartersTiles(state) { return getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`); }
