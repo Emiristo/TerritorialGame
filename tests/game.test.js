@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState, MAP_WIDTH, MAP_HEIGHT, STARTER_FOREST_AREA, STARTER_STONE_AREA, STARTER_HILLS_AREA, STARTER_MOUNTAINS_AREA } from '../src/game/state.js';
 import { BUILDING_TYPES, addBuilding, canBuildOnTile, getFootprintTiles, getReservedTiles, isReservedForBuilding } from '../src/game/buildings.js';
+import { getWorldTile } from '../src/game/world/worldMap.js';
 import { createGameClock, startGameClock, tickGameClock } from '../src/game/clock.js';
 import { BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, startConstruction, advanceConstruction } from '../src/game/construction.js';
 import { isWithinInfluenceRadius } from '../src/game/influence.js';
@@ -12,7 +13,7 @@ function place(state, id, typeId, tileId = '40-40') {
   const [x, y] = tileId.split('-').map(Number);
   const type = Object.values(BUILDING_TYPES).find((item) => item.id === typeId);
   for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) {
-    const tile = state.tiles.find((item) => item.x === x + dx && item.y === y + dy);
+    const tile = getWorldTile(state.worldMap, x + dx, y + dy);
     tile.ownerId = state.player.id;
     tile.terrain = 'plains';
   }
