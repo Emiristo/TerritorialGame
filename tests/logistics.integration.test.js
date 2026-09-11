@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createWorldMap, getWorldTile } from '../src/game/world/worldMap.js';
 import { createWorker, extractForWorker } from '../src/game/workers.js';
 import { createFlag } from '../src/game/flags.js';
 import { createRoad, addRoad } from '../src/game/roads.js';
@@ -6,10 +7,13 @@ import { getBuildingInventory, getFlagCargo, stageWarehouseCargoForRequest } fro
 import { createTransportTasks, processLogisticsTasks } from '../src/game/logisticsManager.js';
 
 function makeState() {
-  const tiles = [];
-  for (let y = 0; y < 20; y += 1) for (let x = 0; x < 20; x += 1) tiles.push({ id: `${x}-${y}`, x, y, terrain: x === 2 ? 'hills' : 'plains', resources: {} });
-  tiles.find((tile) => tile.id === '2-2').resources.stone = 1;
-  return { player: { id: 'player', resources: {} }, tiles, flags: [], roads: [], buildings: [
+  const worldMap = createWorldMap(20, 20);
+  for (const tile of worldMap.tiles) {
+    tile.terrain = tile.x === 2 ? 'hills' : 'plains';
+    tile.resources = {};
+  }
+  getWorldTile(worldMap, 2, 2).resources.stone = 1;
+  return { player: { id: 'player', resources: {} }, worldMap, flags: [], roads: [], buildings: [
     { id: 'mine', ownerId: 'player', typeId: 'mine', tileId: '2-2', active: true, inventory: {} },
     { id: 'warehouse', ownerId: 'player', typeId: 'warehouse', tileId: '4-2', active: true, inventory: {} },
     { id: 'workshop', ownerId: 'player', typeId: 'workshop', tileId: '7-2', active: true, inventory: {} },
