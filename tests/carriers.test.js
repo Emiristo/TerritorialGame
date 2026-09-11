@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createWorldMap, getWorldTile } from '../src/game/world/worldMap.js';
+import { createWorldMap } from '../src/game/world/worldMap.js';
 import { createFlag } from '../src/game/flags.js';
 import { createRoad, addRoad, getRoadCarrierCapacity, getRoadLevel, recordRoadCargo } from '../src/game/roads.js';
 import { rebuildLogisticsNetwork } from '../src/game/logisticsNetwork.js';
