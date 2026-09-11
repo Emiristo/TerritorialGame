@@ -7,7 +7,7 @@ import { getBuildingInventory, getFlagCargo, stageWarehouseCargoForRequest } fro
 import { createTransportTasks, processLogisticsTasks } from '../src/game/logisticsManager.js';
 
 function makeState() {
-  const worldMap = createWorldMap(20, 20);
+  const worldMap = createWorldMap(100, 100);
   for (const tile of worldMap.tiles) {
     tile.terrain = tile.x === 2 ? 'hills' : 'plains';
     tile.resources = {};
