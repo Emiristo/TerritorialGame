@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { addInputResourceToBuilding, addProductionOutputToBuilding, getBuildingInputStorage, getBuildingInputStorageCapacity, getBuildingOutputStorageResource, removeProductionOutputFromBuilding } from '../src/game/carriers.js';
 import { addBuilding } from '../src/game/buildings.js';
 import { createGameState } from '../src/game/state.js';
+import { getWorldTile } from '../src/game/world/worldMap.js';
 import { getFreeInputSlotCount, getInputSlotReservations, getReservedInputSlotCount, occupyReservedInputSlot, releaseBuildingInputSlot, reserveBuildingInputSlot } from '../src/game/inputReservations.js';
 
 function place(state, id, typeId, tileId = '40-40') {
   const [x, y] = tileId.split('-').map(Number);
   const type = { width: 3, height: 3 };
   for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) {
-    const tile = state.tiles.find((item) => item.x === x + dx && item.y === y + dy);
+    const tile = getWorldTile(state.worldMap, x + dx, y + dy);
     tile.ownerId = state.player.id;
     tile.terrain = 'plains';
   }
