@@ -1,7 +1,7 @@
 import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 import { addCarrier, createCarrier } from './carriers.js';
 import { MAP_DIRECTIONS } from './world/mapGeometry.js';
-import { getWorldTile } from './world/worldMap.js';
+import { getWorldTileById } from './world/worldMap.js';
 
 const MAX_ROADS_PER_FLAG = 4;
 const MIN_ROAD_CELLS = 2;
@@ -10,7 +10,7 @@ export const MAX_ROAD_LEVEL = 3;
 
 function getGeometry(state) { return state.worldMap?.geometry ?? null; }
 function tileId(x, y) { return `${x}-${y}`; }
-function getTile(state, id) { return getWorldTile(state.worldMap, ...id.split('-').map(Number)); }
+function getTile(state, id) { return getWorldTileById(state.worldMap, id); }
 function getFlag(state, id) { return (state.flags ?? []).find((f) => f.id === id) ?? null; }
 function tileCenter(tile) { return { x: tile.x + 0.5, y: tile.y + 0.5 }; }
 function adjacentToNode(tile, node) { if (!tile || !node) return false; const c = tileCenter(tile); return Math.max(Math.abs(c.x - node.x), Math.abs(c.y - node.y)) === 0.5; }
