@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createWorldMap } from '../src/game/world/worldMap.js';
 import { createFlag } from '../src/game/flags.js';
 import { createRoad, addRoad } from '../src/game/roads.js';
 import { getFlagCargo, getBuildingInventory } from '../src/game/carriers.js';
@@ -6,11 +7,20 @@ import { createTransportTasks, processLogisticsTasks, dispatchTransportRequests,
 import { advanceBuildingWorkers, createWorker } from '../src/game/workers.js';
 import { advanceAllProductions } from '../src/game/production.js';
 
+function createTestWorldMap(width, height) {
+  const worldMap = createWorldMap(width, height);
+  for (const tile of worldMap.tiles) {
+    tile.terrain = 'plains';
+    tile.resources = {};
+  }
+  return worldMap;
+}
+
 describe('building logistics and production chain', () => {
   it('moves a resource from warehouse-side flag to input storage and then returns production output to the building flag', () => {
     const state = {
       player: { id: 'player', resources: {} },
-      tiles: [],
+      worldMap: createTestWorldMap(5, 2),
       flags: [
         createFlag('source-flag', 'source', 'player', 1.5, 1),
         createFlag('destination-flag', 'workshop', 'player', 4.5, 1),
@@ -32,7 +42,6 @@ describe('building logistics and production chain', () => {
     state.workers[0].state = 'working';
     state.flags[0].cargo = { wood: 1 };
 
-    for (let y = 0; y < 2; y += 1) for (let x = 0; x < 5; x += 1) state.tiles.push({ id: `${x}-${y}`, x, y, terrain: 'plains', resources: {} });
     addRoad(state, createRoad('road-1', 'source-flag', 'destination-flag', ['1-0', '2-0', '3-0', '4-0']));
 
     expect(createTransportTasks(state)).toBe(1);
@@ -59,7 +68,7 @@ describe('building logistics and production chain', () => {
   it('moves finished production from the building flag through the road carrier to the warehouse flag, then the warehouse carrier completes delivery', () => {
     const state = {
       player: { id: 'player', resources: {} },
-      tiles: [],
+      worldMap: createTestWorldMap(5, 2),
       flags: [
         createFlag('workshop-flag', 'workshop', 'player', 1.5, 1),
         createFlag('warehouse-flag', 'warehouse', 'player', 4.5, 1),
@@ -80,7 +89,6 @@ describe('building logistics and production chain', () => {
     state.workers[0].buildingId = 'workshop';
     state.workers[0].state = 'working';
 
-    for (let y = 0; y < 2; y += 1) for (let x = 0; x < 5; x += 1) state.tiles.push({ id: `${x}-${y}`, x, y, terrain: 'plains', resources: {} });
     addRoad(state, createRoad('road-1', 'workshop-flag', 'warehouse-flag', ['1-0', '2-0', '3-0', '4-0']));
 
     expect(advanceBuildingWorkers(state)).toBe(1);
@@ -108,7 +116,7 @@ describe('building logistics and production chain', () => {
   it('does not stage production output itself: a building worker must move output to the flag before logistics can create a request', () => {
     const state = {
       player: { id: 'player', resources: {} },
-      tiles: [],
+      worldMap: createTestWorldMap(6, 4),
       flags: [
         createFlag('source-flag', 'source', 'player', 1.5, 1),
         createFlag('workshop-flag', 'workshop', 'player', 4.5, 1),
@@ -134,7 +142,6 @@ describe('building logistics and production chain', () => {
     state.workers[1].buildingId = 'source';
     state.workers[1].state = 'working';
 
-    for (let y = 0; y < 4; y += 1) for (let x = 0; x < 6; x += 1) state.tiles.push({ id: `${x}-${y}`, x, y, terrain: 'plains', resources: {} });
     addRoad(state, createRoad('road-source-workshop', 'source-flag', 'workshop-flag', ['1-0', '2-0', '3-0', '4-0']));
     addRoad(state, createRoad('road-workshop-warehouse', 'workshop-flag', 'warehouse-flag', ['4-1', '5-2', '5-3']));
 
