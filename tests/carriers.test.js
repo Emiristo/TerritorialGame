@@ -14,7 +14,7 @@ import {
 } from '../src/game/carriers.js';
 
 function makeState() {
-  const worldMap = createWorldMap(20, 20);
+  const worldMap = createWorldMap(100, 100);
   for (const tile of worldMap.tiles) {
     tile.terrain = 'plains';
     tile.resources = {};
