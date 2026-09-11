@@ -64,16 +64,18 @@ function ownedAdjacent(state, x, y, ownerId) {
 }
 
 export function isNodeWithinOwnerInfluence(state, x, y, ownerId) {
+  const geometry = getMapGeometry(state);
+  if (!geometry) return false;
   return (state.territorySources ?? []).some((source) => {
     if (!source.active || source.ownerId !== ownerId) return false;
     const center = getWorldTileById(state.worldMap, source.tileId);
     if (!center) return false;
-    return isWithinInfluenceRadius(center, { x, y }, source.radius);
+    return isWithinInfluenceRadius(center, { x, y }, source.radius, geometry);
   });
 }
 
 export function canPlaceStandaloneFlag(state, x, y, ownerId = state.player.id) {
-  if (!isValidNodeCoordinate(state, x, y) || getFlagAtNode(state, x, y) || nodeInsideBuilding(state, x, y)) return false;
+  if (!isValidNodeCoordinate(state, x, y, ownerId) || getFlagAtNode(state, x, y) || nodeInsideBuilding(state, x, y)) return false;
   if (!ownedAdjacent(state, x, y, ownerId) || !isNodeWithinOwnerInfluence(state, x, y, ownerId)) return false;
   const road = getRoadAtNode(state, x, y);
   return !road || Boolean(splitRoadAtNode(state, road.id, x, y, { validateOnly: true }));
