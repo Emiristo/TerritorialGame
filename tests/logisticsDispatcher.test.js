@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDING_TYPES, addBuilding } from '../src/game/buildings.js';
 import { createGameState } from '../src/game/state.js';
+import { getWorldTile } from '../src/game/world/worldMap.js';
 import { addRoad, createRoad, findShortestRoadPaths } from '../src/game/roads.js';
 import { createWarehouseTransportRequest, addCargoToFlag } from '../src/game/carriers.js';
 import { dispatchTransportRequests, advanceDispatchedCarriers } from '../src/game/logisticsManager.js';
@@ -8,7 +9,7 @@ import { dispatchTransportRequests, advanceDispatchedCarriers } from '../src/gam
 function addDestinationBuilding(state, id = 'dispatcher-destination') {
   const x = 40; const y = 40; const type = BUILDING_TYPES.STONECUTTER_HUT;
   for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) {
-    const tile = state.tiles.find((item) => item.x === x + dx && item.y === y + dy); tile.ownerId = state.player.id; tile.terrain = 'plains';
+    const tile = getWorldTile(state.worldMap, x + dx, y + dy); tile.ownerId = state.player.id; tile.terrain = 'plains';
   }
   const building = addBuilding(state, id, state.player.id, type.id, `${x}-${y}`);
   // This suite tests road dispatch/handoff, not construction. Use a completed receiver
