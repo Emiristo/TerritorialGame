@@ -21,12 +21,12 @@ describe('WorldMap foundation', () => {
     expect(getWorldTileById(map, 'bad-id')).toBeNull();
   });
 
-  it('attaches a variable-size WorldMap to the game state', () => {
+  it('attaches a variable-size WorldMap to the game state without a legacy tiles alias', () => {
     const state = createGameState(Date.now(), 120, 110);
     expect(state.worldMap.width).toBe(120);
     expect(state.worldMap.height).toBe(110);
-    expect(state.tiles).toBe(state.worldMap.tiles);
-    expect(state.tiles).toHaveLength(120 * 110);
+    expect(state.worldMap.tiles).toHaveLength(120 * 110);
+    expect(state).not.toHaveProperty('tiles');
   });
 });
 
