@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
+import { getWorldTile } from '../src/game/world/worldMap.js';
 import { addBuilding } from '../src/game/buildings.js';
 import { advanceAllConstructions, deliverMaterialToConstructionFlag, startConstruction } from '../src/game/construction.js';
 import { assignWorkerToBuilding } from '../src/game/workZones.js';
@@ -7,7 +8,7 @@ import { createWorker } from '../src/game/workers.js';
 
 function placeLumberjack(state) {
   for (let y = 45; y < 47; y += 1) for (let x = 45; x < 47; x += 1) {
-    const tile = state.tiles.find((item) => item.x === x && item.y === y);
+    const tile = getWorldTile(state.worldMap, x, y);
     tile.ownerId = state.player.id;
     tile.terrain = 'plains';
   }
