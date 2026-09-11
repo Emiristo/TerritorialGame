@@ -1,4 +1,5 @@
 import { BUILDING_TYPES, addBuilding } from '../src/game/buildings.js';
+import { getWorldTile } from '../src/game/world/worldMap.js';
 import { addRoad, createRoad, findShortestRoadPaths } from '../src/game/roads.js';
 import { deliverCarrierToFlag, loadCarrierFromFlag } from '../src/game/carriers.js';
 import { createTransportTasks } from '../src/game/logisticsManager.js';
@@ -15,7 +16,7 @@ function ensurePlayer(state) {
 }
 function prepareWarehouseArea(state, x, y) {
   for (let dy = 0; dy < BUILDING_TYPES.WAREHOUSE.height; dy += 1) for (let dx = 0; dx < BUILDING_TYPES.WAREHOUSE.width; dx += 1) {
-    const tile = state.tiles?.find((item) => item.x === x + dx && item.y === y + dy);
+    const tile = getWorldTile(state.worldMap, x + dx, y + dy);
     if (tile) { tile.ownerId = state.player.id; tile.terrain = 'plains'; }
   }
 }
