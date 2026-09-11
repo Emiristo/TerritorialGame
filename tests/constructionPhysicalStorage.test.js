@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDING_TYPES, addBuilding } from '../src/game/buildings.js';
 import { createGameState } from '../src/game/state.js';
+import { getWorldTile } from '../src/game/world/worldMap.js';
 import { BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, startConstruction, advanceConstruction } from '../src/game/construction.js';
 import { deliverConstructionMaterialViaLogistics } from './constructionLogisticsHelper.js';
 
@@ -9,7 +10,7 @@ function makeBuilding(typeId = BUILDING_TYPES.WAREHOUSE.id, id = 'construction-1
   const [x, y] = tileId.split('-').map(Number);
   const type = BUILDING_TYPES[Object.keys(BUILDING_TYPES).find((key) => BUILDING_TYPES[key].id === typeId)];
   for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) {
-    const tile = state.tiles.find((item) => item.x === x + dx && item.y === y + dy);
+    const tile = getWorldTile(state.worldMap, x + dx, y + dy);
     tile.ownerId = state.player.id;
     tile.terrain = 'plains';
   }
