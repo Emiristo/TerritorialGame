@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createWorldMap, getWorldTile } from '../src/game/world/worldMap.js';
 import { createFlag } from '../src/game/flags.js';
 import { createRoad, addRoad, getRoadCarrierCapacity, getRoadLevel, recordRoadCargo } from '../src/game/roads.js';
 import { rebuildLogisticsNetwork } from '../src/game/logisticsNetwork.js';
@@ -13,9 +14,12 @@ import {
 } from '../src/game/carriers.js';
 
 function makeState() {
-  const tiles = [];
-  for (let y = 0; y < 20; y += 1) for (let x = 0; x < 20; x += 1) tiles.push({ id: `${x}-${y}`, x, y });
-  return { player: { id: 'player' }, tiles, flags: [], roads: [], carriers: [], transportRequests: [] };
+  const worldMap = createWorldMap(20, 20);
+  for (const tile of worldMap.tiles) {
+    tile.terrain = 'plains';
+    tile.resources = {};
+  }
+  return { player: { id: 'player' }, worldMap, flags: [], roads: [], carriers: [], transportRequests: [] };
 }
 
 function addTestFlag(state, id, x, y) {
