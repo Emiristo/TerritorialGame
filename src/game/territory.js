@@ -1,7 +1,8 @@
 import { addInfluence, getInfluenceWinner, isWithinInfluenceRadius } from './influence.js';
+import { getWorldTileById } from './world/worldMap.js';
 
 function getTiles(state) {
-  return state.worldMap?.tiles ?? state.tiles ?? [];
+  return state.worldMap?.tiles ?? [];
 }
 
 function getGeometry(state) {
@@ -9,9 +10,7 @@ function getGeometry(state) {
 }
 
 function getTileById(state, tileId) {
-  const worldMap = state.worldMap;
-  if (worldMap?.getWorldTileById) return worldMap.getWorldTileById(tileId) ?? null;
-  return getTiles(state).find((tile) => tile.id === tileId) ?? null;
+  return getWorldTileById(state.worldMap, tileId);
 }
 
 export function createTerritorySource(id, ownerId, tileId, influence = 1, radius) {
@@ -27,7 +26,7 @@ export function recalculateTerritories(state) {
     if (!source.active) continue;
     const center = getTileById(state, source.tileId);
     if (!center) continue;
-    const candidates = geometry ? geometry.radius(center, source.radius) : tiles;
+    const candidates = geometry ? geometry.radius(center, source.radius) : [];
     for (const candidate of candidates) {
       const tile = getTileById(state, candidate.id);
       if (!tile) continue;
@@ -42,12 +41,15 @@ export function recalculateTerritories(state) {
 
 export function addTerritorySource(state, source) {
   state.territorySources ??= [];
+  if (state.territorySources.some((item) => item.id === source.id)) throw new Error(`Territory source already exists: ${source.id}`);
   state.territorySources.push(source);
   return recalculateTerritories(state);
 }
 
 export function removeTerritorySource(state, sourceId) {
-  state.territorySources = (state.territorySources ?? []).filter((source) => source.id !== sourceId);
+  const index = (state.territorySources ?? []).findIndex((source) => source.id === sourceId);
+  if (index < 0) return false;
+  state.territorySources.splice(index, 1);
   return recalculateTerritories(state);
 }
 
