@@ -1,5 +1,5 @@
 import { BUILDING_TYPES } from './buildings.js';
-import { getWorldTile, getWorldTileById } from './world/worldMap.js';
+import { getWorldTileById } from './world/worldMap.js';
 
 export const WORK_ZONE_DEFAULT_RADIUS = 5;
 
@@ -24,7 +24,7 @@ export function getWorkZoneCells(state, zone) {
   if (zone.radius == null || zone.radius < 0) return [];
   const geometry = getGeometry(state);
   if (!geometry) return [];
-  return geometry.radius(center, zone.radius);
+  return geometry.radius(center, zone.radius).map(({ id }) => getWorldTileById(state.worldMap, id)).filter(Boolean);
 }
 export function createWorkZone(id, ownerId, buildingId, centerTileId, radius = null, mode = 'radius') { return { id, ownerId, buildingId, centerTileId, radius, mode, workerIds: [] }; }
 export function getWorkZoneForBuilding(state, buildingId) { return (state.workZones ?? []).find((zone) => zone.buildingId === buildingId) ?? null; }
