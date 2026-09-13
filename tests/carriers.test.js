@@ -19,7 +19,7 @@ function makeState() {
     tile.terrain = 'plains';
     tile.resources = {};
   }
-  return { player: { id: 'player' }, worldMap, flags: [], roads: [], carriers: [], transportRequests: [] };
+  return { player: { id: 'player' }, worldMap, flags: [], roads: worldMap.roads, carriers: [], transportRequests: [] };
 }
 
 function addTestFlag(state, id, x, y) {
