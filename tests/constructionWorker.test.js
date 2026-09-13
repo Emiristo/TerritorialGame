@@ -3,7 +3,7 @@ import { BUILDING_TYPES, addBuilding } from '../src/game/buildings.js';
 import { createGameState } from '../src/game/state.js';
 import { getWorldTile } from '../src/game/world/worldMap.js';
 import { createWorker, WORKER_TYPES } from '../src/game/workers.js';
-import { assignConstructionWorker, advanceConstruction, startConstruction } from '../src/game/construction.js';
+import { assignConstructionWorker, advanceConstruction, completeConstruction, startConstruction } from '../src/game/construction.js';
 
 function setup(typeId = BUILDING_TYPES.STONECUTTER_HUT.id) {
   const state = createGameState();
@@ -77,7 +77,7 @@ describe('construction worker lifecycle', () => {
     building.constructionMaterialsDelivered.planks = 2;
     building.constructionMaterialsUsed.planks = 2;
     building.constructionMaterialQueue = [];
-    advanceConstruction(state, building, 0);
+    completeConstruction(state, building);
     expect(building.constructionComplete).toBe(true);
     expect(building.constructionWorkerId).toBe(null);
     expect(builder.constructionBuildingId).toBe(null);
