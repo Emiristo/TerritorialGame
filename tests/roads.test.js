@@ -36,7 +36,8 @@ describe('automatic road construction', () => {
     expect(isRoadPathValid(state, { id: 'road-invalid', startFlagId: 'flag-c', endFlagId: 'flag-d', cells: ['45-45', '45-46', '45-47', '45-48', '45-49', '45-50', '45-51', '45-52', '45-53', '45-54', '45-55'], active: true })).toBe(false);
   });
   it('rejects a road whose endpoint flag uses a non-integer coordinate', () => {
-    const state = createGameState(); addTestFlag(state, 'a', 40.5, 50); addTestFlag(state, 'b', 44, 50);
+    const state = createGameState(); addTestFlag(state, 'a', 40, 50); addTestFlag(state, 'b', 44, 50);
+    state.flags.find((flag) => flag.id === 'a').x = 40.5;
     expect(isRoadPathValid(state, { id: 'fractional-endpoint', startFlagId: 'a', endFlagId: 'b', cells: ['40-50', '41-50', '42-50', '43-50', '44-50'], active: true })).toBe(false);
   });
   it('enforces a maximum of four roads per flag', () => {
@@ -49,32 +50,27 @@ describe('automatic road construction', () => {
 });
 
 describe('road and flag lifecycle', () => {
-  it('removing a flag removes connected roads and returns empty road carriers to the pool', () => {
-    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
+  it('removing a flag removes connected roads and returns empty road carriers to the pool', () => { const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
     const carrier = state.carriers.find((item) => item.roadId === 'road-a-b'); removeFlag(state, 'a');
     expect(state.worldMap.roads).toHaveLength(0); expect(carrier.roadId).toBeNull(); expect(carrier.cargo).toBeNull();
   });
-  it('removing a road invalidates its route without deleting the transport request', () => {
-    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
+  it('removing a road invalidates its route without deleting the transport request', () => { const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
     const request = createTransportRequest('request-1', 'player', 'stone', 1, 'a', 'b'); request.routeFlagIds = ['a', 'b']; request.routeRoadIds = ['road-a-b']; state.transportRequests.push(request);
     removeRoad(state, 'road-a-b');
     expect(state.transportRequests).toContain(request); expect(request.state).toBe('blocked'); expect(request.routeRoadIds).toEqual([]); expect(state.worldMap.roads).toHaveLength(0);
   });
-  it('removing a road preserves cargo already carried by a carrier', () => {
-    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
+  it('removing a road preserves cargo already carried by a carrier', () => { const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
     const carrier = state.carriers.find((item) => item.roadId === 'road-a-b'); carrier.cargo = { requestId: 'request-1', resourceId: 'stone', amount: 1, fromFlagId: 'a', toFlagId: 'b', roadId: 'road-a-b', segmentIndex: 0 }; carrier.state = 'carrying';
     const request = createTransportRequest('request-1', 'player', 'stone', 1, 'a', 'b'); request.inTransit = 1; request.routeFlagIds = ['a', 'b']; request.routeRoadIds = ['road-a-b']; request.state = 'inTransit'; state.transportRequests.push(request);
     removeRoad(state, 'road-a-b');
     expect(carrier.roadId).toBeNull(); expect(carrier.cargo.resourceId).toBe('stone'); expect(request.inTransit).toBe(1); expect(request.state).toBe('blocked');
   });
-  it('rejects a split when the supplied flag is not the road node', () => {
-    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 6, 1); addTestFlag(state, 'wrong', 4, 2);
+  it('rejects a split when the supplied flag is not the road node', () => { const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 6, 1); addTestFlag(state, 'wrong', 4, 2);
     const road = addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1', '5-1', '6-1']));
     expect(splitRoadAtNode(state, road.id, 4, 1, { flagId: 'wrong' })).toBeNull();
     expect(state.worldMap.roads).toHaveLength(1);
   });
-  it('splitting a road keeps existing carriers on the original side and provisions a new carrier for the new segment', () => {
-    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 6, 1); addTestFlag(state, 'split', 4, 1);
+  it('splitting a road keeps existing carriers on the original side and provisions a new carrier for the new segment', () => { const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 6, 1); addTestFlag(state, 'split', 4, 1);
     const road = addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1', '5-1', '6-1']));
     const existingCarrier = state.carriers.find((item) => item.role === 'road' && item.roadId === road.id);
     const roads = splitRoadAtNode(state, road.id, 4, 1, { flagId: 'split' });
@@ -82,16 +78,14 @@ describe('road and flag lifecycle', () => {
     const newSegmentCarriers = state.carriers.filter((item) => item.role === 'road' && item.roadId === roads[1].id);
     expect(newSegmentCarriers).toHaveLength(1); expect(newSegmentCarriers[0]).not.toBe(existingCarrier);
   });
-  it('preserves the old road capacity on the segment that keeps its carriers after a split', () => {
-    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 7, 1); addTestFlag(state, 'split', 4, 1);
+  it('preserves the old road capacity on the segment that keeps its carriers after a split', () => { const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 7, 1); addTestFlag(state, 'split', 4, 1);
     const road = addRoad(state, createRoad('road-upgraded', 'a', 'b', ['1-1', '2-1', '3-1', '4-1', '5-1', '6-1', '7-1']));
     recordRoadCargo(state, road.id, 200);
     const oldCarriers = state.carriers.filter((item) => item.role === 'road' && item.roadId === road.id);
     const roads = splitRoadAtNode(state, road.id, 4, 1, { flagId: 'split' });
     expect(roads[0].level).toBe(2); expect(roads[0].transportedCargo).toBe(200); expect(state.carriers.filter((item) => item.role === 'road' && item.roadId === roads[0].id)).toHaveLength(oldCarriers.length); expect(state.carriers.filter((item) => item.role === 'road' && item.roadId === roads[1].id)).toHaveLength(1);
   });
-  it('uses an idle road carrier from the pool before creating another carrier for a new road', () => {
-    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); const pooled = createCarrier('pooled-carrier', 'player'); addCarrier(state, pooled);
+  it('uses an idle road carrier from the pool before creating another carrier for a new road', () => { const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); const pooled = createCarrier('pooled-carrier', 'player'); addCarrier(state, pooled);
     addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
     expect(pooled.roadId).toBe('road-a-b');
   });
