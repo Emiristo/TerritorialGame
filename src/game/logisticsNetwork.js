@@ -2,8 +2,12 @@ function getFlag(state, flagId) {
   return (state.flags ?? []).find((flag) => flag.id === flagId) ?? null;
 }
 
+function getRoads(state) {
+  return state.worldMap?.roads ?? [];
+}
+
 function getRoad(state, roadId) {
-  return (state.roads ?? []).find((road) => road.id === roadId && road.active) ?? null;
+  return getRoads(state).find((road) => road.id === roadId && road.active) ?? null;
 }
 
 function getRoadWeight(state, roadId) {
@@ -13,7 +17,7 @@ function getRoadWeight(state, roadId) {
 
 export function rebuildLogisticsNetwork(state) {
   const flags = state.flags ?? [];
-  const roads = state.roads ?? [];
+  const roads = getRoads(state);
   const adjacency = Object.fromEntries(flags.map((flag) => [flag.id, []]));
 
   for (const road of roads) {
@@ -114,8 +118,6 @@ export function findFlagRoute(state, startFlagId, endFlagId) {
   if (startFlagId === endFlagId) return { flagIds: [startFlagId], roadIds: [] };
   const route = findShortestFlagRoutes(state, startFlagId).get(endFlagId) ?? null;
   if (!route) return null;
-  // Keep the public route API backwards-compatible. The optimized all-routes
-  // helper carries distance internally for the logistics planner.
   return { flagIds: route.flagIds, roadIds: route.roadIds };
 }
 
