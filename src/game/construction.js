@@ -134,7 +134,6 @@ export function startConstruction(state, building, now = Date.now()) {
   building.constructionState = CONSTRUCTION_STATES.PLACED;
   building.constructionTimer = 0;
   building.constructionTimerStartedAt = null;
-  building.constructionWorkerId = null;
   building.constructionMaterialsDelivered ??= Object.fromEntries(Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0]));
   building.constructionMaterialsUsed ??= Object.fromEntries(Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0]));
   building.constructionMaterialQueue ??= [];
