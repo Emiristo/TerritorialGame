@@ -6,6 +6,13 @@ export const MILITARY_BUILDING_TYPE_IDS = Object.freeze(
     .map((type) => type.id),
 );
 
+export const GARRISON_CAPACITY = Object.freeze({
+  outpost: 2,
+  barracks: 3,
+  watchtower: 6,
+  fortress: 9,
+});
+
 export function isMilitaryBuildingType(typeId) {
   return MILITARY_BUILDING_TYPE_IDS.includes(typeId);
 }
@@ -68,7 +75,7 @@ export function getSoldier(state, soldierId) {
 }
 
 export function getGarrisonCapacity(building) {
-  return getMilitaryBuildingSpec(building?.typeId)?.garrisonCapacity ?? 0;
+  return GARRISON_CAPACITY[building?.typeId] ?? 0;
 }
 
 export function getGarrisonSoldiers(state, buildingId) {
