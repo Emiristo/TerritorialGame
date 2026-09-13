@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
-import { addStandaloneFlag, canPlaceStandaloneFlag, createStandaloneFlag, getFlagAtNode } from '../src/game/flags.js';
+import { addStandaloneFlag, canPlaceStandaloneFlag, createStandaloneFlag, getFlagAdjacentTiles, getFlagAtNode } from '../src/game/flags.js';
 import { addRoad, createRoad } from '../src/game/roads.js';
 
 describe('standalone flags', () => {
@@ -9,6 +9,12 @@ describe('standalone flags', () => {
     expect(f).toMatchObject({ id: 'f', buildingId: null, ownerId: 'player', x: 20, y: 20 });
     expect(() => createStandaloneFlag('edge', 'player', 20, 20.5)).toThrow();
     expect(() => createStandaloneFlag('center', 'player', 20.5, 20.5)).toThrow();
+  });
+
+  it('maps a flag node to exactly four canonical World Map cells', () => {
+    const s = createGameState();
+    const tiles = getFlagAdjacentTiles(s, 50, 50);
+    expect(tiles.map((tile) => tile.id)).toEqual(['49-49', '50-49', '49-50', '50-50']);
   });
 
   it('allows placement at a free four-cell inter-cell node inside controlled influence', () => {
@@ -23,6 +29,14 @@ describe('standalone flags', () => {
     expect(canPlaceStandaloneFlag(s, 20, 20.5)).toBe(false);
     expect(canPlaceStandaloneFlag(s, 20.5, 20.5)).toBe(false);
     expect(canPlaceStandaloneFlag(s, 61, 50)).toBe(false);
+  });
+
+  it('rejects a node without four in-bounds cells', () => {
+    const s = createGameState();
+    expect(canPlaceStandaloneFlag(s, 0, 20)).toBe(false);
+    expect(canPlaceStandaloneFlag(s, 100, 20)).toBe(false);
+    expect(canPlaceStandaloneFlag(s, 20, 0)).toBe(false);
+    expect(canPlaceStandaloneFlag(s, 20, 100)).toBe(false);
   });
 
   it('rejects an occupied node', () => {
