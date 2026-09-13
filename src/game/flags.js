@@ -1,6 +1,6 @@
 import { isWithinInfluenceRadius } from './influence.js';
 import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
-import { getRoadAtNode, splitRoadAtNode } from './roads.js';
+import { getRoadAtNode, removeRoadsForFlag, splitRoadAtNode } from './roads.js';
 import { getWorldTileById } from './world/worldMap.js';
 
 function getMapGeometry(state) {
@@ -98,5 +98,9 @@ export function addStandaloneFlag(state, id, ownerId, x, y) {
 export function removeFlag(state, flagId) {
   const i = (state.flags ?? []).findIndex((f) => f.id === flagId);
   if (i < 0) return null;
-  const [r] = state.flags.splice(i, 1); return r;
+  const flag = state.flags[i];
+  removeRoadsForFlag(state, flagId);
+  state.flags.splice(i, 1);
+  rebuildLogisticsNetwork(state);
+  return flag;
 }
