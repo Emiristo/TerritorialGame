@@ -22,8 +22,8 @@ describe('building logistics and production chain', () => {
       player: { id: 'player', resources: {} },
       worldMap: createTestWorldMap(),
       flags: [
-        createFlag('source-flag', 'source', 'player', 1.5, 1),
-        createFlag('destination-flag', 'workshop', 'player', 4.5, 1),
+        createFlag('source-flag', 'source', 'player', 2, 1),
+        createFlag('destination-flag', 'workshop', 'player', 5, 1),
       ],
       roads: [],
       buildings: [
@@ -42,7 +42,7 @@ describe('building logistics and production chain', () => {
     state.workers[0].state = 'working';
     state.flags[0].cargo = { wood: 1 };
 
-    addRoad(state, createRoad('road-1', 'source-flag', 'destination-flag', ['1-0', '2-0', '3-0', '4-0']));
+    addRoad(state, createRoad('road-1', 'source-flag', 'destination-flag', ['1-0', '2-0', '3-0', '4-0', '5-0']));
 
     expect(createTransportTasks(state)).toBe(1);
     const request = state.transportRequests[0];
@@ -70,8 +70,8 @@ describe('building logistics and production chain', () => {
       player: { id: 'player', resources: {} },
       worldMap: createTestWorldMap(),
       flags: [
-        createFlag('workshop-flag', 'workshop', 'player', 1.5, 1),
-        createFlag('warehouse-flag', 'warehouse', 'player', 4.5, 1),
+        createFlag('workshop-flag', 'workshop', 'player', 2, 1),
+        createFlag('warehouse-flag', 'warehouse', 'player', 5, 1),
       ],
       roads: [],
       buildings: [
@@ -89,7 +89,7 @@ describe('building logistics and production chain', () => {
     state.workers[0].buildingId = 'workshop';
     state.workers[0].state = 'working';
 
-    addRoad(state, createRoad('road-1', 'workshop-flag', 'warehouse-flag', ['1-0', '2-0', '3-0', '4-0']));
+    addRoad(state, createRoad('road-1', 'workshop-flag', 'warehouse-flag', ['1-0', '2-0', '3-0', '4-0', '5-0']));
 
     expect(advanceBuildingWorkers(state)).toBe(1);
     expect(state.buildings[0].outputStorageSlot).toBeNull();
@@ -118,9 +118,9 @@ describe('building logistics and production chain', () => {
       player: { id: 'player', resources: {} },
       worldMap: createTestWorldMap(),
       flags: [
-        createFlag('source-flag', 'source', 'player', 1.5, 1),
-        createFlag('workshop-flag', 'workshop', 'player', 4.5, 1),
-        createFlag('warehouse-flag', 'warehouse', 'player', 5.5, 3),
+        createFlag('source-flag', 'source', 'player', 2, 1),
+        createFlag('workshop-flag', 'workshop', 'player', 5, 1),
+        createFlag('warehouse-flag', 'warehouse', 'player', 6, 3),
       ],
       roads: [],
       buildings: [
@@ -142,8 +142,8 @@ describe('building logistics and production chain', () => {
     state.workers[1].buildingId = 'source';
     state.workers[1].state = 'working';
 
-    addRoad(state, createRoad('road-source-workshop', 'source-flag', 'workshop-flag', ['1-0', '2-0', '3-0', '4-0']));
-    addRoad(state, createRoad('road-workshop-warehouse', 'workshop-flag', 'warehouse-flag', ['4-1', '5-2', '5-3']));
+    addRoad(state, createRoad('road-source-workshop', 'source-flag', 'workshop-flag', ['1-0', '2-0', '3-0', '4-0', '5-0']));
+    addRoad(state, createRoad('road-workshop-warehouse', 'workshop-flag', 'warehouse-flag', ['5-1', '6-2', '6-3']));
 
     expect(createTransportTasks(state)).toBe(0);
     expect(state.buildings[0].outputStorageSlot).toBe('planks');
