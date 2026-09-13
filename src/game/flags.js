@@ -10,17 +10,15 @@ function getMapGeometry(state) {
 function isValidNodeCoordinate(state, x, y) {
   const geometry = getMapGeometry(state);
   return Number.isFinite(x) && Number.isFinite(y)
-    && Number.isInteger(x * 2) && Number.isInteger(y * 2)
-    && (Number.isInteger(x) || Number.isInteger(y))
+    && Number.isInteger(x) && Number.isInteger(y)
     && geometry !== null
-    && x >= 0 && x <= geometry.width && y >= 0 && y <= geometry.height;
+    && x > 0 && x < geometry.width && y > 0 && y < geometry.height;
 }
 
 export function createFlag(id, buildingId = null, ownerId, x, y) {
   if (!Number.isFinite(x) || !Number.isFinite(y)
-    || Number.isInteger(x * 2) === false || Number.isInteger(y * 2) === false
-    || (Number.isInteger(x) === false && Number.isInteger(y) === false)) {
-    throw new Error('Flag coordinates must be a valid inter-cell node');
+    || !Number.isInteger(x) || !Number.isInteger(y)) {
+    throw new Error('Flag coordinates must be an inter-cell node at the intersection of four cells');
   }
   return { id, buildingId, ownerId, x, y, roadIds: [], connected: false, cargo: {} };
 }
@@ -33,34 +31,40 @@ export function getFlagAtTile(state, tileId) {
 }
 export function getFlagForBuilding(state, buildingId) { return (state.flags ?? []).find((f) => f.buildingId === buildingId) ?? null; }
 
-function nodeInsideBuilding(state, x, y) {
-  return (state.buildings ?? []).some((b) => {
-    const t = (state.buildingTypes ?? []).find((i) => i.id === b.typeId), s = String(b.tileId ?? '').indexOf('-');
-    if (!t || s <= 0) return false;
-    const ox = Number(b.tileId.slice(0, s)), oy = Number(b.tileId.slice(s + 1));
-    return x > ox && x < ox + t.width && y > oy && y < oy + t.height;
-  });
-}
-
 function getAdjacentTiles(state, x, y) {
   const geometry = getMapGeometry(state);
-  if (!geometry) return [];
-  const minX = Math.floor(x - 0.5);
-  const maxX = Math.floor(x + 0.5);
-  const minY = Math.floor(y - 0.5);
-  const maxY = Math.floor(y + 0.5);
+  if (!geometry || !Number.isInteger(x) || !Number.isInteger(y)) return [];
   const tiles = [];
-  for (let ty = minY; ty <= maxY; ty += 1) {
-    for (let tx = minX; tx <= maxX; tx += 1) {
+  for (const ty of [y - 1, y]) {
+    for (const tx of [x - 1, x]) {
       const tile = geometry.inBounds(tx, ty) ? getWorldTileById(state.worldMap, geometry.tileId(tx, ty)) : null;
-      if (tile && Math.abs((tile.x + 0.5) - x) <= 0.5 && Math.abs((tile.y + 0.5) - y) <= 0.5) tiles.push(tile);
+      if (tile) tiles.push(tile);
     }
   }
   return tiles;
 }
 
+function isBuildingFootprintTile(state, tile) {
+  if (!tile) return false;
+  return (state.buildings ?? []).some((b) => {
+    const type = (state.buildingTypes ?? []).find((item) => item.id === b.typeId);
+    const s = String(b.tileId ?? '').indexOf('-');
+    if (!type || s <= 0) return false;
+    const ox = Number(b.tileId.slice(0, s));
+    const oy = Number(b.tileId.slice(s + 1));
+    return tile.x >= ox && tile.x < ox + type.width
+      && tile.y >= oy && tile.y < oy + type.height;
+  });
+}
+
 function ownedAdjacent(state, x, y, ownerId) {
-  return getAdjacentTiles(state, x, y).some((t) => t.ownerId === ownerId);
+  const tiles = getAdjacentTiles(state, x, y);
+  return tiles.length === 4 && tiles.every((t) => t.ownerId === ownerId);
+}
+
+function adjacentCellsAreFree(state, x, y) {
+  const tiles = getAdjacentTiles(state, x, y);
+  return tiles.length === 4 && tiles.every((tile) => !isBuildingFootprintTile(state, tile));
 }
 
 export function isNodeWithinOwnerInfluence(state, x, y, ownerId) {
@@ -75,7 +79,8 @@ export function isNodeWithinOwnerInfluence(state, x, y, ownerId) {
 }
 
 export function canPlaceStandaloneFlag(state, x, y, ownerId = state.player.id) {
-  if (!isValidNodeCoordinate(state, x, y, ownerId) || getFlagAtNode(state, x, y) || nodeInsideBuilding(state, x, y)) return false;
+  if (!isValidNodeCoordinate(state, x, y) || getFlagAtNode(state, x, y)) return false;
+  if (!adjacentCellsAreFree(state, x, y)) return false;
   if (!ownedAdjacent(state, x, y, ownerId) || !isNodeWithinOwnerInfluence(state, x, y, ownerId)) return false;
   const road = getRoadAtNode(state, x, y);
   return !road || Boolean(splitRoadAtNode(state, road.id, x, y, { validateOnly: true }));
