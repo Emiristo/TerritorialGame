@@ -2,6 +2,7 @@ import { syncWorkZones } from './workZones.js';
 
 export const BUILD_TIME_PER_PLANK = 10;
 export const BUILD_TIME_PER_STONE = 15;
+export const CONSTRUCTION_WORKER_TYPE_ID = 'builder';
 
 export const CONSTRUCTION_STATES = Object.freeze({
   PLACED: 'PLACED',
@@ -31,6 +32,38 @@ function ensureFlagCargo(state, building) {
   return flag.cargo;
 }
 
+function getConstructionWorker(state, building) {
+  if (!building?.constructionWorkerId) return null;
+  const worker = (state.workers ?? []).find((item) => item.id === building.constructionWorkerId) ?? null;
+  if (!worker || worker.ownerId !== building.ownerId || worker.typeId !== CONSTRUCTION_WORKER_TYPE_ID) return null;
+  return worker;
+}
+
+export function assignConstructionWorker(state, buildingOrId, workerOrId) {
+  const building = typeof buildingOrId === 'object'
+    ? buildingOrId
+    : (state.buildings ?? []).find((item) => item.id === buildingOrId) ?? null;
+  const worker = typeof workerOrId === 'object'
+    ? workerOrId
+    : (state.workers ?? []).find((item) => item.id === workerOrId) ?? null;
+  if (!building || !worker) return false;
+  if (building.constructionComplete || worker.typeId !== CONSTRUCTION_WORKER_TYPE_ID || worker.ownerId !== building.ownerId) return false;
+  if (worker.constructionBuildingId && worker.constructionBuildingId !== building.id) return false;
+  if (building.constructionWorkerId && building.constructionWorkerId !== worker.id) return false;
+  building.constructionWorkerId = worker.id;
+  worker.constructionBuildingId = building.id;
+  worker.state = 'working';
+  return true;
+}
+
+function releaseConstructionWorker(state, building) {
+  const worker = getConstructionWorker(state, building);
+  if (!worker) return;
+  worker.constructionBuildingId = null;
+  worker.state = 'idle';
+  building.constructionWorkerId = null;
+}
+
 function allConstructionMaterialsProcessed(building) {
   return Object.entries(getConstructionMaterials(building)).every(([resource, amount]) =>
     Number(building.constructionMaterialsUsed?.[resource] ?? 0) >= Number(amount));
@@ -49,13 +82,15 @@ function acknowledgeBuilderPickup(state, building, resource) {
 }
 
 function takeNextConstructionMaterial(state, building) {
+  if (!getConstructionWorker(state, building)) {
+    building.constructionState = CONSTRUCTION_STATES.WAITING_FOR_MATERIAL;
+    return false;
+  }
   if (building.currentConstructionMaterial) return true;
   const cargo = ensureFlagCargo(state, building);
   const queue = building.constructionMaterialQueue ?? (building.constructionMaterialQueue = []);
 
   while (queue.length > 0) {
-    // FIFO is strict: never inspect a later material while the oldest queued
-    // unit is still waiting to be consumed.
     const resource = queue[0];
     const used = Number(building.constructionMaterialsUsed?.[resource] ?? 0);
     const required = Number(building.constructionMaterialsRequired?.[resource] ?? 0);
@@ -99,6 +134,7 @@ export function startConstruction(state, building, now = Date.now()) {
   building.constructionState = CONSTRUCTION_STATES.PLACED;
   building.constructionTimer = 0;
   building.constructionTimerStartedAt = null;
+  building.constructionWorkerId = null;
   building.constructionMaterialsDelivered ??= Object.fromEntries(Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0]));
   building.constructionMaterialsUsed ??= Object.fromEntries(Object.keys(getConstructionMaterials(building)).map((resource) => [resource, 0]));
   building.constructionMaterialQueue ??= [];
@@ -144,6 +180,7 @@ export function advanceConstruction(state, building, elapsedSeconds) {
         building.constructionComplete = true;
         building.active = true;
         building.constructionState = CONSTRUCTION_STATES.COMPLETED;
+        releaseConstructionWorker(state, building);
         syncWorkZones(state);
         break;
       }
@@ -166,6 +203,7 @@ export function completeConstruction(state, buildingOrId, now = Date.now()) {
   building.constructionState = CONSTRUCTION_STATES.COMPLETED;
   building.constructionTimer = 0;
   building.lastConstructionUpdateAt = now;
+  releaseConstructionWorker(state, building);
   syncWorkZones(state);
   return building;
 }

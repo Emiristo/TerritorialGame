@@ -20,6 +20,7 @@ import { markLogisticsDirty } from './logisticsSignals.js';
 import { getWorldTileById } from './world/worldMap.js';
 
 export const WORKER_TYPES = {
+  BUILDER: { id: 'builder', name: 'Строитель', toolId: null },
   FORESTER: { id: 'forester', name: 'Лесничий', toolId: 'shovel' },
   STONEMASON: { id: 'stonemason', name: 'Каменщик', toolId: 'pickaxe' },
   LUMBERJACK: { id: 'lumberjack', name: 'Лесоруб', toolId: 'axe' },
@@ -45,7 +46,7 @@ const RESOURCE_RULES = {
 export { assignWorkerToBuilding, assignWorkerToWorkZone, canWorkerUseWorkZone, createWorkZone, getWorkZoneForBuilding, removeWorkZoneForBuilding };
 
 export function createWorker(id, ownerId, typeId) {
-  return { id, ownerId, typeId, state: 'idle', buildingId: null, zoneId: null, targetTileId: null };
+  return { id, ownerId, typeId, state: 'idle', buildingId: null, zoneId: null, targetTileId: null, constructionBuildingId: null };
 }
 
 function findWorker(state, workerId) { return (state.workers ?? []).find((worker) => worker.id === workerId) ?? null; }
@@ -54,17 +55,9 @@ function findZone(state, zoneId) { return (state.workZones ?? []).find((zone) =>
 function getBuildingType(state, building) { return (state.buildingTypes ?? []).find((type) => type.id === building?.typeId) ?? null; }
 export function getWorkerType(worker) { return Object.values(WORKER_TYPES).find((type) => type.id === worker?.typeId) ?? null; }
 
-function getMapGeometry(state) {
-  return state.worldMap?.geometry ?? null;
-}
-
-function getMapTiles(state) {
-  return state.worldMap?.tiles ?? [];
-}
-
-function getTileById(state, tileId) {
-  return getWorldTileById(state.worldMap, tileId);
-}
+function getMapGeometry(state) { return state.worldMap?.geometry ?? null; }
+function getMapTiles(state) { return state.worldMap?.tiles ?? []; }
+function getTileById(state, tileId) { return getWorldTileById(state.worldMap, tileId); }
 
 export function getExtractionRule(state, worker) {
   if (worker?.typeId !== 'miner') return RESOURCE_RULES[worker?.typeId] ?? null;
@@ -93,16 +86,13 @@ export function findAvailableResourceTile(state, worker) {
 
 export function extractForWorker(state, workerId) {
   const worker = findWorker(state, workerId);
-  const tile = worker?.targetTileId
-    ? getTileById(state, worker.targetTileId)
-    : findAvailableResourceTile(state, worker);
+  const tile = worker?.targetTileId ? getTileById(state, worker.targetTileId) : findAvailableResourceTile(state, worker);
   const rule = worker ? getExtractionRule(state, worker) : null;
   const building = worker?.buildingId ? findBuilding(state, worker.buildingId) : null;
   const flag = building ? (state.flags ?? []).find((item) => item.buildingId === building.id) ?? null : null;
   if (!worker || !tile || !rule || !building || !flag) return false;
   const available = Number(tile.resources?.[rule.resourceId] ?? 0);
   if (available <= 0) return false;
-
   if (addCargoToFlag(state, flag.id, rule.resourceId, 1) !== 1) return false;
   tile.resources[rule.resourceId] = available - 1;
   worker.targetTileId = tile.id;
@@ -152,7 +142,6 @@ export function moveBuildingWorkerCargo(state, workerId) {
   const type = getBuildingType(state, building);
   const flag = building ? (state.flags ?? []).find((item) => item.buildingId === building.id) : null;
   if (!worker || !building || !flag || worker.state !== 'working' || type?.role !== 'production') return false;
-
   const output = getBuildingOutputStorageResource(state, building.id);
   if (output != null) {
     if (removeProductionOutputFromBuilding(state, building.id, output, 1) !== 1) return false;
@@ -160,7 +149,6 @@ export function moveBuildingWorkerCargo(state, workerId) {
     markLogisticsDirty(state, building.id, output);
     return true;
   }
-
   const slots = getBuildingInputStorage(state, building.id);
   if (slots.length >= 4 && slots.every(Boolean)) return false;
   for (const resourceId of Object.keys(type.input ?? {})) {

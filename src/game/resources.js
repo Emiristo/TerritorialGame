@@ -4,6 +4,17 @@ export const RESOURCE_TYPES = {
   STONE: { id: 'stone', name: 'Камень', terrain: 'plains', maxStock: 25 },
   ORE: { id: 'ore', name: 'Руда', terrain: 'mountains', maxStock: 25 },
   FOOD: { id: 'food', name: 'Пища', terrain: 'plains', maxStock: 9 },
+  WATER: { id: 'water', name: 'Вода', terrain: null, maxStock: null },
+  WHEAT: { id: 'wheat', name: 'Пшеница', terrain: null, maxStock: null },
+  FLOUR: { id: 'flour', name: 'Мука', terrain: null, maxStock: null },
+  BREAD: { id: 'bread', name: 'Хлеб', terrain: null, maxStock: null },
+  COAL: { id: 'coal', name: 'Уголь', terrain: null, maxStock: null },
+  IRON: { id: 'iron', name: 'Железо', terrain: null, maxStock: null },
+  GOLD: { id: 'gold', name: 'Золото', terrain: null, maxStock: null },
+  STEEL: { id: 'steel', name: 'Сталь', terrain: null, maxStock: null },
+  SWORD: { id: 'sword', name: 'Меч', terrain: null, maxStock: null },
+  TOOL: { id: 'tool', name: 'Инструмент', terrain: null, maxStock: null },
+  COIN: { id: 'coin', name: 'Монета', terrain: null, maxStock: null },
 };
 
 export function createTileResources() {
@@ -11,7 +22,7 @@ export function createTileResources() {
 }
 
 export function createPlayerResources() {
-  return { wood: 0, planks: 0, stone: 0, ore: 0, food: 0 };
+  return Object.fromEntries(Object.values(RESOURCE_TYPES).map(({ id }) => [id, 0]));
 }
 
 export function createResourceDeposit(resourceId, amount = 25) {
