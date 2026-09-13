@@ -17,6 +17,12 @@ function isValidNodeCoordinate(state, x, y) {
   const geometry = getMapGeometry(state);
   return isIntegerNodeCoordinate(x, y)
     && geometry !== null
+    && x >= 0 && x <= geometry.width && y >= 0 && y <= geometry.height;
+}
+
+function isFourCellNode(state, x, y) {
+  const geometry = getMapGeometry(state);
+  return isValidNodeCoordinate(state, x, y)
     && x > 0 && x < geometry.width && y > 0 && y < geometry.height;
 }
 
@@ -34,6 +40,16 @@ export function createStandaloneFlag(id, ownerId, x, y) {
 export function getFlagAtNode(state, x, y) {
   if (!isIntegerNodeCoordinate(x, y)) return null;
   return (state.flags ?? []).find((f) => f.x === x && f.y === y) ?? null;
+}
+
+export function getFlagAtTile(state, tileId) {
+  const separator = String(tileId ?? '').indexOf('-');
+  if (separator <= 0) return null;
+  return getFlagAtNode(
+    state,
+    Number(String(tileId).slice(0, separator)),
+    Number(String(tileId).slice(separator + 1)),
+  );
 }
 
 export function getFlagAdjacentTiles(state, x, y) {
@@ -59,10 +75,10 @@ function isBuildingFootprintTile(state, tile) {
   if (!tile) return false;
   return (state.buildings ?? []).some((b) => {
     const type = Object.values(BUILDING_TYPES).find((candidate) => candidate.id === b.typeId);
-    const s = String(b.tileId ?? '').indexOf('-');
-    if (!type || s <= 0) return false;
-    const ox = Number(b.tileId.slice(0, s));
-    const oy = Number(b.tileId.slice(s + 1));
+    const separator = String(b.tileId ?? '').indexOf('-');
+    if (!type || separator <= 0) return false;
+    const ox = Number(b.tileId.slice(0, separator));
+    const oy = Number(b.tileId.slice(separator + 1));
     return tile.x >= ox && tile.x < ox + type.width
       && tile.y >= oy && tile.y < oy + type.height;
   });
@@ -90,7 +106,7 @@ export function isNodeWithinOwnerInfluence(state, x, y, ownerId) {
 }
 
 export function canPlaceStandaloneFlag(state, x, y, ownerId = state.player.id) {
-  if (!isValidNodeCoordinate(state, x, y) || getFlagAtNode(state, x, y)) return false;
+  if (!isFourCellNode(state, x, y) || getFlagAtNode(state, x, y)) return false;
   if (!adjacentCellsAreFree(state, x, y)) return false;
   if (!ownedAdjacent(state, x, y, ownerId) || !isNodeWithinOwnerInfluence(state, x, y, ownerId)) return false;
   const road = getRoadAtNode(state, x, y);
@@ -99,7 +115,7 @@ export function canPlaceStandaloneFlag(state, x, y, ownerId = state.player.id) {
 
 export function addFlag(state, flag) {
   state.flags ??= [];
-  if (!isValidNodeCoordinate(state, flag.x, flag.y)) throw new Error('Flag node is outside the valid World Map inter-cell node range');
+  if (!isValidNodeCoordinate(state, flag.x, flag.y)) throw new Error('Flag node is outside the valid World Map node range');
   if (state.flags.some((i) => i.id === flag.id)) throw new Error(`Flag already exists: ${flag.id}`);
   if (getFlagAtNode(state, flag.x, flag.y)) throw new Error('Flag node is already occupied');
   flag.cargo ??= {};
