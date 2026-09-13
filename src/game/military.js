@@ -100,8 +100,8 @@ function getStorageBuilding(state, buildingId) {
 export function createSoldierFromStorage(state, id, ownerId, storageBuildingId) {
   const storage = getStorageBuilding(state, storageBuildingId);
   if (!storage || storage.ownerId !== ownerId) throw new Error('Invalid soldier creation storage');
-  if (getBuildingInventory(state, storage.id, SOLDIER_CREATION_COST.sword) < 1) throw new Error('Not enough swords');
-  if (getBuildingInventory(state, storage.id, SOLDIER_CREATION_COST.food) < 1) throw new Error('Not enough food');
+  if (getBuildingInventory(state, storage.id, 'sword') < SOLDIER_CREATION_COST.sword) throw new Error('Not enough swords');
+  if (getBuildingInventory(state, storage.id, 'food') < SOLDIER_CREATION_COST.food) throw new Error('Not enough food');
   removeInventoryFromBuilding(state, storage.id, 'sword', SOLDIER_CREATION_COST.sword);
   removeInventoryFromBuilding(state, storage.id, 'food', SOLDIER_CREATION_COST.food);
   return createSoldier(state, id, ownerId, 1);
