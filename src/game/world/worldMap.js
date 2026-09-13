@@ -41,3 +41,7 @@ export function getWorldTileById(worldMap, id) {
   const coordinates = worldMap?.geometry?.parseTileId(id);
   return coordinates ? getWorldTile(worldMap, coordinates.x, coordinates.y) : null;
 }
+
+export function getWorldRoads(worldMap) {
+  return worldMap?.roads ?? [];
+}
