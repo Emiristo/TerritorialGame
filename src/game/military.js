@@ -14,8 +14,24 @@ export const GARRISON_CAPACITY = Object.freeze({
   fortress: 9,
 });
 
+export const MAX_SOLDIER_RANK = 7;
+
+export const SOLDIER_RANKS = Object.freeze({
+  1: 'Рядовой',
+  2: 'Ефрейтор',
+  3: 'Сержант',
+  4: 'Лейтенант',
+  5: 'Капитан',
+  6: 'Полковник',
+  7: 'Генерал',
+});
+
 export const SOLDIER_CREATION_COST = Object.freeze({ sword: 1, food: 1 });
 export const SOLDIER_RANK_UP_COST = Object.freeze({ coin: 1, rank: 1 });
+
+export function getSoldierRankName(rank) {
+  return SOLDIER_RANKS[rank] ?? null;
+}
 
 export function isMilitaryBuildingType(typeId) {
   return MILITARY_BUILDING_TYPE_IDS.includes(typeId);
@@ -68,6 +84,7 @@ export function createSoldier(state, id, ownerId, rank = 1) {
   const military = ensureMilitaryState(state);
   if (!id) throw new Error('Soldier id is required');
   if (!ownerId) throw new Error('Soldier owner is required');
+  if (!Number.isInteger(rank) || rank < 1 || rank > MAX_SOLDIER_RANK) throw new Error('Invalid soldier rank');
   if (military.soldiers.some((soldier) => soldier.id === id)) throw new Error(`Soldier already exists: ${id}`);
   const soldier = { id, ownerId, rank, status: 'available', garrisonBuildingId: null };
   military.soldiers.push(soldier);
@@ -98,6 +115,7 @@ export function promoteSoldier(state, soldierId, militaryBuildingId) {
   if (!building.active) throw new Error('Military building is inactive');
   if (soldier.ownerId !== building.ownerId) throw new Error('Soldier and building owners do not match');
   if (soldier.garrisonBuildingId !== building.id) throw new Error('Soldier must be garrisoned in the military building');
+  if (soldier.rank >= MAX_SOLDIER_RANK) throw new Error('Soldier is already at maximum rank');
   if (getBuildingInventory(state, building.id, 'coin') < SOLDIER_RANK_UP_COST.coin) throw new Error('Not enough coins');
   removeInventoryFromBuilding(state, building.id, 'coin', SOLDIER_RANK_UP_COST.coin);
   soldier.rank += SOLDIER_RANK_UP_COST.rank;
