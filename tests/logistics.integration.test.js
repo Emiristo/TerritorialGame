@@ -13,7 +13,7 @@ function makeState() {
     tile.resources = {};
   }
   getWorldTile(worldMap, 2, 2).resources.stone = 1;
-  return { player: { id: 'player', resources: {} }, worldMap, flags: [], roads: [], buildings: [
+  return { player: { id: 'player', resources: {} }, worldMap, flags: [], roads: worldMap.roads, buildings: [
     { id: 'mine', ownerId: 'player', typeId: 'mine', tileId: '2-2', active: true, inventory: {} },
     { id: 'warehouse', ownerId: 'player', typeId: 'warehouse', tileId: '4-2', active: true, inventory: {} },
     { id: 'workshop', ownerId: 'player', typeId: 'workshop', tileId: '7-2', active: true, inventory: {} },
@@ -118,7 +118,7 @@ describe('logistics integration', () => {
     const state = makeState();
     state.buildings = [];
     state.flags = [];
-    state.roads = [];
+    state.worldMap.roads.length = 0;
     state.transportRequests = [];
 
     const sources = 10;
@@ -149,7 +149,7 @@ describe('logistics integration', () => {
     ];
 
     for (let i = 0; i < total - 2; i += 1) {
-      state.roads.push({ id: `road-${i}`, startFlagId: flags[i].id, endFlagId: flags[i + 1].id, cells: [`${i % 20}-${Math.floor(i / 20)}`, `${(i + 1) % 20}-${Math.floor((i + 1) / 20)}`], active: true, level: 1 });
+      state.worldMap.roads.push({ id: `road-${i}`, startFlagId: flags[i].id, endFlagId: flags[i + 1].id, cells: [`${i % 20}-${Math.floor(i / 20)}`, `${(i + 1) % 20}-${Math.floor((i + 1) / 20)}`], active: true, level: 1 });
     }
 
     state.buildings.find((building) => building.id === 'workshop-0').inputStorageSlots = ['stone', 'stone', 'stone', 'stone', 'stone'];
