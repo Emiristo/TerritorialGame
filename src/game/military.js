@@ -1,4 +1,5 @@
 import { BUILDING_TYPES } from './buildings.js';
+import { getBuildingInventory, removeInventoryFromBuilding } from './carriers.js';
 
 export const MILITARY_BUILDING_TYPE_IDS = Object.freeze(
   Object.values(BUILDING_TYPES)
@@ -12,6 +13,9 @@ export const GARRISON_CAPACITY = Object.freeze({
   watchtower: 6,
   fortress: 9,
 });
+
+export const SOLDIER_CREATION_COST = Object.freeze({ sword: 1, food: 1 });
+export const SOLDIER_RANK_UP_COST = Object.freeze({ coin: 1, rank: 1 });
 
 export function isMilitaryBuildingType(typeId) {
   return MILITARY_BUILDING_TYPE_IDS.includes(typeId);
@@ -67,6 +71,36 @@ export function createSoldier(state, id, ownerId, rank = 1) {
   if (military.soldiers.some((soldier) => soldier.id === id)) throw new Error(`Soldier already exists: ${id}`);
   const soldier = { id, ownerId, rank, status: 'available', garrisonBuildingId: null };
   military.soldiers.push(soldier);
+  return soldier;
+}
+
+function getStorageBuilding(state, buildingId) {
+  const building = (state?.buildings ?? []).find((item) => item.id === buildingId);
+  if (!building || !['headquarters', 'warehouse'].includes(building.typeId)) return null;
+  return building;
+}
+
+export function createSoldierFromStorage(state, id, ownerId, storageBuildingId) {
+  const storage = getStorageBuilding(state, storageBuildingId);
+  if (!storage || storage.ownerId !== ownerId) throw new Error('Invalid soldier creation storage');
+  if (getBuildingInventory(state, storage.id, SOLDIER_CREATION_COST.sword) < 1) throw new Error('Not enough swords');
+  if (getBuildingInventory(state, storage.id, SOLDIER_CREATION_COST.food) < 1) throw new Error('Not enough food');
+  removeInventoryFromBuilding(state, storage.id, SOLDIER_CREATION_COST.sword, 1);
+  removeInventoryFromBuilding(state, storage.id, SOLDIER_CREATION_COST.food, 1);
+  return createSoldier(state, id, ownerId, 1);
+}
+
+export function promoteSoldier(state, soldierId, militaryBuildingId) {
+  const soldier = getSoldier(state, soldierId);
+  if (!soldier) throw new Error(`Unknown soldier: ${soldierId}`);
+  const building = (state?.buildings ?? []).find((item) => item.id === militaryBuildingId);
+  if (!building || !isMilitaryBuilding(building)) throw new Error(`Unknown military building: ${militaryBuildingId}`);
+  if (!building.active) throw new Error('Military building is inactive');
+  if (soldier.ownerId !== building.ownerId) throw new Error('Soldier and building owners do not match');
+  if (soldier.garrisonBuildingId !== building.id) throw new Error('Soldier must be garrisoned in the military building');
+  if (getBuildingInventory(state, building.id, 'coin') < SOLDIER_RANK_UP_COST.coin) throw new Error('Not enough coins');
+  removeInventoryFromBuilding(state, building.id, 'coin', SOLDIER_RANK_UP_COST.coin);
+  soldier.rank += SOLDIER_RANK_UP_COST.rank;
   return soldier;
 }
 
