@@ -1,6 +1,7 @@
 import { isWithinInfluenceRadius } from './influence.js';
 import { rebuildLogisticsNetwork } from './logisticsNetwork.js';
 import { getRoadAtNode, removeRoadsForFlag, splitRoadAtNode } from './roads.js';
+import { BUILDING_TYPES } from './buildings.js';
 import { getWorldTileById } from './world/worldMap.js';
 
 function getMapGeometry(state) {
@@ -47,7 +48,7 @@ function getAdjacentTiles(state, x, y) {
 function isBuildingFootprintTile(state, tile) {
   if (!tile) return false;
   return (state.buildings ?? []).some((b) => {
-    const type = (state.buildingTypes ?? []).find((item) => item.id === b.typeId);
+    const type = BUILDING_TYPES[Object.keys(BUILDING_TYPES).find((key) => BUILDING_TYPES[key].id === b.typeId)];
     const s = String(b.tileId ?? '').indexOf('-');
     if (!type || s <= 0) return false;
     const ox = Number(b.tileId.slice(0, s));
