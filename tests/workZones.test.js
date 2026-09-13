@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
 import { BUILDING_TYPES, addBuilding } from '../src/game/buildings.js';
-import { advanceAllConstructions, deliverMaterialToConstructionFlag, startConstruction } from '../src/game/construction.js';
+import { advanceAllConstructions, deliverMaterialToConstructionFlag, startConstruction, assignConstructionWorker } from '../src/game/construction.js';
 import {
   createWorkZone, createWorkZoneForBuilding, getWorkZoneCells, getWorkZoneForBuilding, getWorkZoneRadius, getWorkZoneSpec,
   isTileInWorkZone, assignWorkerToBuilding, assignWorkerToWorkZone, removeWorkZoneForBuilding, syncWorkZones,
@@ -131,7 +131,9 @@ describe('work zones', () => {
     const state = createGameState();
     const building = place(state, 'lumberjack-1', 'lumberjack_hut');
     state.player.resources.planks = 2;
+    state.workers.push(createWorker('builder-1', 'player', 'builder'));
     state.workers.push(createWorker('worker-1', 'player', 'lumberjack'));
+    expect(assignConstructionWorker(state, building.id, 'builder-1')).toBe(true);
 
     startConstruction(state, building);
     expect(deliverMaterialToConstructionFlag(state, building, 'planks', 2)).toBe(2);
@@ -141,7 +143,7 @@ describe('work zones', () => {
     const zone = getWorkZoneForBuilding(state, building.id);
     expect(zone).toMatchObject({ buildingId: building.id, ownerId: 'player', radius: 5, mode: 'radius' });
     expect(assignWorkerToBuilding(state, 'worker-1', building.id, zone.id, '31-31')).toBe(true);
-    expect(state.workers[0]).toMatchObject({ buildingId: building.id, zoneId: zone.id, targetTileId: '31-31', state: 'working' });
+    expect(state.workers.find((worker) => worker.id === 'worker-1')).toMatchObject({ buildingId: building.id, zoneId: zone.id, targetTileId: '31-31', state: 'working' });
     expect(zone.workerIds).toEqual(['worker-1']);
     expect(building.workerIds).toEqual(['worker-1']);
   });
