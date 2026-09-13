@@ -25,7 +25,6 @@ describe('construction worker lifecycle', () => {
     startConstruction(state, building);
     building.constructionMaterialQueue.push('planks');
     building.constructionMaterialsDelivered.planks = 1;
-    building.flags;
     advanceConstruction(state, building, 0);
     expect(building.currentConstructionMaterial).toBe(null);
     expect(building.constructionState).toBe('WAITING_FOR_MATERIAL');
@@ -51,7 +50,13 @@ describe('construction worker lifecycle', () => {
 
   it('does not allow one builder to be assigned to two construction sites', () => {
     const { state, building, builder } = setup();
-    const second = addBuilding(state, 'construction-2', state.player.id, BUILDING_TYPES.STONECUTTER_HUT.id, '60-60');
+    const type = BUILDING_TYPES.STONECUTTER_HUT;
+    for (let dy = 0; dy < type.height; dy += 1) for (let dx = 0; dx < type.width; dx += 1) {
+      const tile = getWorldTile(state.worldMap, 60 + dx, 60 + dy);
+      tile.ownerId = state.player.id;
+      tile.terrain = 'plains';
+    }
+    const second = addBuilding(state, 'construction-2', state.player.id, type.id, '60-60');
     expect(assignConstructionWorker(state, building, builder)).toBe(true);
     expect(assignConstructionWorker(state, second, builder)).toBe(false);
     expect(second.constructionWorkerId).toBe(null);
@@ -69,8 +74,8 @@ describe('construction worker lifecycle', () => {
     const { state, building, builder } = setup();
     expect(assignConstructionWorker(state, building, builder)).toBe(true);
     startConstruction(state, building);
-    building.constructionMaterialsDelivered.planks = 1;
-    building.constructionMaterialsUsed.planks = 1;
+    building.constructionMaterialsDelivered.planks = 2;
+    building.constructionMaterialsUsed.planks = 2;
     building.constructionMaterialQueue = [];
     advanceConstruction(state, building, 0);
     expect(building.constructionComplete).toBe(true);
