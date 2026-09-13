@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { BUILDING_TYPES, addBuilding } from '../src/game/buildings.js';
 import { createGameState } from '../src/game/state.js';
 import { getWorldTile } from '../src/game/world/worldMap.js';
-import { BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, startConstruction, advanceConstruction } from '../src/game/construction.js';
+import { createWorker } from '../src/game/workers.js';
+import { assignConstructionWorker, BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, startConstruction, advanceConstruction } from '../src/game/construction.js';
 import { deliverConstructionMaterialViaLogistics } from './constructionLogisticsHelper.js';
 
 function makeBuilding(typeId = BUILDING_TYPES.WAREHOUSE.id, id = 'construction-1', tileId = '40-40') {
@@ -15,7 +16,10 @@ function makeBuilding(typeId = BUILDING_TYPES.WAREHOUSE.id, id = 'construction-1
     tile.terrain = 'plains';
   }
   const building = addBuilding(state, id, state.player.id, typeId, tileId);
-  return { state, building };
+  const builder = createWorker(`${id}-builder`, state.player.id, 'builder');
+  state.workers.push(builder);
+  expect(assignConstructionWorker(state, building, builder)).toBe(true);
+  return { state, building, builder };
 }
 function constructionFlag(state, building) {
   return state.flags.find((flag) => flag.buildingId === building.id);
