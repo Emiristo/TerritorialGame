@@ -3,6 +3,7 @@ export const RESOURCE_TYPES = {
   PLANKS: { id: 'planks', name: 'Доски', terrain: null, maxStock: null },
   STONE: { id: 'stone', name: 'Камень', terrain: 'plains', maxStock: 25 },
   ORE: { id: 'ore', name: 'Руда', terrain: 'mountains', maxStock: 25 },
+  FOOD: { id: 'food', name: 'Еда (хлеб, рыба, мясо, фрукты)', terrain: null, maxStock: null },
   FISH: { id: 'fish', name: 'Рыба', terrain: null, maxStock: null },
   MEAT: { id: 'meat', name: 'Мясо', terrain: null, maxStock: null },
   FRUIT: { id: 'fruit', name: 'Фрукты', terrain: null, maxStock: null },
