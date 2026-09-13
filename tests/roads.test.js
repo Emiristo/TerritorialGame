@@ -64,10 +64,10 @@ describe('road and flag lifecycle', () => {
     expect(carrier.roadId).toBeNull(); expect(carrier.cargo.resourceId).toBe('stone'); expect(request.inTransit).toBe(1); expect(request.state).toBe('blocked');
   });
   it('splitting a road keeps existing carriers on the original side and provisions a new carrier for the new segment', () => {
-    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 6, 1); addTestFlag(state, 'split', 3.5, 1);
+    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 6, 1); addTestFlag(state, 'split', 4, 1);
     const road = addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1', '5-1', '6-1']));
-    const existingCarrier = createCarrier('existing-road-carrier', 'player', road.id); addCarrier(state, existingCarrier);
-    const roads = splitRoadAtNode(state, road.id, 3.5, 1, { flagId: 'split' });
+    const existingCarrier = state.carriers.find((item) => item.role === 'road' && item.roadId === road.id);
+    const roads = splitRoadAtNode(state, road.id, 4, 1, { flagId: 'split' });
     expect(roads).toHaveLength(2); expect(existingCarrier.roadId).toBe(roads[0].id); expect(existingCarrier.roadId).not.toBe(roads[1].id);
     const newSegmentCarriers = state.carriers.filter((item) => item.role === 'road' && item.roadId === roads[1].id);
     expect(newSegmentCarriers).toHaveLength(1); expect(newSegmentCarriers[0]).not.toBe(existingCarrier);
