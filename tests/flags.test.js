@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
-import { addStandaloneFlag, canPlaceStandaloneFlag, createStandaloneFlag, getFlagAdjacentTiles, getFlagAtNode } from '../src/game/flags.js';
+import { addStandaloneFlag, canPlaceStandaloneFlag, createStandaloneFlag, getFlagAdjacentTiles, getFlagAtNode, removeFlag } from '../src/game/flags.js';
 import { addRoad, createRoad } from '../src/game/roads.js';
 
 describe('standalone flags', () => {
@@ -60,6 +60,27 @@ describe('standalone flags', () => {
     expect(s.roads).toHaveLength(2);
     expect(s.roads.some((r) => r.startFlagId === 'a' && r.endFlagId === 'mid' && r.cells.join('|') === '50-52|51-52|52-52')).toBe(true);
     expect(s.roads.some((r) => r.startFlagId === 'mid' && r.endFlagId === 'b' && r.cells.join('|') === '53-52|54-52|55-52')).toBe(true);
+    expect(s.flags.find((flag) => flag.id === 'a').roadIds).toHaveLength(1);
+    expect(s.flags.find((flag) => flag.id === 'mid').roadIds).toHaveLength(2);
+    expect(s.flags.find((flag) => flag.id === 'b').roadIds).toHaveLength(1);
+  });
+
+  it('keeps existing carriers on their original side when a road is split and provisions the new side separately', () => {
+    const s = createGameState();
+    addStandaloneFlag(s, 'a', 'player', 50, 53);
+    addStandaloneFlag(s, 'b', 'player', 55, 53);
+    addRoad(s, createRoad('road', 'a', 'b', ['50-52', '51-52', '52-52', '53-52', '54-52', '55-52']));
+    const before = s.carriers.filter((carrier) => carrier.role === 'road' && carrier.roadId === 'road').map((carrier) => carrier.id);
+    expect(before.length).toBe(1);
+
+    addStandaloneFlag(s, 'mid', 'player', 53, 53);
+
+    const first = s.roads.find((road) => road.startFlagId === 'a' && road.endFlagId === 'mid');
+    const second = s.roads.find((road) => road.startFlagId === 'mid' && road.endFlagId === 'b');
+    expect(first).toBeTruthy();
+    expect(second).toBeTruthy();
+    expect(s.carriers.find((carrier) => carrier.id === before[0]).roadId).toBe(first.id);
+    expect(s.carriers.filter((carrier) => carrier.role === 'road' && carrier.roadId === second.id)).toHaveLength(1);
   });
 
   it('keeps the original road unchanged when a split would violate the minimum length', () => {
@@ -70,5 +91,20 @@ describe('standalone flags', () => {
     const before = s.roads.map((r) => ({ ...r, cells: [...r.cells] }));
     expect(canPlaceStandaloneFlag(s, 51, 53)).toBe(false);
     expect(s.roads).toEqual(before);
+  });
+
+  it('removes all roads and releases their carriers when a flag is removed', () => {
+    const s = createGameState();
+    addStandaloneFlag(s, 'a', 'player', 50, 53);
+    addStandaloneFlag(s, 'b', 'player', 55, 53);
+    addRoad(s, createRoad('road', 'a', 'b', ['50-52', '51-52', '52-52', '53-52', '54-52', '55-52']));
+    expect(s.carriers.some((carrier) => carrier.roadId === 'road')).toBe(true);
+
+    removeFlag(s, 'a');
+
+    expect(s.roads).toHaveLength(0);
+    expect(s.flags.some((flag) => flag.id === 'a')).toBe(false);
+    expect(s.carriers.some((carrier) => carrier.roadId === 'road')).toBe(false);
+    expect(s.logisticsNetwork.adjacency.a).toBeUndefined();
   });
 });
