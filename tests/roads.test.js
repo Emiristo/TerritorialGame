@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createGameState } from '../src/game/state.js';
-import { createFlag, addFlag } from '../src/game/flags.js';
-import { addRoad, buildRoadToNearestFlag, createRoad, findNearestFlag, findShortestRoadPaths, isRoadPathValid, recordRoadCargo } from '../src/game/roads.js';
+import { createFlag, addFlag, removeFlag } from '../src/game/flags.js';
+import { addRoad, buildRoadToNearestFlag, createRoad, findNearestFlag, findShortestRoadPaths, isRoadPathValid, recordRoadCargo, removeRoad, splitRoadAtNode } from '../src/game/roads.js';
+import { addCarrier, createCarrier, createTransportRequest } from '../src/game/carriers.js';
 
 function addTestFlag(state, id, x, y) { addFlag(state, createFlag(id, null, 'player', x, y)); }
 
@@ -41,4 +42,35 @@ describe('automatic road construction', () => {
     expect(findShortestRoadPaths(state, hqFlag.id, 'flag-e')).toEqual([]);
   });
   it('returns null when the selected flag has no other flag to connect to', () => { const state = createGameState(); const hqFlag = state.flags[0]; state.flags = [hqFlag]; expect(buildRoadToNearestFlag(state, hqFlag.id, 'road-auto-1')).toBeNull(); });
+});
+
+describe('road and flag lifecycle', () => {
+  it('removing a flag removes connected roads and returns empty road carriers to the pool', () => {
+    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
+    const carrier = state.carriers.find((item) => item.roadId === 'road-a-b'); removeFlag(state, 'a');
+    expect(state.worldMap.roads).toHaveLength(0); expect(carrier.roadId).toBeNull(); expect(carrier.cargo).toBeNull();
+  });
+  it('removing a road invalidates its route without deleting the transport request', () => {
+    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
+    const request = createTransportRequest('request-1', 'player', 'stone', 1, 'a', 'b'); request.routeFlagIds = ['a', 'b']; request.routeRoadIds = ['road-a-b']; state.transportRequests.push(request);
+    removeRoad(state, 'road-a-b');
+    expect(state.transportRequests).toContain(request); expect(request.state).toBe('blocked'); expect(request.routeRoadIds).toEqual([]); expect(state.worldMap.roads).toHaveLength(0);
+  });
+  it('removing a road preserves cargo already carried by a carrier', () => {
+    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
+    const carrier = state.carriers.find((item) => item.roadId === 'road-a-b'); carrier.cargo = { requestId: 'request-1', resourceId: 'stone', amount: 1, fromFlagId: 'a', toFlagId: 'b', roadId: 'road-a-b', segmentIndex: 0 }; carrier.state = 'carrying';
+    const request = createTransportRequest('request-1', 'player', 'stone', 1, 'a', 'b'); request.inTransit = 1; request.routeFlagIds = ['a', 'b']; request.routeRoadIds = ['road-a-b']; request.state = 'inTransit'; state.transportRequests.push(request);
+    removeRoad(state, 'road-a-b');
+    expect(carrier.roadId).toBeNull(); expect(carrier.cargo.resourceId).toBe('stone'); expect(request.inTransit).toBe(1); expect(request.state).toBe('blocked');
+  });
+  it('splitting a road keeps existing carriers on the original side and provisions a new carrier for the new segment', () => {
+    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 6, 1); addTestFlag(state, 'split', 3.5, 1); addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1', '5-1', '6-1']));
+    const existingCarrier = state.carriers.find((item) => item.roadId === 'road-a-b'); const roads = splitRoadAtNode(state, 'road-a-b', 3.5, 1, { flagId: 'split' });
+    expect(roads).toHaveLength(2); expect(existingCarrier.roadId).toBe(roads[0].id); expect(existingCarrier.roadId).not.toBe(roads[1].id); expect(state.carriers.filter((item) => item.role === 'road' && item.roadId === roads[1].id)).toHaveLength(1);
+  });
+  it('uses an idle road carrier from the pool before creating another carrier for a new road', () => {
+    const state = createGameState(); addTestFlag(state, 'a', 1, 1); addTestFlag(state, 'b', 4, 1); const pooled = createCarrier('pooled-carrier', 'player'); addCarrier(state, pooled);
+    addRoad(state, createRoad('road-a-b', 'a', 'b', ['1-1', '2-1', '3-1', '4-1']));
+    expect(pooled.roadId).toBe('road-a-b');
+  });
 });
