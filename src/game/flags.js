@@ -22,7 +22,7 @@ export function createFlag(id, buildingId = null, ownerId, x, y) {
     || (Number.isInteger(x) === false && Number.isInteger(y) === false)) {
     throw new Error('Flag coordinates must be a valid inter-cell node');
   }
-  return { id, buildingId, ownerId, x, y, roadIds: [], connected: false };
+  return { id, buildingId, ownerId, x, y, roadIds: [], connected: false, cargo: {} };
 }
 export function createStandaloneFlag(id, ownerId, x, y) { return createFlag(id, null, ownerId, x, y); }
 export function getFlagAtNode(state, x, y) { return (state.flags ?? []).find((f) => f.x === x && f.y === y) ?? null; }
@@ -85,6 +85,7 @@ export function addFlag(state, flag) {
   state.flags ??= [];
   if (state.flags.some((i) => i.id === flag.id)) throw new Error(`Flag already exists: ${flag.id}`);
   if (getFlagAtNode(state, flag.x, flag.y)) throw new Error('Flag node is already occupied');
+  flag.cargo ??= {};
   state.flags.push(flag); return flag;
 }
 export function addStandaloneFlag(state, id, ownerId, x, y) {
