@@ -26,6 +26,23 @@ export function getMilitaryBuildingSpec(typeId) {
   ) ?? null;
 }
 
+export function getMilitaryTerritorySources(state) {
+  return getMilitaryBuildings(state)
+    .filter((building) => building.active && building.ownerId !== null && building.tileId)
+    .map((building) => {
+      const spec = getMilitaryBuildingSpec(building.typeId);
+      return {
+        id: `military:${building.id}`,
+        ownerId: building.ownerId,
+        tileId: building.tileId,
+        influence: spec?.influenceMultiplier ?? 1,
+        radius: spec?.influenceRadius ?? 0,
+        active: true,
+        sourceType: 'military-building',
+      };
+    });
+}
+
 export function createMilitaryState() {
   return {
     soldiers: [],
