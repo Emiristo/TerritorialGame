@@ -7,7 +7,7 @@ export const BUILDING_INPUT_STORAGE_CAPACITY = 4;
 export const BUILDING_OUTPUT_STORAGE_CAPACITY = 1;
 
 function getFlag(state, flagId) { return (state.flags ?? []).find((flag) => flag.id === flagId) ?? null; }
-function getRoad(state, roadId) { return (state.roads ?? []).find((road) => road.id === roadId && road.active) ?? null; }
+function getRoad(state, roadId) { return (state.worldMap?.roads ?? state.roads ?? []).find((road) => road.id === roadId && road.active) ?? null; }
 function getCarrier(state, carrierId) { return (state.carriers ?? []).find((carrier) => carrier.id === carrierId) ?? null; }
 function getBuilding(state, buildingId) { return (state.buildings ?? []).find((building) => building.id === buildingId) ?? null; }
 function getBuildingType(state, building) { return (state.buildingTypes ?? []).find((type) => type.id === building?.typeId) ?? null; }
