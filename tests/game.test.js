@@ -3,9 +3,9 @@ import { createGameState, MAP_WIDTH, MAP_HEIGHT, STARTER_FOREST_AREA, STARTER_ST
 import { BUILDING_TYPES, addBuilding, canBuildOnTile, getFootprintTiles, getReservedTiles, isReservedForBuilding } from '../src/game/buildings.js';
 import { getWorldTile } from '../src/game/world/worldMap.js';
 import { createGameClock, startGameClock, tickGameClock } from '../src/game/clock.js';
-import { BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, startConstruction, advanceConstruction } from '../src/game/construction.js';
-import { isWithinInfluenceRadius } from '../src/game/influence.js';
+import { BUILD_TIME_PER_PLANK, BUILD_TIME_PER_STONE, CONSTRUCTION_STATES, assignConstructionWorker, startConstruction, advanceConstruction } from '../src/game/construction.js';
 import { WORKER_TYPES, createWorker, createWorkZone, assignWorkerToBuilding, workWorker } from '../src/game/workers.js';
+import { isWithinInfluenceRadius } from '../src/game/influence.js';
 import { createTerritorySource, addTerritorySource, getOwnedTiles } from '../src/game/territory.js';
 import { deliverConstructionMaterialViaLogistics } from './constructionLogisticsHelper.js';
 
@@ -17,7 +17,11 @@ function place(state, id, typeId, tileId = '40-40') {
     tile.ownerId = state.player.id;
     tile.terrain = 'plains';
   }
-  return addBuilding(state, id, state.player.id, typeId, tileId);
+  const building = addBuilding(state, id, state.player.id, typeId, tileId);
+  const builder = createWorker(`${id}-builder`, state.player.id, WORKER_TYPES.BUILDER.id);
+  state.workers.push(builder);
+  expect(assignConstructionWorker(state, building, builder)).toBe(true);
+  return building;
 }
 function deliverUnits(state, building, resourceId, amount) {
   let delivered = 0;
