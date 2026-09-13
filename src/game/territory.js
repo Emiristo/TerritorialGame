@@ -1,5 +1,6 @@
 import { addInfluence, getInfluenceWinner } from './influence.js';
 import { getWorldTileById } from './world/worldMap.js';
+import { getMilitaryTerritorySources } from './military.js';
 
 function getTiles(state) {
   return state.worldMap?.tiles ?? [];
@@ -23,7 +24,13 @@ export function recalculateTerritories(state) {
   const geometry = getGeometry(state);
   if (!geometry) return state;
   for (const tile of tiles) tile.influence = {};
-  for (const source of state.territorySources ?? []) {
+
+  const sources = [
+    ...(state.territorySources ?? []),
+    ...getMilitaryTerritorySources(state),
+  ];
+
+  for (const source of sources) {
     if (!source.active) continue;
     const center = getTileById(state, source.tileId);
     if (!center) continue;
