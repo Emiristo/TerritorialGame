@@ -42,7 +42,7 @@ export function createGameState(now = Date.now(), mapWidth = MAP_WIDTH, mapHeigh
     selectedTileId: null, clock: createGameClock(now),
     player: { id: 'player', name: 'Игрок', resources: createPlayerResources() },
     rules: { workZoneRadius: 5, resourceUnitPerExtraction: 1 },
-    buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: [], logisticsNetwork: { adjacency: {} }, workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], worldMap,
+    buildingTypes: Object.values(BUILDING_TYPES), territorySources: [], buildings: [], flags: [], roads: worldMap.roads, logisticsNetwork: { adjacency: {} }, workZones: [], workers: [], workerRequests: [], carriers: [], transportRequests: [], worldMap,
   };
   const headquartersFootprint = getFootprintTiles(state, BUILDING_TYPES.HEADQUARTERS.id, `${CAPITAL_X}-${CAPITAL_Y}`);
   headquartersFootprint.forEach((tile) => { tile.ownerId = 'player'; });
