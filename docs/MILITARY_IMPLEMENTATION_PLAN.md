@@ -1,28 +1,26 @@
 # Military Implementation Plan
 
 ## Status
-**[DESIGNED]** — architecture and implementation plan approved for development. Code implementation is not included in this document.
+**[IMPLEMENTED]** — M1 and M2 are implemented. M3–M9 remain planned.
 
 ## Reference
 Military mechanics are based on the selected reference repository **Return-To-The-Roots/s25client**, but are adapted to the existing TerritorialGame architecture. Reference mechanics are not copied wholesale.
 
 ## M1 — Military Core
-Build the military subsystem on top of the existing architecture:
-
-`ECONOMY → PRODUCTION → EQUIPMENT → SUPPLY → LOGISTICS → TERRITORY → MILITARY`
-
-Military buildings, soldiers, ranks, equipment, garrisons and orders must remain separate domain entities and must not become part of a single God Object.
+Implemented military subsystem as a separate domain module. Military buildings are identified from `BUILDING_TYPES`; military state contains soldiers and orders. No separate God Object was introduced.
 
 ## M2 — Territory Integration
-Military must integrate directly with the existing `worldMap` and must not introduce a second, incompatible territory/grid model.
+Implemented direct integration with the existing `worldMap` and territory system.
 
-Requirements:
-- use the existing worldMap geometry and coordinates;
-- use the existing 8-direction adjacency model;
-- military influence must operate on the same map cells/territorial representation already used by the game;
-- military buildings must affect territory through the existing territory system rather than maintaining an independent military map;
-- influence/radius calculations must respect existing map boundaries and geometry;
-- no duplicate territory ownership state may be introduced inside Military.
+Requirements and current implementation:
+- use the existing worldMap geometry and coordinates — **implemented**;
+- use the existing 8-direction adjacency model — **preserved**;
+- military influence operates on the same map cells/territorial representation already used by the game — **implemented**;
+- military buildings affect territory through the existing territory recalculation system — **implemented**;
+- influence/radius calculations respect existing map boundaries and geometry — **implemented through worldMap.geometry**;
+- no duplicate territory ownership state is introduced inside Military — **implemented**.
+
+Military buildings expose territory sources derived from their existing building specifications. These sources are consumed by `territory.js`; Military does not maintain a second territory map.
 
 **Principle:** Military extends the existing worldMap/territory mechanics; it does not replace them.
 
@@ -89,8 +87,8 @@ Minimum verification areas:
 - regression against existing economy, workers, construction, logistics, roads, storage and territory mechanics.
 
 ## Implementation Order
-1. **M1 — Military Core**
-2. **M2 — Territory / worldMap Integration**
+1. ~~**M1 — Military Core**~~
+2. ~~**M2 — Territory / worldMap Integration**~~
 3. **M3 — Army / Garrisons**
 4. **M4 — Soldier Creation + Ranks**
 5. **M5 — Equipment**
